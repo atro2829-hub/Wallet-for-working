@@ -13,7 +13,7 @@ model User {
   email         String   @unique
   password      String   @default("")
   phone         String   @default("")
-  userId        String   @unique              // 10XXXX format, used for transactions
+  userId        String   @unique              // 4-digit format, used for transactions
   name          String   @default("")
   avatar        String   @default("")
   role          String   @default("user")      // user | admin

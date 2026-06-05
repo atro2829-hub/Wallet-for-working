@@ -169,7 +169,7 @@ export default function TransferModal() {
       // ---- Find recipient in Firebase ----
       let recipientUid = '';
       const fullPhone = `+967${toPhone}`;
-      const fullUserId = `10${toUserId}`;
+      const fullUserId = toUserId;
 
       if (transferMode === 'userId') {
         const userIdIndexRef = ref(database, `userIds/${fullUserId}`);
@@ -488,7 +488,7 @@ export default function TransferModal() {
                       dir="ltr"
                     >
                       {transferMode === 'userId'
-                        ? `10${toUserId}`
+                        ? toUserId
                         : `+967${toPhone}`}
                     </p>
                   </div>
@@ -737,19 +737,9 @@ export default function TransferModal() {
                       }}
                     >
                       <Hash size={18} strokeWidth={1.5} color="#E60000" />
-                      <span
-                        className="text-sm font-bold shrink-0"
-                        style={{ color: '#E60000' }}
-                      >
-                        10
-                      </span>
-                      <div
-                        className="w-px h-5 shrink-0"
-                        style={{ background: isDark ? '#444' : '#DDD' }}
-                      />
                       <input
                         type="tel"
-                        placeholder="XXXX"
+                        placeholder="رقم الحساب (4 أرقام)"
                         value={toUserId}
                         onChange={(e) => handleUserIdChange(e.target.value)}
                         className="flex-1 bg-transparent outline-none text-sm"

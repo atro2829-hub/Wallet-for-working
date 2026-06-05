@@ -539,7 +539,7 @@ export default function HomeScreen() {
                         <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.35)' }} />
                       ))}
                       <span className="text-white/35 text-[10px] font-mono mr-1">
-                        {user?.userId?.slice(-4) || '----'}
+                        {user?.userId || '----'}
                       </span>
                     </div>
                   </div>

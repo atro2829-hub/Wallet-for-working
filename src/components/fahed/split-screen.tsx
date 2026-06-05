@@ -332,7 +332,7 @@ export default function SplitScreen() {
                 value={newParticipantInput}
                 onChange={(e) => {
                   const val = e.target.value.replace(/\D/g, '');
-                  setNewParticipantInput(inputMode === 'userId' ? val.slice(0, 6) : val.slice(0, 9));
+                  setNewParticipantInput(inputMode === 'userId' ? val.slice(0, 4) : val.slice(0, 9));
                 }}
                 className="flex-1 bg-transparent outline-none text-sm"
                 style={{ color: isDark ? '#FFF' : '#1a1a1a' }}

@@ -11,10 +11,9 @@ export function formatBalance(amount: number, currency: string): string {
   return formatted;
 }
 
-// Generate userId starting with "10" + 4 random digits
+// Generate userId with 4 random digits
 export function generateUserId(): string {
-  const random4 = Math.floor(1000 + Math.random() * 9000).toString();
-  return '10' + random4;
+  return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
 // Generate transaction reference

@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'البريد الإلكتروني مسجل مسبقاً' }, { status: 409 });
     }
 
-    // Generate unique userId (10XXXX format)
+    // Generate unique userId (4-digit format)
     let userId = providedUserId || generateUserId();
     let attempts = 0;
     while (attempts < 10) {

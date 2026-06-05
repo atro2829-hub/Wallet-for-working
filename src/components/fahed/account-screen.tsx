@@ -169,7 +169,7 @@ export default function AccountScreen() {
               <div className="flex items-center gap-2 mt-0.5">
                 <CreditCard size={12} strokeWidth={1.5} color="#E60000" />
                 <span className="text-sm font-medium" style={{ color: '#E60000' }} dir="ltr">
-                  {user?.userId || '------'}
+                  {user?.userId || '----'}
                 </span>
               </div>
             </div>
