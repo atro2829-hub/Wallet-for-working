@@ -38,6 +38,7 @@ import {
 import { useAppStore } from '@/lib/store';
 import { formatBalance, formatNumber, currencySymbols, currencyNames, currencyBadgeColors, timeAgo, transactionTypeLabels, transactionTypeColors } from '@/lib/utils';
 import { LOGO_BASE64 } from '@/lib/logo';
+import { serviceIcons } from '@/lib/service-icons';
 
 interface BalanceCard {
   currency: 'YER' | 'SAR' | 'USD';
@@ -58,17 +59,17 @@ const balanceCards: BalanceCard[] = [
   { currency: 'USD', accentColor: '#0D47A1', accentColorEnd: '#1565C0', glowColor: 'rgba(13,71,161,0.35)', patternColor: 'rgba(255,255,255,0.06)' },
 ];
 
-// Jaib-style services - 9 items matching exactly what Jaib shows
+// Services with custom SVG icons
 const homeServices = [
-  { id: 'instant-pay', label: 'المدفوعات الفورية', icon: Zap, color: '#E60000', bgColor: 'rgba(230,0,0,0.08)' },
-  { id: 'transfer', label: 'تحويل الأموال', icon: Send, color: '#E60000', bgColor: 'rgba(230,0,0,0.08)' },
-  { id: 'wallet-transfer', label: 'تحويل لمحفظة', icon: ArrowRightLeft, color: '#2563EB', bgColor: 'rgba(37,99,235,0.08)' },
-  { id: 'recharge', label: 'شحن رصيد', icon: Phone, color: '#E60000', bgColor: 'rgba(230,0,0,0.08)' },
-  { id: 'app-store', label: 'متجر التطبيقات', icon: ShoppingBag, color: '#2563EB', bgColor: 'rgba(37,99,235,0.08)' },
-  { id: 'instant-charge', label: 'شحن فوري', icon: Smartphone, color: '#2563EB', bgColor: 'rgba(37,99,235,0.08)' },
-  { id: 'health', label: 'صحة', icon: Shield, color: '#2563EB', bgColor: 'rgba(37,99,235,0.08)' },
-  { id: 'games', label: 'ألعاب أونلاين', icon: Gamepad2, color: '#E60000', bgColor: 'rgba(230,0,0,0.08)' },
-  { id: 'digital-wallet', label: 'المحفظة الرقمية', icon: Wallet, color: '#2563EB', bgColor: 'rgba(37,99,235,0.08)' },
+  { id: 'instant-pay', label: 'المدفوعات الفورية', iconKey: 'instant-pay' },
+  { id: 'transfer', label: 'تحويل الأموال', iconKey: 'transfer' },
+  { id: 'wallet-transfer', label: 'تحويل لمحفظة', iconKey: 'wallet-transfer' },
+  { id: 'recharge', label: 'شحن رصيد', iconKey: 'recharge' },
+  { id: 'app-store', label: 'متجر التطبيقات', iconKey: 'app-store' },
+  { id: 'instant-charge', label: 'شحن فوري', iconKey: 'instant-charge' },
+  { id: 'health', label: 'صحة', iconKey: 'health' },
+  { id: 'games', label: 'ألعاب أونلاين', iconKey: 'games' },
+  { id: 'digital-wallet', label: 'المحفظة الرقمية', iconKey: 'digital-wallet' },
 ];
 
 const promoItems = [
@@ -669,7 +670,7 @@ export default function HomeScreen() {
 
         <div className="grid grid-cols-3 gap-3">
           {homeServices.map((service, index) => {
-            const Icon = service.icon;
+            const iconSrc = serviceIcons[service.iconKey];
             return (
               <motion.button
                 key={service.id}
@@ -685,8 +686,8 @@ export default function HomeScreen() {
                   boxShadow: isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)',
                 }}
               >
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: service.bgColor }}>
-                  <Icon size={22} strokeWidth={1.5} color={service.color} />
+                <div className="w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center" style={{ background: 'transparent' }}>
+                  <img src={iconSrc} alt={service.label} className="w-full h-full object-contain" />
                 </div>
                 <span
                   className="text-[11px] font-medium text-center leading-tight max-w-[85px]"

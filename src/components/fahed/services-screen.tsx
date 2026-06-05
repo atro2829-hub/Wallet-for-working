@@ -4,65 +4,50 @@ import { useState } from 'react';
 import { useTheme } from 'next-themes';
 import { motion } from 'framer-motion';
 import {
-  Receipt,
-  ArrowRightLeft,
-  Globe,
-  Printer,
-  Building2,
-  Wallet,
   ChevronRight,
-  Phone,
-  Gamepad2,
-  ShoppingBag,
-  Shield,
-  Zap,
-  CreditCard,
-  Smartphone,
-  ArrowLeft,
-  Heart,
   Search,
-  Wifi,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { serviceIcons } from '@/lib/service-icons';
 
-// Jaib-style menu items - exact matching
+// Menu items with custom SVG icon keys
 const menuSections = [
   {
     title: 'إجراءات الدفع',
     items: [
-      { id: 'pay-bill', label: 'دفع فاتورة', icon: Receipt, color: '#E60000' },
-      { id: 'transfer-local', label: 'تحويل الأموال (داخل اليمن)', icon: ArrowRightLeft, color: '#E60000' },
-      { id: 'transfer-intl', label: 'تحويل الأموال خارج اليمن', icon: Globe, color: '#2563EB' },
-      { id: 'print-receipt', label: 'طباعة إيصال دفع', icon: Printer, color: '#666' },
-      { id: 'pay-bills', label: 'دفع فواتير', icon: Building2, color: '#2563EB' },
-      { id: 'transfer-account', label: 'التحويل إلى الحساب', icon: Wallet, color: '#E60000' },
+      { id: 'pay-bill', label: 'دفع فاتورة', iconKey: 'pay-bill' },
+      { id: 'transfer-local', label: 'تحويل الأموال (داخل اليمن)', iconKey: 'transfer' },
+      { id: 'transfer-intl', label: 'تحويل الأموال خارج اليمن', iconKey: 'transfer-intl' },
+      { id: 'print-receipt', label: 'طباعة إيصال دفع', iconKey: 'print-receipt' },
+      { id: 'pay-bills', label: 'دفع فواتير', iconKey: 'pay-bills' },
+      { id: 'transfer-account', label: 'التحويل إلى الحساب', iconKey: 'transfer-account' },
     ],
   },
   {
     title: 'شركات الشحن',
     items: [
-      { id: 'yemen-mobile', label: 'يمن موبايل', icon: Phone, color: '#E60000' },
-      { id: 'yo', label: 'يو', icon: Phone, color: '#FF6B00' },
-      { id: 'sabafon', label: 'سبأفون', icon: Phone, color: '#2563EB' },
-      { id: 'y', label: 'واي', icon: Phone, color: '#059669' },
-      { id: 'yemen-net', label: 'يمن نت', icon: Wifi, color: '#8B5CF6' },
+      { id: 'yemen-mobile', label: 'يمن موبايل', iconKey: 'yemen-mobile' },
+      { id: 'yo', label: 'يو', iconKey: 'yo' },
+      { id: 'sabafon', label: 'سبأفون', iconKey: 'sabafon' },
+      { id: 'y', label: 'واي', iconKey: 'y' },
+      { id: 'yemen-net', label: 'يمن نت', iconKey: 'yemen-net' },
     ],
   },
   {
     title: 'الألعاب والترفيه',
     items: [
-      { id: 'pubg', label: 'ببجي موبايل', icon: Gamepad2, color: '#F59E0B' },
-      { id: 'freefire', label: 'فري فاير', icon: Gamepad2, color: '#EC4899' },
-      { id: 'gift-cards', label: 'بطاقات هدايا', icon: ShoppingBag, color: '#14B8A6' },
+      { id: 'pubg', label: 'ببجي موبايل', iconKey: 'pubg' },
+      { id: 'freefire', label: 'فري فاير', iconKey: 'freefire' },
+      { id: 'gift-cards', label: 'بطاقات هدايا', iconKey: 'gift-cards' },
     ],
   },
   {
     title: 'خدمات أخرى',
     items: [
-      { id: 'recharge', label: 'شحن رصيد', icon: Smartphone, color: '#8B5CF6' },
-      { id: 'instant-pay', label: 'مدفوعات فورية', icon: Zap, color: '#E60000' },
-      { id: 'health', label: 'صحة', icon: Shield, color: '#2563EB' },
-      { id: 'digital-wallet', label: 'المحفظة الرقمية', icon: CreditCard, color: '#2563EB' },
+      { id: 'recharge', label: 'شحن رصيد', iconKey: 'recharge' },
+      { id: 'instant-pay', label: 'مدفوعات فورية', iconKey: 'instant-pay' },
+      { id: 'health', label: 'صحة', iconKey: 'health' },
+      { id: 'digital-wallet', label: 'المحفظة الرقمية', iconKey: 'digital-wallet' },
     ],
   },
 ];
@@ -155,7 +140,7 @@ export default function ServicesScreen() {
             }}
           >
             {section.items.map((item, index) => {
-              const Icon = item.icon;
+              const iconSrc = serviceIcons[item.iconKey];
               return (
                 <button
                   key={item.id}
@@ -168,10 +153,10 @@ export default function ServicesScreen() {
                   }}
                 >
                   <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: `${item.color}12` }}
+                    className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0"
+                    style={{ background: 'transparent' }}
                   >
-                    <Icon size={20} strokeWidth={1.5} color={item.color} />
+                    <img src={iconSrc} alt={item.label} className="w-full h-full object-contain" />
                   </div>
                   <span className="flex-1 text-right text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
                     {item.label}

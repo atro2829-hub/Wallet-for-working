@@ -24,6 +24,7 @@ import { currencySymbols, currencyBadgeColors, generateReference } from '@/lib/u
 import { ref, set, update } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useToast } from '@/components/fahed/toast-provider';
+import { serviceIcons } from '@/lib/service-icons';
 
 const telecomCompanies = [
   { id: 'yemen-mobile', name: 'يمن موبايل', nameEn: 'Yemen Mobile', color: '#E60000', letter: 'YM', inputLabel: 'رقم الهاتف', inputType: 'phone' as const, inputPrefix: '+967' },
@@ -350,10 +351,10 @@ export default function RechargeScreen() {
                 }}
               >
                 <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: company.color }}
+                  className="w-11 h-11 rounded-xl overflow-hidden flex items-center justify-center shrink-0"
+                  style={{ background: 'transparent' }}
                 >
-                  <span className="text-xs font-bold text-white">{company.letter}</span>
+                  <img src={serviceIcons[company.id]} alt={company.name} className="w-full h-full object-contain" />
                 </div>
                 <div className="text-center">
                   <p className="text-xs font-bold leading-tight" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
