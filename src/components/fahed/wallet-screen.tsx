@@ -384,30 +384,36 @@ export default function WalletScreen() {
                   <path d="M0,30 C50,10 100,40 150,25 C200,10 250,35 300,20 L300,40 L0,40 Z" fill="rgba(255,255,255,0.03)" />
                 </svg>
 
-                {/* Card Content */}
+                {/* Card Content - Jaib Style */}
                 <div className="relative z-10 h-full flex flex-col justify-between p-5">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-6 rounded flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
-                        <span className="text-white text-[8px] font-bold">الجنوب</span>
+                    {/* Logo + Brand Name */}
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center shrink-0"
+                        style={{
+                          background: 'rgba(255,255,255,0.18)',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                        }}
+                      >
+                        <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" />
                       </div>
-                      <span className="text-white/60 text-[11px] font-medium">محفظة الجنوب</span>
+                      <div className="flex flex-col leading-none">
+                        <span className="text-white text-sm font-bold tracking-wide">الجنوب</span>
+                        <span className="text-white/40 text-[9px] font-medium mt-0.5" dir="ltr">Alganob</span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Wifi size={14} strokeWidth={1.5} color="rgba(255,255,255,0.35)" />
+                      <Wifi size={12} strokeWidth={1.5} color="rgba(255,255,255,0.25)" />
                       <button onClick={(e) => { e.stopPropagation(); toggleBalance(); }}>
-                        {balanceVisible ? <Eye size={14} strokeWidth={1.5} color="rgba(255,255,255,0.35)" /> : <EyeOff size={14} strokeWidth={1.5} color="rgba(255,255,255,0.35)" />}
+                        {balanceVisible ? <Eye size={14} strokeWidth={1.5} color="rgba(255,255,255,0.4)" /> : <EyeOff size={14} strokeWidth={1.5} color="rgba(255,255,255,0.4)" />}
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-7 rounded-md" style={{ background: 'linear-gradient(135deg, rgba(255,215,0,0.4) 0%, rgba(255,215,0,0.2) 100%)', border: '1px solid rgba(255,215,0,0.2)' }} />
-                    <span className="text-[10px] px-2 py-0.5 rounded font-bold text-white" style={{ background: currencyBadgeColors[card.currency] }}>{card.currency}</span>
-                    <span className="text-white/40 text-[10px]">{currencyNames[card.currency]}</span>
-                  </div>
-
+                  {/* Balance + Income/Expense */}
                   <div>
+                    <p className="text-white/45 text-[11px] mb-1">رصيدك الآن</p>
                     <AnimatedBalance amount={getBalance(card.currency)} currency={card.currency} visible={balanceVisible} />
                     <div className="flex gap-4 mt-3">
                       <div className="flex items-center gap-1.5">
@@ -428,6 +434,22 @@ export default function WalletScreen() {
                           <p className="text-white text-xs font-bold">{balanceVisible ? expense.toLocaleString('ar-SA') : '****'}</p>
                         </div>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom - Chip + Currency + Dots */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-9 h-6 rounded-md" style={{ background: 'linear-gradient(135deg, rgba(255,215,0,0.35) 0%, rgba(255,215,0,0.15) 100%)', border: '1px solid rgba(255,215,0,0.15)' }} />
+                      <span className="text-[10px] px-2 py-0.5 rounded font-bold text-white" style={{ background: currencyBadgeColors[card.currency] }}>{card.currency}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5" dir="ltr">
+                      {[0,1,2,3,4].map((i) => (
+                        <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.35)' }} />
+                      ))}
+                      <span className="text-white/35 text-[10px] font-mono mr-1">
+                        {user?.userId?.slice(-4) || '----'}
+                      </span>
                     </div>
                   </div>
                 </div>
