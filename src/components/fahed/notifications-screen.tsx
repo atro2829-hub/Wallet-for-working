@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -11,14 +11,21 @@ import {
   Shield,
   Tag,
   CheckCheck,
+  Trash2,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useToast } from '@/components/fahed/toast-provider';
+import { ref, onValue, off } from 'firebase/database';
+import { database } from '@/lib/firebase';
+
+type NotifType = 'info' | 'transaction' | 'security' | 'promo';
+type FilterTab = 'all' | 'transaction' | 'security' | 'promo';
 
 interface NotificationItem {
   id: string;
   title: string;
   body: string;
-  type: 'info' | 'transaction' | 'security' | 'promo';
+  type: NotifType;
   isRead: boolean;
   createdAt: string;
 }
@@ -37,6 +44,13 @@ const notifColors: Record<string, string> = {
   promo: '#F59E0B',
 };
 
+const filterTabs: { key: FilterTab; label: string }[] = [
+  { key: 'all', label: 'الكل' },
+  { key: 'transaction', label: 'معاملات' },
+  { key: 'security', label: 'أمني' },
+  { key: 'promo', label: 'ترويجي' },
+];
+
 function timeAgo(dateStr: string): string {
   const now = new Date();
   const date = new Date(dateStr);
@@ -53,9 +67,12 @@ export default function NotificationsScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { user, notifications, setNotifications, markNotificationRead, setActiveScreen } = useAppStore();
+  const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
     try {
@@ -67,7 +84,7 @@ export default function NotificationsScreen() {
             id: n.id,
             title: n.title,
             body: n.body,
-            type: n.type as 'info' | 'transaction' | 'security' | 'promo',
+            type: n.type as NotifType,
             isRead: n.isRead,
             createdAt: n.createdAt,
           }))
@@ -77,11 +94,36 @@ export default function NotificationsScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, setNotifications]);
 
   useEffect(() => {
     fetchNotifications();
-  }, [user]);
+  }, [fetchNotifications]);
+
+  // Real-time Firebase listener
+  useEffect(() => {
+    if (!user) return;
+    const notifRef = ref(database, `notifications/${user.id}`);
+    const unsubscribe = onValue(notifRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const firebaseNotifs = Object.values(data) as NotificationItem[];
+        // Check for new notifications
+        const existingIds = new Set(notifications.map(n => n.id));
+        const newNotifs = firebaseNotifs.filter(n => !existingIds.has(n.id));
+        if (newNotifs.length > 0) {
+          newNotifs.forEach(n => {
+            showToast('info', n.title, n.body);
+          });
+          setNotifications(firebaseNotifs.sort((a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          ));
+        }
+      }
+    });
+
+    return () => off(notifRef);
+  }, [user, showToast, setNotifications]);
 
   const handleMarkAllRead = async () => {
     if (!user) return;
@@ -109,11 +151,26 @@ export default function NotificationsScreen() {
     } catch {}
   };
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const handleDismiss = (id: string) => {
+    setDismissedIds((prev) => new Set([...prev, id]));
+  };
+
+  const handleClearAll = () => {
+    notifications.forEach((n) => handleDismiss(n.id));
+    showToast('success', 'تم المسح', 'تم حذف جميع الإشعارات');
+  };
+
+  const filteredNotifications = notifications.filter((n) => {
+    if (dismissedIds.has(n.id)) return false;
+    if (activeFilter === 'all') return true;
+    return n.type === activeFilter;
+  });
+
+  const unreadCount = notifications.filter((n) => !n.isRead && !dismissedIds.has(n.id)).length;
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen flex flex-col"
       style={{ background: isDark ? '#0F0F0F' : '#F5F5F5' }}
     >
       {/* Header */}
@@ -133,26 +190,77 @@ export default function NotificationsScreen() {
             >
               الإشعارات
             </h1>
+            {unreadCount > 0 && (
+              <span
+                className="text-[10px] font-bold text-white px-2 py-0.5 rounded-full"
+                style={{ background: '#E60000' }}
+              >
+                {unreadCount}
+              </span>
+            )}
           </div>
-          {unreadCount > 0 && (
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllRead}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-medium"
+                style={{
+                  background: 'rgba(230,0,0,0.1)',
+                  color: '#E60000',
+                }}
+              >
+                <CheckCheck size={12} strokeWidth={1.5} />
+                <span>تعيين الكل</span>
+              </button>
+            )}
+            {notifications.length > 0 && (
+              <button
+                onClick={handleClearAll}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-medium"
+                style={{
+                  background: 'rgba(230,0,0,0.06)',
+                  color: isDark ? '#888' : '#AAA',
+                }}
+              >
+                <Trash2 size={12} strokeWidth={1.5} />
+                <span>مسح</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="px-5 mt-2">
+        <div className="flex gap-2">
+          {filterTabs.map((tab) => (
             <button
-              onClick={handleMarkAllRead}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium"
+              key={tab.key}
+              onClick={() => setActiveFilter(tab.key)}
+              className="px-4 py-2 rounded-xl text-xs font-medium transition-all"
               style={{
-                background: 'rgba(230,0,0,0.1)',
-                color: '#E60000',
+                background: activeFilter === tab.key
+                  ? 'rgba(230,0,0,0.1)'
+                  : isDark
+                    ? 'rgba(255,255,255,0.04)'
+                    : 'rgba(0,0,0,0.02)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: activeFilter === tab.key
+                  ? '1px solid rgba(230,0,0,0.3)'
+                  : `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
+                color: activeFilter === tab.key ? '#E60000' : isDark ? '#AAA' : '#888',
               }}
             >
-              <CheckCheck size={14} strokeWidth={1.5} />
-              <span>تعيين الكل كمقروء</span>
+              {tab.label}
             </button>
-          )}
+          ))}
         </div>
       </div>
 
       {/* Notifications List */}
-      <div className="px-5 pb-8">
-        {notifications.length === 0 ? (
+      <div className="flex-1 px-5 mt-4 pb-8">
+        {filteredNotifications.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -160,7 +268,13 @@ export default function NotificationsScreen() {
           >
             <div
               className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
-              style={{ background: isDark ? '#1A1A1A' : '#F0F0F0' }}
+              style={{
+                background: isDark
+                  ? 'rgba(255,255,255,0.04)'
+                  : 'rgba(0,0,0,0.02)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+              }}
             >
               <Bell size={36} strokeWidth={1.5} color={isDark ? '#444' : '#DDD'} />
             </div>
@@ -180,27 +294,41 @@ export default function NotificationsScreen() {
         ) : (
           <div className="space-y-2">
             <AnimatePresence>
-              {notifications.map((notif, index) => {
+              {filteredNotifications.map((notif, index) => {
                 const Icon = notifIcons[notif.type] || Info;
                 const color = notifColors[notif.type] || '#3B82F6';
 
                 return (
-                  <motion.button
+                  <motion.div
                     key={notif.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -300 }}
                     transition={{ delay: index * 0.03 }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.2}
+                    onDragEnd={(_, info) => {
+                      if (Math.abs(info.offset.x) > 80) {
+                        handleDismiss(notif.id);
+                      }
+                    }}
                     onClick={() => {
                       if (!notif.isRead) handleMarkRead(notif.id);
                     }}
-                    className="w-full text-right rounded-2xl p-4 relative"
+                    className="w-full text-right rounded-2xl p-4 relative cursor-pointer"
                     style={{
                       background: isDark
-                        ? notif.isRead ? '#1A1A1A' : '#1E1E1E'
-                        : notif.isRead ? '#FFFFFF' : '#FFF5F5',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                      borderRight: notif.isRead ? 'none' : `3px solid ${color}`,
+                        ? notif.isRead
+                          ? 'rgba(255,255,255,0.03)'
+                          : `rgba(${color === '#3B82F6' ? '59,130,246' : color === '#10B981' ? '16,185,129' : color === '#E60000' ? '230,0,0' : '245,158,11'},0.06)`
+                        : notif.isRead
+                          ? 'rgba(0,0,0,0.01)'
+                          : `rgba(${color === '#3B82F6' ? '59,130,246' : color === '#10B981' ? '16,185,129' : color === '#E60000' ? '230,0,0' : '245,158,11'},0.04)`,
+                      backdropFilter: 'blur(20px)',
+                      WebkitBackdropFilter: 'blur(20px)',
+                      border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
+                      borderRight: notif.isRead ? undefined : `3px solid ${color}`,
                     }}
                   >
                     <div className="flex gap-3">
@@ -220,7 +348,7 @@ export default function NotificationsScreen() {
                           </p>
                           {!notif.isRead && (
                             <div
-                              className="w-2 h-2 rounded-full shrink-0 mt-1.5"
+                              className="w-2 h-2 rounded-full shrink-0 mt-1.5 pulse-dot"
                               style={{ background: color }}
                             />
                           )}
@@ -239,7 +367,7 @@ export default function NotificationsScreen() {
                         </p>
                       </div>
                     </div>
-                  </motion.button>
+                  </motion.div>
                 );
               })}
             </AnimatePresence>

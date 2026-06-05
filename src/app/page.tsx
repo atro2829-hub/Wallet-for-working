@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAppStore } from '@/lib/store';
 import { ThemeProvider } from '@/components/fahed/theme-provider';
+import { ToastProvider } from '@/components/fahed/toast-provider';
 import { useTheme } from 'next-themes';
 
 import AuthScreen from '@/components/fahed/auth-screen';
@@ -14,16 +15,31 @@ import AccountScreen from '@/components/fahed/account-screen';
 import KycScreen from '@/components/fahed/kyc-screen';
 import AdminScreen from '@/components/fahed/admin-screen';
 import NotificationsScreen from '@/components/fahed/notifications-screen';
+import OrdersScreen from '@/components/fahed/orders-screen';
+import DepositScreen from '@/components/fahed/deposit-screen';
+import SavingsScreen from '@/components/fahed/savings-screen';
+import SupportScreen from '@/components/fahed/support-screen';
+import ExchangeScreen from '@/components/fahed/exchange-screen';
+import PromoScreen from '@/components/fahed/promo-screen';
+import QRScreen from '@/components/fahed/qr-screen';
+import EditProfileScreen from '@/components/fahed/edit-profile-screen';
+import SplitScreen from '@/components/fahed/split-screen';
 import BottomNav from '@/components/fahed/bottom-nav';
 import QuickActionDrawer from '@/components/fahed/quick-action-drawer';
 import TransferModal from '@/components/fahed/transfer-modal';
+import RequestMoneyModal from '@/components/fahed/request-money-modal';
 import OrderBottomSheet from '@/components/fahed/order-bottom-sheet';
+import SplashScreen from '@/components/fahed/splash-screen';
+import PinScreen from '@/components/fahed/pin-screen';
+
+type AppPhase = 'splash' | 'pin' | 'main';
 
 function AppContent() {
-  const { user, isAuthenticated, activeTab, activeScreen, setActiveScreen, theme: storeTheme } = useAppStore();
+  const { user, isAuthenticated, activeTab, activeScreen, setActiveScreen, theme: storeTheme, pinCode } = useAppStore();
   const { setTheme } = useTheme();
   const mountedRef = useRef(false);
   const [showUI, setShowUI] = useState(false);
+  const [phase, setPhase] = useState<AppPhase>('splash');
 
   useEffect(() => {
     mountedRef.current = true;
@@ -50,6 +66,38 @@ function AppContent() {
     }
   }, [isAuthenticated]);
 
+  // Splash screen completion handler
+  const handleSplashComplete = () => {
+    if (isAuthenticated && pinCode) {
+      setPhase('pin');
+    } else {
+      setPhase('main');
+    }
+  };
+
+  // PIN unlock handler
+  const handlePinUnlock = () => {
+    setPhase('main');
+  };
+
+  // When auth state changes, update phase if still in splash/pin
+  useEffect(() => {
+    if (phase === 'main' && !isAuthenticated) {
+      // User logged out, stay on main (which shows auth screen)
+    }
+  }, [isAuthenticated, phase]);
+
+  // Splash screen phase
+  if (phase === 'splash') {
+    return <SplashScreen onComplete={handleSplashComplete} />;
+  }
+
+  // PIN lock phase
+  if (phase === 'pin') {
+    return <PinScreen onUnlock={handlePinUnlock} />;
+  }
+
+  // Main app phase
   if (!showUI) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#0F0F0F' }}>
@@ -58,8 +106,8 @@ function AppContent() {
           animate={{ scale: 1, opacity: 1 }}
           className="flex flex-col items-center"
         >
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: 'linear-gradient(145deg, #E60000 0%, #8B0000 100%)', boxShadow: '0 8px 24px rgba(230,0,0,0.3)' }}>
-            <span className="text-white text-xl font-bold">FH</span>
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 overflow-hidden" style={{ background: 'linear-gradient(145deg, #E60000 0%, #8B0000 100%)', boxShadow: '0 8px 24px rgba(230,0,0,0.3)' }}>
+            <span className="text-white text-sm font-bold">الجنوب</span>
           </div>
           <div className="w-8 h-8 border-2 border-[#E60000]/30 border-t-[#E60000] rounded-full animate-spin" />
         </motion.div>
@@ -96,6 +144,78 @@ function AppContent() {
     );
   }
 
+  if (activeScreen === 'orders') {
+    return (
+      <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative">
+        <OrdersScreen />
+      </div>
+    );
+  }
+
+  if (activeScreen === 'deposit') {
+    return (
+      <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative">
+        <DepositScreen />
+      </div>
+    );
+  }
+
+  if (activeScreen === 'savings') {
+    return (
+      <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative">
+        <SavingsScreen />
+      </div>
+    );
+  }
+
+  if (activeScreen === 'support') {
+    return (
+      <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative">
+        <SupportScreen />
+      </div>
+    );
+  }
+
+  if (activeScreen === 'exchange') {
+    return (
+      <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative">
+        <ExchangeScreen />
+      </div>
+    );
+  }
+
+  if (activeScreen === 'promo') {
+    return (
+      <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative">
+        <PromoScreen />
+      </div>
+    );
+  }
+
+  if (activeScreen === 'qr') {
+    return (
+      <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative">
+        <QRScreen />
+      </div>
+    );
+  }
+
+  if (activeScreen === 'edit-profile') {
+    return (
+      <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative">
+        <EditProfileScreen />
+      </div>
+    );
+  }
+
+  if (activeScreen === 'split') {
+    return (
+      <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative">
+        <SplitScreen />
+      </div>
+    );
+  }
+
   const renderScreen = () => {
     switch (activeTab) {
       case 'home': return <HomeScreen />;
@@ -125,6 +245,7 @@ function AppContent() {
       <BottomNav />
       <QuickActionDrawer />
       <TransferModal />
+      <RequestMoneyModal />
       <OrderBottomSheet />
     </div>
   );
@@ -133,7 +254,9 @@ function AppContent() {
 export default function Home() {
   return (
     <ThemeProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </ThemeProvider>
   );
 }

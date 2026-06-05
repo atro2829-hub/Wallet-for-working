@@ -3,8 +3,8 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: "فهد نت - محفظتك الرقمية",
-  description: "محفظة فهد نت الرقمية - الدفع والتحويل وإدارة الأموال لليمنيين",
+  title: "محفظة الجنوب - محفظتك الرقمية",
+  description: "محفظة الجنوب الرقمية - الدفع والتحويل وإدارة الأموال لليمنيين",
   manifest: "/manifest.json",
   icons: {
     icon: "/logo.svg",
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "فهد نت",
+    title: "محفظة الجنوب",
   },
 };
 

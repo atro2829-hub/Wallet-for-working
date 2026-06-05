@@ -21,14 +21,15 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-40 safe-bottom"
+      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-40"
       style={{
-        background: isDark ? 'rgba(26,26,26,0.95)' : 'rgba(255,255,255,0.95)',
-        backdropFilter: 'blur(20px)',
+        background: isDark ? 'rgba(15,15,15,0.85)' : 'rgba(255,255,255,0.85)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
         borderTop: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)',
       }}
     >
-      <div className="flex items-end justify-around px-2 pt-2 pb-6 relative">
+      <div className="flex items-end justify-around px-2 pt-2 safe-bottom relative" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)' }}>
         {/* Left tabs */}
         {tabs.slice(0, 2).map((tab) => {
           const Icon = tab.icon;
@@ -40,15 +41,22 @@ export default function BottomNav() {
               className="flex flex-col items-center justify-center gap-0.5 py-1 px-3 min-w-[56px] relative"
             >
               <div className="relative">
-                <Icon
-                  size={22}
-                  strokeWidth={isActive ? 2 : 1.5}
-                  style={{ color: isActive ? '#E60000' : isDark ? '#555' : '#AAA' }}
-                />
+                <motion.div
+                  animate={{
+                    scale: isActive ? 1.1 : 1,
+                  }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                >
+                  <Icon
+                    size={22}
+                    strokeWidth={isActive ? 2.2 : 1.5}
+                    style={{ color: isActive ? '#E60000' : isDark ? '#555' : '#AAA' }}
+                  />
+                </motion.div>
                 {isActive && (
                   <motion.div
                     layoutId="activeTabDot1"
-                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
+                    className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full"
                     style={{ background: '#E60000' }}
                     transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   />
@@ -65,17 +73,18 @@ export default function BottomNav() {
         })}
 
         {/* Center FAB */}
-        <div className="flex items-center justify-center -mt-5 mx-2">
+        <div className="flex items-center justify-center -mt-6 mx-2">
           <motion.button
             onClick={() => setDrawerOpen(true)}
-            className="relative w-14 h-14 rounded-2xl flex items-center justify-center active:scale-95 transition-transform"
+            className="relative w-14 h-14 rounded-2xl flex items-center justify-center"
             style={{
               background: 'linear-gradient(145deg, #E60000 0%, #8B0000 100%)',
-              boxShadow: '0 4px 20px rgba(230,0,0,0.4)',
+              boxShadow: '0 4px 20px rgba(230,0,0,0.4), 0 0 0 4px rgba(230,0,0,0.1)',
             }}
             whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.05 }}
           >
-            <Plus size={24} strokeWidth={2} color="#FFFFFF" />
+            <Plus size={24} strokeWidth={2.5} color="#FFFFFF" />
           </motion.button>
         </div>
 
@@ -90,15 +99,22 @@ export default function BottomNav() {
               className="flex flex-col items-center justify-center gap-0.5 py-1 px-3 min-w-[56px] relative"
             >
               <div className="relative">
-                <Icon
-                  size={22}
-                  strokeWidth={isActive ? 2 : 1.5}
-                  style={{ color: isActive ? '#E60000' : isDark ? '#555' : '#AAA' }}
-                />
+                <motion.div
+                  animate={{
+                    scale: isActive ? 1.1 : 1,
+                  }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                >
+                  <Icon
+                    size={22}
+                    strokeWidth={isActive ? 2.2 : 1.5}
+                    style={{ color: isActive ? '#E60000' : isDark ? '#555' : '#AAA' }}
+                  />
+                </motion.div>
                 {isActive && (
                   <motion.div
                     layoutId="activeTabDot2"
-                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
+                    className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full"
                     style={{ background: '#E60000' }}
                     transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   />

@@ -10,11 +10,17 @@ import {
   AlertTriangle,
   Loader2,
   Wifi,
+  Tag,
+  RotateCcw,
+  Receipt,
+  Copy,
+  CheckCircle2,
 } from 'lucide-react';
 import { useAppStore, type ServiceProvider, type ProductPackage, type Order } from '@/lib/store';
 import { currencySymbols, currencyBadgeColors, generateReference } from '@/lib/utils';
 import { ref, push, set, get, update } from 'firebase/database';
 import { database } from '@/lib/firebase';
+import { useToast } from '@/components/fahed/toast-provider';
 
 export default function OrderBottomSheet() {
   const { theme } = useTheme();
@@ -30,13 +36,26 @@ export default function OrderBottomSheet() {
     addNotification,
     addTransaction,
     setUser,
+    orders,
+    applyPromoCode,
   } = useAppStore();
+  const { showToast } = useToast();
 
   const [customerInput, setCustomerInput] = useState('');
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderResult, setOrderResult] = useState<'success' | 'insufficient' | 'error' | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [completedOrderId, setCompletedOrderId] = useState('');
+  const [showReceipt, setShowReceipt] = useState(false);
+
+  // Promo code
+  const [promoCode, setPromoCode] = useState('');
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+
+  // Quick recharge - find last order with this provider
+  const lastOrder = orders.find((o) => o.providerId === selectedProvider?.id);
 
   // Reset state when provider changes
   useEffect(() => {
@@ -44,6 +63,11 @@ export default function OrderBottomSheet() {
     setSelectedPackageId(null);
     setOrderResult(null);
     setErrorMessage('');
+    setPromoCode('');
+    setPromoApplied(false);
+    setPromoDiscount(0);
+    setShowReceipt(false);
+    setCompletedOrderId('');
   }, [selectedProvider]);
 
   if (!selectedProvider) return null;
@@ -60,9 +84,38 @@ export default function OrderBottomSheet() {
     return (user[field] as number) || 0;
   };
 
+  const effectivePrice = selectedPackage
+    ? promoApplied
+      ? Math.max(0, selectedPackage.price - promoDiscount)
+      : selectedPackage.price
+    : 0;
+
   const handleClose = () => {
     setOrderOpen(false);
     setTimeout(() => setSelectedProvider(null), 300);
+  };
+
+  const handleApplyPromo = () => {
+    if (!promoCode.trim()) return;
+    const promo = applyPromoCode(promoCode.trim().toUpperCase());
+    if (promo) {
+      const discount = promo.type === 'percentage' && selectedPackage
+        ? Math.round(selectedPackage.price * promo.discount / 100)
+        : promo.type === 'fixed' ? promo.discount : 0;
+      setPromoApplied(true);
+      setPromoDiscount(discount);
+      showToast('success', 'تم تطبيق الكود', `خصم ${discount.toLocaleString('ar-SA')} ${currencySymbols[selectedPackage?.currency || 'YER']}`);
+    } else {
+      showToast('error', 'كود غير صالح', 'الكود الترويجي غير صالح أو منتهي الصلاحية');
+    }
+  };
+
+  const handleQuickRecharge = () => {
+    if (lastOrder) {
+      setCustomerInput(lastOrder.customerInput);
+      setSelectedPackageId(lastOrder.packageId);
+      showToast('info', 'إعادة الطلب', 'تم ملء بيانات آخر طلب');
+    }
   };
 
   const handleConfirm = async () => {
@@ -72,7 +125,7 @@ export default function OrderBottomSheet() {
     }
 
     const currentBalance = getBalance(selectedPackage.currency);
-    if (currentBalance < selectedPackage.price) {
+    if (currentBalance < effectivePrice) {
       setOrderResult('insufficient');
       return;
     }
@@ -81,16 +134,14 @@ export default function OrderBottomSheet() {
     setErrorMessage('');
 
     try {
-      // Deduct balance locally
       const balanceField = `balance${selectedPackage.currency}` as keyof typeof user;
-      const newBalance = currentBalance - selectedPackage.price;
+      const newBalance = currentBalance - effectivePrice;
 
       const updatedUser = {
         ...user,
         [balanceField]: newBalance,
       };
 
-      // Create order
       const orderId = generateReference();
       const newOrder: Order = {
         id: orderId,
@@ -102,14 +153,13 @@ export default function OrderBottomSheet() {
         packageId: selectedPackage.id,
         packageName: selectedPackage.name,
         customerInput: customerInput.trim(),
-        amount: selectedPackage.price,
+        amount: effectivePrice,
         currency: selectedPackage.currency,
         status: 'pending',
         executionType: selectedPackage.executionType,
         createdAt: new Date().toISOString(),
       };
 
-      // Save order to Firebase
       try {
         const orderRef = ref(database, `orders/${orderId}`);
         await set(orderRef, newOrder);
@@ -117,7 +167,6 @@ export default function OrderBottomSheet() {
         // Continue locally even if Firebase fails
       }
 
-      // Update user balance in Firebase
       try {
         const userRef = ref(database, `users/${user.id}`);
         await update(userRef, { [balanceField]: newBalance });
@@ -125,13 +174,12 @@ export default function OrderBottomSheet() {
         // Continue locally
       }
 
-      // Create transaction record
       const txId = generateReference();
       const newTx = {
         id: txId,
         fromUserId: user.id,
         toUserId: 'system',
-        amount: selectedPackage.price,
+        amount: effectivePrice,
         currency: selectedPackage.currency,
         type: 'order' as const,
         status: 'completed' as const,
@@ -146,7 +194,6 @@ export default function OrderBottomSheet() {
         // Continue locally
       }
 
-      // Send notification to admin
       try {
         const adminNotifId = generateReference();
         const adminNotifRef = ref(database, `admin-notifications/${adminNotifId}`);
@@ -162,7 +209,6 @@ export default function OrderBottomSheet() {
         // Non-critical
       }
 
-      // Update local state
       setUser(updatedUser);
       addOrder(newOrder);
       addTransaction(newTx);
@@ -175,6 +221,7 @@ export default function OrderBottomSheet() {
         createdAt: new Date().toISOString(),
       });
 
+      setCompletedOrderId(orderId);
       setOrderResult('success');
     } catch {
       setOrderResult('error');
@@ -222,7 +269,6 @@ export default function OrderBottomSheet() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-3">
               <div className="flex items-center gap-3">
-                {/* Provider color indicator */}
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: `${selectedProvider.color}18` }}
@@ -265,7 +311,7 @@ export default function OrderBottomSheet() {
                     key="success"
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="flex flex-col items-center py-8"
+                    className="flex flex-col items-center py-6"
                   >
                     <div
                       className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
@@ -279,38 +325,115 @@ export default function OrderBottomSheet() {
                     <p className="text-sm text-center mb-4" style={{ color: isDark ? '#888' : '#AAA' }}>
                       سيتم تنفيذ طلبك في أقرب وقت ممكن
                     </p>
-                    <div
-                      className="w-full rounded-2xl p-4 mb-4"
-                      style={{ background: isDark ? '#1E1E1E' : '#FFF', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs" style={{ color: isDark ? '#888' : '#AAA' }}>الخدمة</span>
-                        <span className="text-xs font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
-                          {selectedPackage?.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs" style={{ color: isDark ? '#888' : '#AAA' }}>المبلغ</span>
-                        <span className="text-xs font-bold" style={{ color: '#E60000' }}>
-                          {selectedPackage?.price.toLocaleString()} {currencySymbols[selectedPackage?.currency || 'YER']}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs" style={{ color: isDark ? '#888' : '#AAA' }}>الحالة</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
-                          قيد الانتظار
-                        </span>
-                      </div>
+
+                    {/* Receipt */}
+                    {showReceipt && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="w-full rounded-2xl p-4 mb-4"
+                        style={{
+                          background: isDark
+                            ? 'rgba(255,255,255,0.06)'
+                            : 'rgba(0,0,0,0.02)',
+                          backdropFilter: 'blur(20px)',
+                          WebkitBackdropFilter: 'blur(20px)',
+                          border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                        }}
+                      >
+                        <div className="flex items-center gap-2 mb-3">
+                          <Receipt size={16} strokeWidth={1.5} color="#E60000" />
+                          <span className="text-xs font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
+                            إيصال الطلب
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>رقم المرجع</span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] font-mono font-bold" style={{ color: '#E60000' }} dir="ltr">{completedOrderId}</span>
+                              <button
+                                onClick={async () => {
+                                  try { await navigator.clipboard.writeText(completedOrderId); showToast('success', 'تم النسخ', 'تم نسخ رقم المرجع'); } catch {}
+                                }}
+                              >
+                                <Copy size={10} color="#E60000" />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>الخدمة</span>
+                            <span className="text-[10px] font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{selectedPackage?.name}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>المبلغ</span>
+                            <span className="text-[10px] font-bold" style={{ color: '#E60000' }}>
+                              {effectivePrice.toLocaleString()} {currencySymbols[selectedPackage?.currency || 'YER']}
+                            </span>
+                          </div>
+                          {promoApplied && promoDiscount > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-[10px]" style={{ color: '#10B981' }}>الخصم</span>
+                              <span className="text-[10px] font-medium" style={{ color: '#10B981' }}>
+                                -{promoDiscount.toLocaleString()} {currencySymbols[selectedPackage?.currency || 'YER']}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>الحالة</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
+                              قيد الانتظار
+                            </span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {!showReceipt && (
+                      <button
+                        onClick={() => setShowReceipt(true)}
+                        className="w-full py-2.5 rounded-2xl text-xs font-medium mb-3"
+                        style={{
+                          background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                          border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                          color: isDark ? '#FFF' : '#1a1a1a',
+                        }}
+                      >
+                        <Receipt size={14} className="inline ml-1" />
+                        عرض الإيصال
+                      </button>
+                    )}
+
+                    <div className="flex gap-2 w-full">
+                      <button
+                        onClick={handleClose}
+                        className="flex-1 py-3.5 rounded-2xl font-bold text-white text-sm"
+                        style={{
+                          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                        }}
+                      >
+                        حسناً
+                      </button>
+                      <button
+                        onClick={() => {
+                          setOrderResult(null);
+                          setShowReceipt(false);
+                          setSelectedPackageId(null);
+                          setCustomerInput('');
+                          setPromoApplied(false);
+                          setPromoDiscount(0);
+                          setPromoCode('');
+                        }}
+                        className="flex-1 py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-1.5"
+                        style={{
+                          background: isDark ? '#2D2D2D' : '#F0F0F0',
+                          color: isDark ? '#FFF' : '#1a1a1a',
+                        }}
+                      >
+                        <RotateCcw size={14} strokeWidth={1.5} />
+                        <span>إعادة الطلب</span>
+                      </button>
                     </div>
-                    <button
-                      onClick={handleClose}
-                      className="w-full py-3.5 rounded-2xl font-bold text-white text-sm"
-                      style={{
-                        background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                      }}
-                    >
-                      حسناً
-                    </button>
                   </motion.div>
                 ) : orderResult === 'insufficient' ? (
                   <motion.div
@@ -349,6 +472,22 @@ export default function OrderBottomSheet() {
                   </motion.div>
                 ) : (
                   <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                    {/* Quick Recharge */}
+                    {lastOrder && (
+                      <button
+                        onClick={handleQuickRecharge}
+                        className="w-full py-3 rounded-2xl flex items-center justify-center gap-2 text-xs font-medium"
+                        style={{
+                          background: 'rgba(230,0,0,0.06)',
+                          border: '1px solid rgba(230,0,0,0.15)',
+                          color: '#E60000',
+                        }}
+                      >
+                        <RotateCcw size={14} strokeWidth={1.5} />
+                        <span>إعادة آخر طلب ({lastOrder.packageName})</span>
+                      </button>
+                    )}
+
                     {/* Customer Input */}
                     <div>
                       <label className="text-xs font-medium mb-2 block" style={{ color: isDark ? '#AAA' : '#888' }}>
@@ -402,6 +541,8 @@ export default function OrderBottomSheet() {
                               setSelectedPackageId(pkg.id);
                               setOrderResult(null);
                               setErrorMessage('');
+                              setPromoApplied(false);
+                              setPromoDiscount(0);
                             }}
                             className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all active:scale-[0.98]"
                             style={{
@@ -455,6 +596,45 @@ export default function OrderBottomSheet() {
                       </div>
                     </div>
 
+                    {/* Promo Code */}
+                    {selectedPackage && (
+                      <div>
+                        <label className="text-xs font-medium mb-2 block" style={{ color: isDark ? '#AAA' : '#888' }}>
+                          كود ترويجي
+                        </label>
+                        <div className="flex gap-2">
+                          <div
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl flex-1"
+                            style={{
+                              background: inputBg,
+                              border: promoApplied ? '1px solid #10B981' : `1px solid ${borderColor}`,
+                            }}
+                          >
+                            <Tag size={16} strokeWidth={1.5} color={promoApplied ? '#10B981' : '#E60000'} />
+                            <input
+                              type="text"
+                              placeholder="أدخل الكود"
+                              value={promoCode}
+                              onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                              disabled={promoApplied}
+                              className="flex-1 bg-transparent outline-none text-xs"
+                              style={{ color: promoApplied ? '#10B981' : isDark ? '#FFF' : '#1a1a1a' }}
+                              dir="ltr"
+                            />
+                            {promoApplied && <CheckCircle2 size={14} color="#10B981" strokeWidth={1.5} />}
+                          </div>
+                          <button
+                            onClick={handleApplyPromo}
+                            disabled={promoApplied || !promoCode.trim()}
+                            className="px-4 rounded-2xl text-[10px] font-medium text-white disabled:opacity-40"
+                            style={{ background: promoApplied ? '#10B981' : '#E60000' }}
+                          >
+                            {promoApplied ? 'مطبق' : 'تطبيق'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Balance Check */}
                     {selectedPackage && (
                       <div
@@ -472,21 +652,29 @@ export default function OrderBottomSheet() {
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-xs" style={{ color: isDark ? '#888' : '#AAA' }}>سعر الباقة</span>
                           <span className="text-xs font-bold" style={{ color: '#E60000' }}>
-                            -{selectedPackage.price.toLocaleString()} {currencySymbols[selectedPackage.currency]}
+                            -{effectivePrice.toLocaleString()} {currencySymbols[selectedPackage.currency]}
                           </span>
                         </div>
+                        {promoApplied && promoDiscount > 0 && (
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs" style={{ color: '#10B981' }}>الخصم</span>
+                            <span className="text-xs font-bold" style={{ color: '#10B981' }}>
+                              +{promoDiscount.toLocaleString()} {currencySymbols[selectedPackage.currency]}
+                            </span>
+                          </div>
+                        )}
                         <div className="h-px my-2" style={{ background: borderColor }} />
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-medium" style={{ color: isDark ? '#AAA' : '#888' }}>الرصيد بعد الشراء</span>
                           <span
                             className="text-sm font-bold"
                             style={{
-                              color: getBalance(selectedPackage.currency) - selectedPackage.price >= 0
+                              color: getBalance(selectedPackage.currency) - effectivePrice >= 0
                                 ? '#10B981'
                                 : '#E60000',
                             }}
                           >
-                            {(getBalance(selectedPackage.currency) - selectedPackage.price).toLocaleString()} {currencySymbols[selectedPackage.currency]}
+                            {(getBalance(selectedPackage.currency) - effectivePrice).toLocaleString()} {currencySymbols[selectedPackage.currency]}
                           </span>
                         </div>
                       </div>
@@ -521,7 +709,7 @@ export default function OrderBottomSheet() {
                           <span>تأكيد الشراء</span>
                           {selectedPackage && (
                             <span className="opacity-70">
-                              ({selectedPackage.price.toLocaleString()} {currencySymbols[selectedPackage.currency]})
+                              ({effectivePrice.toLocaleString()} {currencySymbols[selectedPackage.currency]})
                             </span>
                           )}
                         </>

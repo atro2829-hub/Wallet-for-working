@@ -227,3 +227,198 @@ input, textarea, select {
 .animate-pull-refresh {
   animation: pullRefresh 1s linear infinite;
 }
+
+/* ================================
+   Glassmorphism utilities
+   ================================ */
+.glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* ================================
+   Animated gradient backgrounds
+   ================================ */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animated-gradient {
+  background-size: 200% 200%;
+  animation: gradientShift 6s ease infinite;
+}
+
+/* ================================
+   Glow effects
+   ================================ */
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(230, 0, 0, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(230, 0, 0, 0.6); }
+}
+
+.glow-red {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* ================================
+   Pulse dot
+   ================================ */
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.5; }
+}
+
+.pulse-dot {
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+/* ================================
+   Float animation
+   ================================ */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ================================
+   Shimmer loading
+   ================================ */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(255, 255, 255, 0.1) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ================================
+   Ripple effect
+   ================================ */
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* ================================
+   Spin slow
+   ================================ */
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-slow {
+  animation: spinSlow 20s linear infinite;
+}
+
+/* ================================
+   Fade up
+   ================================ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-up {
+  animation: fadeUp 0.5s ease-out forwards;
+}
+
+/* ================================
+   Draw path for SVG logo
+   ================================ */
+@keyframes drawPath {
+  to { stroke-dashoffset: 0; }
+}
+
+/* ================================
+   Count up number
+   ================================ */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ================================
+   Slide in from right
+   ================================ */
+@keyframes slideInRight {
+  from { transform: translateX(100px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.4s ease-out forwards;
+}
+
+/* ================================
+   Bounce subtle
+   ================================ */
+@keyframes bounceSubtle {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.bounce-subtle {
+  animation: bounceSubtle 0.3s ease;
+}
+
+/* ================================
+   Scrollbar styling (override)
+   ================================ */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(230, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+/* ================================
+   Safe area for bottom nav
+   ================================ */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ================================
+   Card press effect
+   ================================ */
+.card-press {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card-press:active {
+  transform: scale(0.97);
+}

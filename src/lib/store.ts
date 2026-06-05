@@ -90,6 +90,68 @@ export interface Order {
   completedAt?: string;
 }
 
+export interface DepositRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  amount: number;
+  currency: 'YER' | 'SAR' | 'USD';
+  method: 'bank_transfer' | 'cash' | 'card';
+  receiptImage: string;
+  status: 'pending' | 'approved' | 'rejected';
+  notes: string;
+  createdAt: string;
+  reviewedAt?: string;
+}
+
+export interface WithdrawRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  amount: number;
+  currency: 'YER' | 'SAR' | 'USD';
+  method: 'bank_transfer' | 'cash';
+  bankDetails: string;
+  status: 'pending' | 'approved' | 'rejected';
+  notes: string;
+  createdAt: string;
+  reviewedAt?: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  userId: string;
+  userName: string;
+  subject: string;
+  message: string;
+  category: 'technical' | 'financial' | 'general';
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  messages: { sender: 'user' | 'support'; text: string; time: string }[];
+  createdAt: string;
+}
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  discount: number;
+  type: 'percentage' | 'fixed';
+  currency: 'YER' | 'SAR' | 'USD';
+  maxUses: number;
+  usedCount: number;
+  expiresAt: string;
+  isActive: boolean;
+}
+
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  currency: 'YER' | 'SAR' | 'USD';
+  icon: string;
+  createdAt: string;
+}
+
 interface AppState {
   // Auth
   user: User | null;
@@ -152,6 +214,10 @@ interface AppState {
   isTransferOpen: boolean;
   setTransferOpen: (open: boolean) => void;
 
+  // Request money modal
+  isRequestMoneyOpen: boolean;
+  setRequestMoneyOpen: (open: boolean) => void;
+
   // Order modal (bottom sheet)
   isOrderOpen: boolean;
   setOrderOpen: (open: boolean) => void;
@@ -161,6 +227,48 @@ interface AppState {
   // Loading states
   isLoading: boolean;
   setLoading: (loading: boolean) => void;
+
+  // PIN Lock
+  pinCode: string;
+  setPinCode: (pin: string) => void;
+  isPinLocked: boolean;
+  setPinLocked: (locked: boolean) => void;
+
+  // Favorites
+  favorites: string[];
+  toggleFavorite: (providerId: string) => void;
+
+  // Recent services
+  recentServices: string[];
+  addRecentService: (providerId: string) => void;
+
+  // Deposit requests
+  depositRequests: DepositRequest[];
+  addDepositRequest: (req: DepositRequest) => void;
+  updateDepositStatus: (id: string, status: DepositRequest['status'], reviewedAt?: string) => void;
+
+  // Withdraw requests
+  withdrawRequests: WithdrawRequest[];
+  addWithdrawRequest: (req: WithdrawRequest) => void;
+  updateWithdrawStatus: (id: string, status: WithdrawRequest['status'], reviewedAt?: string) => void;
+
+  // Support tickets
+  supportTickets: SupportTicket[];
+  addTicket: (ticket: SupportTicket) => void;
+  updateTicket: (id: string, updates: Partial<SupportTicket>) => void;
+
+  // Exchange rates
+  exchangeRates: { YER: number; SAR: number; USD: number };
+  setExchangeRates: (rates: { YER: number; SAR: number; USD: number }) => void;
+
+  // Promo codes
+  promoCodes: PromoCode[];
+  applyPromoCode: (code: string) => PromoCode | null;
+
+  // Savings goals
+  savingsGoals: SavingsGoal[];
+  addSavingsGoal: (goal: SavingsGoal) => void;
+  updateSavingsGoal: (id: string, updates: Partial<SavingsGoal>) => void;
 }
 
 // Default service categories
@@ -228,6 +336,12 @@ const defaultPackages: ProductPackage[] = [
   { id: 'gc-3', providerId: 'gift-cards', name: 'بطاقة Google Play 25$', price: 14000, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'gc-4', providerId: 'gift-cards', name: 'بطاقة PSN 10$', price: 6000, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'gc-5', providerId: 'gift-cards', name: 'بطاقة Xbox 10$', price: 6000, currency: 'YER', executionType: 'manual', isActive: true },
+];
+
+// Default promo codes
+const defaultPromoCodes: PromoCode[] = [
+  { id: 'welcome', code: 'WELCOME50', discount: 50, type: 'fixed', currency: 'YER', maxUses: 100, usedCount: 0, expiresAt: '2027-01-01', isActive: true },
+  { id: 'summer', code: 'SUMMER10', discount: 10, type: 'percentage', currency: 'YER', maxUses: 50, usedCount: 0, expiresAt: '2026-09-01', isActive: true },
 ];
 
 export const useAppStore = create<AppState>()(
@@ -300,6 +414,10 @@ export const useAppStore = create<AppState>()(
       isTransferOpen: false,
       setTransferOpen: (isTransferOpen) => set({ isTransferOpen }),
 
+      // Request money
+      isRequestMoneyOpen: false,
+      setRequestMoneyOpen: (isRequestMoneyOpen) => set({ isRequestMoneyOpen }),
+
       // Order modal
       isOrderOpen: false,
       setOrderOpen: (isOrderOpen) => set({ isOrderOpen }),
@@ -309,6 +427,83 @@ export const useAppStore = create<AppState>()(
       // Loading
       isLoading: false,
       setLoading: (isLoading) => set({ isLoading }),
+
+      // PIN Lock
+      pinCode: '',
+      setPinCode: (pinCode) => set({ pinCode }),
+      isPinLocked: true,
+      setPinLocked: (isPinLocked) => set({ isPinLocked }),
+
+      // Favorites
+      favorites: [],
+      toggleFavorite: (providerId) => set((state) => ({
+        favorites: state.favorites.includes(providerId)
+          ? state.favorites.filter(id => id !== providerId)
+          : [...state.favorites, providerId]
+      })),
+
+      // Recent services
+      recentServices: [],
+      addRecentService: (providerId) => set((state) => {
+        const filtered = state.recentServices.filter(id => id !== providerId);
+        return { recentServices: [providerId, ...filtered].slice(0, 10) };
+      }),
+
+      // Deposit requests
+      depositRequests: [],
+      addDepositRequest: (req) => set((state) => ({ depositRequests: [req, ...state.depositRequests] })),
+      updateDepositStatus: (id, status, reviewedAt) => set((state) => ({
+        depositRequests: state.depositRequests.map(r =>
+          r.id === id ? { ...r, status, reviewedAt: reviewedAt || new Date().toISOString() } : r
+        )
+      })),
+
+      // Withdraw requests
+      withdrawRequests: [],
+      addWithdrawRequest: (req) => set((state) => ({ withdrawRequests: [req, ...state.withdrawRequests] })),
+      updateWithdrawStatus: (id, status, reviewedAt) => set((state) => ({
+        withdrawRequests: state.withdrawRequests.map(r =>
+          r.id === id ? { ...r, status, reviewedAt: reviewedAt || new Date().toISOString() } : r
+        )
+      })),
+
+      // Support tickets
+      supportTickets: [],
+      addTicket: (ticket) => set((state) => ({ supportTickets: [ticket, ...state.supportTickets] })),
+      updateTicket: (id, updates) => set((state) => ({
+        supportTickets: state.supportTickets.map(t =>
+          t.id === id ? { ...t, ...updates } : t
+        )
+      })),
+
+      // Exchange rates
+      exchangeRates: { YER: 1, SAR: 0.037, USD: 0.0099 },
+      setExchangeRates: (exchangeRates) => set({ exchangeRates }),
+
+      // Promo codes
+      promoCodes: defaultPromoCodes,
+      applyPromoCode: (code) => {
+        const state = get();
+        const promo = state.promoCodes.find(p => p.code === code && p.isActive && p.usedCount < p.maxUses && new Date(p.expiresAt) > new Date());
+        if (promo) {
+          set({
+            promoCodes: state.promoCodes.map(p =>
+              p.id === promo.id ? { ...p, usedCount: p.usedCount + 1 } : p
+            )
+          });
+          return promo;
+        }
+        return null;
+      },
+
+      // Savings goals
+      savingsGoals: [],
+      addSavingsGoal: (goal) => set((state) => ({ savingsGoals: [...state.savingsGoals, goal] })),
+      updateSavingsGoal: (id, updates) => set((state) => ({
+        savingsGoals: state.savingsGoals.map(g =>
+          g.id === id ? { ...g, ...updates } : g
+        )
+      })),
     }),
     {
       name: 'fahed-net-store',
@@ -321,6 +516,10 @@ export const useAppStore = create<AppState>()(
         packages: state.packages,
         orders: state.orders,
         categories: state.categories,
+        pinCode: state.pinCode,
+        favorites: state.favorites,
+        recentServices: state.recentServices,
+        savingsGoals: state.savingsGoals,
       }),
     }
   )

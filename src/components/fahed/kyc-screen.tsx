@@ -13,41 +13,70 @@ import {
   AlertCircle,
   MapPin,
   FileText,
+  Eye,
+  X,
+  Loader2,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { governorates, cardTypes } from '@/lib/utils';
+import { governorates, cardTypes, compressBase64Image } from '@/lib/utils';
+import { useToast } from '@/components/fahed/toast-provider';
+import { ref, update } from 'firebase/database';
+import { database } from '@/lib/firebase';
 
 export default function KYCScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { user, setUser, setActiveScreen } = useAppStore();
+  const { showToast } = useToast();
 
   const [step, setStep] = useState(1);
-  // Step 1: Card type
   const [cardType, setCardType] = useState('');
-  // Step 2: Card number + issued at
   const [cardNumber, setCardNumber] = useState('');
   const [cardIssuedAt, setCardIssuedAt] = useState('');
-  // Step 3: Governorate
   const [governorate, setGovernorate] = useState('');
-  // Step 4: ID Photo
   const [idPhoto, setIdPhoto] = useState<string>('');
-  // Step 5: Selfie
   const [selfiePhoto, setSelfiePhoto] = useState<string>('');
-  // General
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
 
   const idFileRef = useRef<HTMLInputElement>(null);
   const selfieFileRef = useRef<HTMLInputElement>(null);
 
   const totalSteps = 6;
 
-  const handleFileToBase64 = (file: File, setter: (val: string) => void) => {
+  const stepLabels = [
+    'نوع البطاقة',
+    'بيانات البطاقة',
+    'المحافظة',
+    'صورة البطاقة',
+    'صورة شخصية',
+    'تأكيد',
+  ];
+
+  const handleFileToBase64 = async (file: File, setter: (val: string) => void) => {
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('error', 'خطأ', 'حجم الصورة كبير جداً (الحد 10 ميجابايت)');
+      return;
+    }
+
+    setCompressing(true);
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setter(reader.result as string);
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      // Show preview first
+      setPreviewImage(base64);
+      try {
+        const compressed = await compressBase64Image(base64, 400, 0.8);
+        setter(compressed);
+        setPreviewImage(compressed);
+      } catch {
+        setter(base64);
+        setPreviewImage(base64);
+      }
+      setCompressing(false);
     };
     reader.readAsDataURL(file);
   };
@@ -113,22 +142,29 @@ export default function KYCScreen() {
         cardIssuedAt,
         governorate,
       });
+      showToast('success', 'تم الإرسال', 'تم إرسال طلب التحقق بنجاح');
     } catch {
       setError('حدث خطأ في الاتصال');
+      showToast('error', 'خطأ', 'حدث خطأ في الاتصال');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const inputStyle = {
-    background: isDark ? '#222' : '#F8F8F8',
-    border: isDark ? '1px solid #333' : '1px solid #EEE',
-    color: isDark ? '#FFF' : '#1a1a1a',
+  const glassCardStyle = {
+    background: isDark
+      ? 'rgba(255,255,255,0.06)'
+      : 'rgba(0,0,0,0.02)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
   };
 
-  const selectStyle = {
-    background: isDark ? '#222' : '#F8F8F8',
-    border: isDark ? '1px solid #333' : '1px solid #EEE',
+  const inputStyle = {
+    background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.02)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
     color: isDark ? '#FFF' : '#1a1a1a',
   };
 
@@ -146,7 +182,11 @@ export default function KYCScreen() {
         >
           <div
             className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
-            style={{ background: 'rgba(16,185,129,0.1)' }}
+            style={{
+              background: 'rgba(16,185,129,0.1)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+            }}
           >
             <CheckCircle2 size={40} strokeWidth={1.5} color="#10B981" />
           </div>
@@ -201,27 +241,76 @@ export default function KYCScreen() {
         </div>
       </div>
 
-      {/* Progress Bar */}
+      {/* Progress Bar with Step Labels */}
       <div className="px-5 mt-3">
-        <div className="flex items-center gap-2">
+        {/* Step indicator */}
+        <div className="flex items-center gap-1.5">
           {Array.from({ length: totalSteps }).map((_, i) => (
-            <div key={i} className="flex-1 h-1.5 rounded-full overflow-hidden"
-              style={{ background: isDark ? '#222' : '#EEE' }}
-            >
-              <motion.div
-                className="h-full rounded-full"
-                style={{ background: i < step ? '#E60000' : 'transparent' }}
-                initial={{ width: '0%' }}
-                animate={{ width: i < step ? '100%' : '0%' }}
-                transition={{ duration: 0.3 }}
-              />
+            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+              <div
+                className="w-full h-2 rounded-full overflow-hidden"
+                style={{ background: isDark ? '#222' : '#EEE' }}
+              >
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{
+                    background: i < step
+                      ? 'linear-gradient(90deg, #E60000, #B30000)'
+                      : 'transparent',
+                  }}
+                  initial={{ width: '0%' }}
+                  animate={{ width: i < step ? '100%' : '0%' }}
+                  transition={{ duration: 0.4 }}
+                />
+              </div>
+              <span
+                className="text-[8px] font-medium"
+                style={{
+                  color: i < step ? '#E60000' : isDark ? '#555' : '#CCC',
+                }}
+              >
+                {stepLabels[i]}
+              </span>
             </div>
           ))}
         </div>
-        <p className="text-xs mt-2" style={{ color: isDark ? '#888' : '#AAA' }}>
+        <p className="text-xs mt-3 font-medium" style={{ color: isDark ? '#888' : '#AAA' }}>
           الخطوة {step} من {totalSteps}
         </p>
       </div>
+
+      {/* Preview Modal */}
+      <AnimatePresence>
+        {previewImage && !idPhoto && !selfiePhoto && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center px-6"
+            onClick={() => setPreviewImage(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.8 }}
+              className="relative max-w-sm w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={previewImage}
+                alt="معاينة"
+                className="w-full rounded-2xl"
+              />
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center"
+              >
+                <X size={16} color="#FFF" />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Steps Content */}
       <div className="flex-1 px-5 mt-6">
@@ -237,8 +326,13 @@ export default function KYCScreen() {
             >
               <div className="flex flex-col items-center mb-6">
                 <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center mb-3"
-                  style={{ background: 'rgba(230,0,0,0.1)' }}
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3"
+                  style={{
+                    background: 'rgba(230,0,0,0.08)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(230,0,0,0.15)',
+                  }}
                 >
                   <CreditCard size={32} strokeWidth={1.5} color="#E60000" />
                 </div>
@@ -263,9 +357,16 @@ export default function KYCScreen() {
                     onClick={() => setCardType(type)}
                     className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all"
                     style={{
-                      background: cardType === type ? 'rgba(230,0,0,0.1)' : isDark ? '#1A1A1A' : '#FFFFFF',
-                      border: cardType === type ? '2px solid #E60000' : isDark ? '1px solid #2A2A2A' : '1px solid #F0F0F0',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                      background: cardType === type
+                        ? 'rgba(230,0,0,0.08)'
+                        : isDark
+                          ? 'rgba(255,255,255,0.04)'
+                          : 'rgba(0,0,0,0.02)',
+                      backdropFilter: 'blur(20px)',
+                      WebkitBackdropFilter: 'blur(20px)',
+                      border: cardType === type
+                        ? '2px solid #E60000'
+                        : `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
                     }}
                   >
                     <div
@@ -301,8 +402,13 @@ export default function KYCScreen() {
             >
               <div className="flex flex-col items-center mb-6">
                 <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center mb-3"
-                  style={{ background: 'rgba(230,0,0,0.1)' }}
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3"
+                  style={{
+                    background: 'rgba(230,0,0,0.08)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(230,0,0,0.15)',
+                  }}
                 >
                   <FileText size={32} strokeWidth={1.5} color="#E60000" />
                 </div>
@@ -320,7 +426,6 @@ export default function KYCScreen() {
                 </p>
               </div>
 
-              {/* Card Number */}
               <div>
                 <label
                   className="text-xs font-medium mb-1.5 block"
@@ -345,7 +450,6 @@ export default function KYCScreen() {
                 </div>
               </div>
 
-              {/* Issued At */}
               <div>
                 <label
                   className="text-xs font-medium mb-1.5 block"
@@ -382,8 +486,13 @@ export default function KYCScreen() {
             >
               <div className="flex flex-col items-center mb-6">
                 <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center mb-3"
-                  style={{ background: 'rgba(230,0,0,0.1)' }}
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3"
+                  style={{
+                    background: 'rgba(230,0,0,0.08)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(230,0,0,0.15)',
+                  }}
                 >
                   <MapPin size={32} strokeWidth={1.5} color="#E60000" />
                 </div>
@@ -401,16 +510,23 @@ export default function KYCScreen() {
                 </p>
               </div>
 
-              <div className="space-y-2 max-h-80 overflow-y-auto">
+              <div className="space-y-2 max-h-80 overflow-y-auto scrollbar-thin">
                 {governorates.map((gov) => (
                   <button
                     key={gov}
                     onClick={() => setGovernorate(gov)}
                     className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all"
                     style={{
-                      background: governorate === gov ? 'rgba(230,0,0,0.1)' : isDark ? '#1A1A1A' : '#FFFFFF',
-                      border: governorate === gov ? '2px solid #E60000' : isDark ? '1px solid #2A2A2A' : '1px solid #F0F0F0',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                      background: governorate === gov
+                        ? 'rgba(230,0,0,0.08)'
+                        : isDark
+                          ? 'rgba(255,255,255,0.04)'
+                          : 'rgba(0,0,0,0.02)',
+                      backdropFilter: 'blur(20px)',
+                      WebkitBackdropFilter: 'blur(20px)',
+                      border: governorate === gov
+                        ? '2px solid #E60000'
+                        : `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
                     }}
                   >
                     <div
@@ -446,8 +562,13 @@ export default function KYCScreen() {
             >
               <div className="flex flex-col items-center mb-6">
                 <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center mb-3"
-                  style={{ background: 'rgba(230,0,0,0.1)' }}
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3"
+                  style={{
+                    background: 'rgba(230,0,0,0.08)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(230,0,0,0.15)',
+                  }}
                 >
                   <Camera size={32} strokeWidth={1.5} color="#E60000" />
                 </div>
@@ -481,26 +602,52 @@ export default function KYCScreen() {
                     alt="صورة البطاقة"
                     className="w-full h-48 object-cover"
                   />
-                  <button
-                    onClick={() => setIdPhoto('')}
-                    className="absolute top-2 left-2 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center"
-                  >
-                    <span className="text-white text-xs">X</span>
-                  </button>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                  <div className="absolute top-2 left-2 flex gap-1.5">
+                    <button
+                      onClick={() => setPreviewImage(idPhoto)}
+                      className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center"
+                    >
+                      <Eye size={14} color="#FFF" />
+                    </button>
+                    <button
+                      onClick={() => { setIdPhoto(''); setPreviewImage(null); }}
+                      className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center"
+                    >
+                      <X size={14} color="#FFF" />
+                    </button>
+                  </div>
+                  <div className="absolute bottom-3 right-3">
+                    <CheckCircle2 size={24} color="#10B981" strokeWidth={1.5} />
+                  </div>
                 </div>
               ) : (
                 <button
                   onClick={() => idFileRef.current?.click()}
+                  disabled={compressing}
                   className="w-full h-48 rounded-2xl flex flex-col items-center justify-center gap-2 border-2 border-dashed"
                   style={{
                     borderColor: isDark ? '#333' : '#DDD',
-                    background: isDark ? '#1A1A1A' : '#FFFFFF',
+                    background: isDark
+                      ? 'rgba(255,255,255,0.04)'
+                      : 'rgba(0,0,0,0.02)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
                   }}
                 >
-                  <Upload size={32} strokeWidth={1.5} color={isDark ? '#555' : '#CCC'} />
-                  <span className="text-xs" style={{ color: isDark ? '#555' : '#CCC' }}>
-                    اضغط لرفع الصورة
-                  </span>
+                  {compressing ? (
+                    <>
+                      <Loader2 size={32} strokeWidth={1.5} className="animate-spin" color="#E60000" />
+                      <span className="text-xs" style={{ color: '#E60000' }}>جاري الضغط...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={32} strokeWidth={1.5} color={isDark ? '#555' : '#CCC'} />
+                      <span className="text-xs" style={{ color: isDark ? '#555' : '#CCC' }}>
+                        اضغط لرفع الصورة
+                      </span>
+                    </>
+                  )}
                 </button>
               )}
             </motion.div>
@@ -517,8 +664,13 @@ export default function KYCScreen() {
             >
               <div className="flex flex-col items-center mb-6">
                 <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center mb-3"
-                  style={{ background: 'rgba(230,0,0,0.1)' }}
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3"
+                  style={{
+                    background: 'rgba(230,0,0,0.08)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(230,0,0,0.15)',
+                  }}
                 >
                   <Camera size={32} strokeWidth={1.5} color="#E60000" />
                 </div>
@@ -552,26 +704,52 @@ export default function KYCScreen() {
                     alt="صورة شخصية"
                     className="w-full h-48 object-cover"
                   />
-                  <button
-                    onClick={() => setSelfiePhoto('')}
-                    className="absolute top-2 left-2 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center"
-                  >
-                    <span className="text-white text-xs">X</span>
-                  </button>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                  <div className="absolute top-2 left-2 flex gap-1.5">
+                    <button
+                      onClick={() => setPreviewImage(selfiePhoto)}
+                      className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center"
+                    >
+                      <Eye size={14} color="#FFF" />
+                    </button>
+                    <button
+                      onClick={() => { setSelfiePhoto(''); setPreviewImage(null); }}
+                      className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center"
+                    >
+                      <X size={14} color="#FFF" />
+                    </button>
+                  </div>
+                  <div className="absolute bottom-3 right-3">
+                    <CheckCircle2 size={24} color="#10B981" strokeWidth={1.5} />
+                  </div>
                 </div>
               ) : (
                 <button
                   onClick={() => selfieFileRef.current?.click()}
+                  disabled={compressing}
                   className="w-full h-48 rounded-2xl flex flex-col items-center justify-center gap-2 border-2 border-dashed"
                   style={{
                     borderColor: isDark ? '#333' : '#DDD',
-                    background: isDark ? '#1A1A1A' : '#FFFFFF',
+                    background: isDark
+                      ? 'rgba(255,255,255,0.04)'
+                      : 'rgba(0,0,0,0.02)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
                   }}
                 >
-                  <Camera size={32} strokeWidth={1.5} color={isDark ? '#555' : '#CCC'} />
-                  <span className="text-xs" style={{ color: isDark ? '#555' : '#CCC' }}>
-                    اضغط لالتقاط صورة
-                  </span>
+                  {compressing ? (
+                    <>
+                      <Loader2 size={32} strokeWidth={1.5} className="animate-spin" color="#E60000" />
+                      <span className="text-xs" style={{ color: '#E60000' }}>جاري الضغط...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Camera size={32} strokeWidth={1.5} color={isDark ? '#555' : '#CCC'} />
+                      <span className="text-xs" style={{ color: isDark ? '#555' : '#CCC' }}>
+                        اضغط لالتقاط صورة
+                      </span>
+                    </>
+                  )}
                 </button>
               )}
             </motion.div>
@@ -588,8 +766,13 @@ export default function KYCScreen() {
             >
               <div className="flex flex-col items-center mb-4">
                 <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center mb-3"
-                  style={{ background: 'rgba(230,0,0,0.1)' }}
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3"
+                  style={{
+                    background: 'rgba(230,0,0,0.08)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(230,0,0,0.15)',
+                  }}
                 >
                   <CheckCircle2 size={32} strokeWidth={1.5} color="#E60000" />
                 </div>
@@ -610,63 +793,38 @@ export default function KYCScreen() {
               <div
                 className="rounded-2xl p-4 space-y-3"
                 style={{
-                  background: isDark ? '#1A1A1A' : '#FFFFFF',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                  ...glassCardStyle,
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
                 }}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs" style={{ color: isDark ? '#888' : '#AAA' }}>
-                    نوع البطاقة
-                  </span>
-                  <span className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
-                    {cardType}
-                  </span>
-                </div>
-                <div className="h-px" style={{ background: isDark ? '#2A2A2A' : '#F0F0F0' }} />
-                <div className="flex items-center justify-between">
-                  <span className="text-xs" style={{ color: isDark ? '#888' : '#AAA' }}>
-                    رقم البطاقة
-                  </span>
-                  <span className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} dir="ltr">
-                    {cardNumber}
-                  </span>
-                </div>
-                <div className="h-px" style={{ background: isDark ? '#2A2A2A' : '#F0F0F0' }} />
-                <div className="flex items-center justify-between">
-                  <span className="text-xs" style={{ color: isDark ? '#888' : '#AAA' }}>
-                    مكان الإصدار
-                  </span>
-                  <span className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
-                    {cardIssuedAt}
-                  </span>
-                </div>
-                <div className="h-px" style={{ background: isDark ? '#2A2A2A' : '#F0F0F0' }} />
-                <div className="flex items-center justify-between">
-                  <span className="text-xs" style={{ color: isDark ? '#888' : '#AAA' }}>
-                    المحافظة
-                  </span>
-                  <span className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
-                    {governorate}
-                  </span>
-                </div>
-                <div className="h-px" style={{ background: isDark ? '#2A2A2A' : '#F0F0F0' }} />
-                <div className="flex items-center justify-between">
-                  <span className="text-xs" style={{ color: isDark ? '#888' : '#AAA' }}>
-                    صورة البطاقة
-                  </span>
-                  <span className="text-sm font-medium" style={{ color: idPhoto ? '#10B981' : '#E60000' }}>
-                    {idPhoto ? 'تم الرفع' : 'لم يتم الرفع'}
-                  </span>
-                </div>
-                <div className="h-px" style={{ background: isDark ? '#2A2A2A' : '#F0F0F0' }} />
-                <div className="flex items-center justify-between">
-                  <span className="text-xs" style={{ color: isDark ? '#888' : '#AAA' }}>
-                    الصورة الشخصية
-                  </span>
-                  <span className="text-sm font-medium" style={{ color: selfiePhoto ? '#10B981' : '#E60000' }}>
-                    {selfiePhoto ? 'تم الرفع' : 'لم يتم الرفع'}
-                  </span>
-                </div>
+                {[
+                  { label: 'نوع البطاقة', value: cardType },
+                  { label: 'رقم البطاقة', value: cardNumber, dir: 'ltr' as const },
+                  { label: 'مكان الإصدار', value: cardIssuedAt },
+                  { label: 'المحافظة', value: governorate },
+                  { label: 'صورة البطاقة', value: idPhoto ? 'تم الرفع' : 'لم يتم الرفع', color: idPhoto ? '#10B981' : '#E60000' },
+                  { label: 'الصورة الشخصية', value: selfiePhoto ? 'تم الرفع' : 'لم يتم الرفع', color: selfiePhoto ? '#10B981' : '#E60000' },
+                ].map((item, i, arr) => (
+                  <div key={item.label}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs" style={{ color: isDark ? '#888' : '#AAA' }}>
+                        {item.label}
+                      </span>
+                      <span
+                        className="text-sm font-medium"
+                        style={{
+                          color: item.color || (isDark ? '#FFF' : '#1a1a1a'),
+                        }}
+                        dir={item.dir}
+                      >
+                        {item.value}
+                      </span>
+                    </div>
+                    {i < arr.length - 1 && (
+                      <div className="h-px mt-3" style={{ background: isDark ? '#2A2A2A' : '#F0F0F0' }} />
+                    )}
+                  </div>
+                ))}
               </div>
             </motion.div>
           )}
@@ -713,11 +871,7 @@ export default function KYCScreen() {
               }}
             >
               {isLoading ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                  className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
-                />
+                <Loader2 size={20} className="animate-spin" />
               ) : (
                 <span>إرسال الطلب</span>
               )}

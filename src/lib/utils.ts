@@ -20,7 +20,7 @@ export function generateUserId(): string {
 // Generate transaction reference
 export function generateReference(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = 'FH-';
+  let result = 'JN-';
   for (let i = 0; i < 8; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
@@ -71,4 +71,90 @@ export const cardTypes = [
   'بطاقة شخصية',
   'جواز سفر',
   'رخصة قيادة',
+];
+
+// Animated number formatting
+export function formatNumber(num: number): string {
+  return num.toLocaleString('ar-SA');
+}
+
+// Time ago in Arabic
+export function timeAgo(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (diff < 60) return 'الآن';
+  if (diff < 3600) return `منذ ${Math.floor(diff / 60)} دقيقة`;
+  if (diff < 86400) return `منذ ${Math.floor(diff / 3600)} ساعة`;
+  if (diff < 604800) return `منذ ${Math.floor(diff / 86400)} يوم`;
+  if (diff < 2592000) return `منذ ${Math.floor(diff / 604800)} أسبوع`;
+  return date.toLocaleDateString('ar-SA');
+}
+
+// Compress base64 image
+export function compressBase64Image(base64: string, maxWidth = 200, quality = 0.7): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
+      canvas.width = img.width * ratio;
+      canvas.height = img.height * ratio;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = base64;
+  });
+}
+
+// Transaction type labels in Arabic
+export const transactionTypeLabels: Record<string, string> = {
+  transfer: 'تحويل',
+  deposit: 'إيداع',
+  withdraw: 'سحب',
+  payment: 'دفع',
+  recharge: 'شحن',
+  bill: 'فاتورة',
+  purchase: 'شراء',
+  order: 'طلب',
+  refund: 'استرداد',
+};
+
+// Transaction type colors
+export const transactionTypeColors: Record<string, string> = {
+  transfer: '#E60000',
+  deposit: '#10B981',
+  withdraw: '#F59E0B',
+  payment: '#3B82F6',
+  recharge: '#8B5CF6',
+  bill: '#EC4899',
+  purchase: '#F97316',
+  order: '#14B8A6',
+  refund: '#6366F1',
+};
+
+// Order status timeline steps
+export const orderTimelineSteps = [
+  { key: 'pending', label: 'تم الاستلام', icon: 'received' },
+  { key: 'processing', label: 'قيد التنفيذ', icon: 'processing' },
+  { key: 'completed', label: 'تم التنفيذ', icon: 'completed' },
+];
+
+// Currency exchange default rates
+export const defaultExchangeRates = {
+  YER: 1,
+  SAR: 0.037,
+  USD: 0.0099,
+};
+
+// Support FAQ
+export const faqItems = [
+  { q: 'كيف أشحن رصيدي؟', a: 'يمكنك شحن رصيدك من قسم الإيداع في المحفظة، أو عبر نقاط البيع المعتمدة' },
+  { q: 'كم تستغرق عملية الشحن؟', a: 'الشحن يتم خلال 5-30 دقيقة كحد أقصى، وسيتم إشعارك فوراً عند التنفيذ' },
+  { q: 'كيف أحول أموال لصديق؟', a: 'من زر التحويل، أدخل رقم حساب الصديق أو رقم هاتفه وحدد المبلغ' },
+  { q: 'هل يمكنني استرداد رصيدي؟', a: 'نعم، يمكنك طلب سحب رصيدك من قسم السحب وسيتم التحويل خلال 24 ساعة' },
+  { q: 'ما هي عملات المحفظة؟', a: 'المحفظة تدعم ثلاث عملات: الريال اليمني، الريال السعودي، والدولار الأمريكي' },
+  { q: 'كيف أتحقق من هويتي؟', a: 'من إعدادات الحساب، اختر التحقق من الهوية واتبع الخطوات الست' },
+  { q: 'نسيت رمز PIN، ماذا أفعل؟', a: 'يمكنك إعادة تعيين رمز PIN من إعدادات الأمان بعد التحقق من هويتك' },
 ];

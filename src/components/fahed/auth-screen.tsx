@@ -314,7 +314,7 @@ export default function AuthScreen() {
             boxShadow: '0 8px 24px rgba(230,0,0,0.3)',
           }}
         >
-          <span className="text-white text-2xl font-bold">فهد</span>
+          <span className="text-white text-2xl font-bold">الجنوب</span>
         </motion.div>
         <motion.h1
           initial={{ y: 20, opacity: 0 }}
@@ -323,7 +323,7 @@ export default function AuthScreen() {
           className="text-2xl font-bold"
           style={{ color: isDark ? '#FFF' : '#1a1a1a' }}
         >
-          فهد نت
+          محفظة الجنوب
         </motion.h1>
         <motion.p
           initial={{ y: 20, opacity: 0 }}
