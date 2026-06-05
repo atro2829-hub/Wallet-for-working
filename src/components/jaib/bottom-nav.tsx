@@ -1,5 +1,6 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import { Home, List, ShoppingBag, User, ArrowUp } from 'lucide-react';
 
 export type TabType = 'home' | 'services' | 'wallet' | 'account';
@@ -23,7 +24,7 @@ export default function BottomNav({ activeTab, onTabChange, onFabClick }: Bottom
       <div className="max-w-md mx-auto">
         <div className="bg-white border-t border-gray-100 px-2 pt-2 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
           <div className="flex items-center justify-around relative">
-            {/* Tab items - RTL order: account, services, [FAB], wallet, home */}
+            {/* RTL order: account, services, [FAB], wallet, home */}
             <NavItem
               tab={tabs[3]}
               isActive={activeTab === tabs[3].id}
@@ -35,13 +36,18 @@ export default function BottomNav({ activeTab, onTabChange, onFabClick }: Bottom
               onClick={() => onTabChange(tabs[2].id)}
             />
 
-            {/* FAB Button */}
-            <button
+            {/* FAB Button - Dark color, thumb-reachable, centered */}
+            <motion.button
               onClick={onFabClick}
-              className="relative -mt-8 w-14 h-14 bg-gray-900 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform"
+              className="relative -mt-8 w-14 h-14 rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(230,0,0,0.3)]"
+              style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)' }}
+              whileTap={{ scale: 0.9 }}
+              whileHover={{ scale: 1.05 }}
             >
-              <ArrowUp className="w-6 h-6 text-white" />
-            </button>
+              <ArrowUp className="w-6 h-6 text-white stroke-[2px]" />
+              {/* Red accent ring around FAB */}
+              <div className="absolute inset-0 rounded-full border-2 border-[#E60000]/20" />
+            </motion.button>
 
             <NavItem
               tab={tabs[1]}
@@ -72,12 +78,20 @@ function NavItem({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center gap-0.5 py-1 px-3 transition-colors ${
-        isActive ? 'text-[#E63946]' : 'text-gray-400'
+      className={`flex flex-col items-center gap-0.5 py-1 px-3 transition-colors relative ${
+        isActive ? 'text-[#E60000]' : 'text-gray-400'
       }`}
     >
       <tab.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : 'stroke-[1.5px]'}`} />
       <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>{tab.label}</span>
+      {/* Active indicator dot */}
+      {isActive && (
+        <motion.div
+          className="absolute -top-1 w-1 h-1 bg-[#E60000] rounded-full"
+          layoutId="activeTab"
+          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        />
+      )}
     </button>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import {
   Bell,
@@ -19,20 +19,21 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   ChevronLeft,
-  Trophy,
-  Sparkles,
+  RefreshCw,
+  ChevronDown,
 } from 'lucide-react';
 
+// ====== SERVICES: Line Icons with red accent - Minimalist style ======
 const services = [
-  { icon: FileText, label: 'المدفوعات الفورية', color: 'bg-[#E63946]' },
-  { icon: ArrowLeftRight, label: 'تحويل الأموال', color: 'bg-[#2EC4B6]' },
-  { icon: RotateCcw, label: 'طلب الأموال', color: 'bg-[#FF9F1C]' },
-  { icon: Smartphone, label: 'شحن رصيد', color: 'bg-[#6C63FF]' },
-  { icon: ShoppingBag, label: 'متجر الجيب', color: 'bg-[#E63946]' },
-  { icon: Wifi, label: 'دفع الفواتير', color: 'bg-[#2EC4B6]' },
-  { icon: FileSpreadsheet, label: 'كشف', color: 'bg-[#FF9F1C]' },
-  { icon: Gamepad2, label: 'بطاقات الألعاب', color: 'bg-[#6C63FF]' },
-  { icon: Wallet, label: 'المحفظة', color: 'bg-[#E63946]' },
+  { icon: FileText, label: 'المدفوعات الفورية' },
+  { icon: ArrowLeftRight, label: 'تحويل الأموال' },
+  { icon: RotateCcw, label: 'طلب الأموال' },
+  { icon: Smartphone, label: 'شحن رصيد' },
+  { icon: ShoppingBag, label: 'متجر الجيب' },
+  { icon: Wifi, label: 'دفع الفواتير' },
+  { icon: FileSpreadsheet, label: 'كشف حساب' },
+  { icon: Gamepad2, label: 'بطاقات الألعاب' },
+  { icon: Wallet, label: 'المحفظة' },
 ];
 
 const transactions = [
@@ -43,6 +44,7 @@ const transactions = [
   { id: 5, title: 'تحويل وارد', subtitle: 'من سارة', amount: 1000, currency: 'USD', date: '٠١/٠٦', type: 'incoming' },
 ];
 
+// ====== BALANCE CARDS: 3 currencies with gradient colors ======
 const balanceCards = [
   {
     id: 0,
@@ -50,8 +52,8 @@ const balanceCards = [
     currencyAr: 'ر.ي',
     currencyName: 'الريال اليمني',
     balance: 0,
-    bgColor: '#E60000',
-    darkBg: '#1a1a1a',
+    gradientFrom: '#C1121F',
+    gradientTo: '#E60000',
     flagEmoji: '🇾🇪',
   },
   {
@@ -60,8 +62,8 @@ const balanceCards = [
     currencyAr: 'ر.س',
     currencyName: 'الريال السعودي',
     balance: 0,
-    bgColor: '#1B7A2B',
-    darkBg: '#1a1a1a',
+    gradientFrom: '#0D5A1F',
+    gradientTo: '#1B7A2B',
     flagEmoji: '🇸🇦',
   },
   {
@@ -70,26 +72,37 @@ const balanceCards = [
     currencyAr: '$',
     currencyName: 'الدولار الأمريكي',
     balance: 0,
-    bgColor: '#1565C0',
-    darkBg: '#1a1a1a',
+    gradientFrom: '#0D47A1',
+    gradientTo: '#1565C0',
     flagEmoji: '🇺🇸',
   },
 ];
 
-// Dot pattern for card decoration
-function CardDotPattern() {
+// ====== CARD PATTERN: SVG texture like a real plastic card ======
+function CardPattern() {
   return (
-    <div className="absolute left-0 top-0 w-1/2 h-full overflow-hidden opacity-[0.08]">
-      <div className="grid grid-cols-6 grid-rows-8 gap-3 p-4 w-full h-full">
-        {Array.from({ length: 48 }).map((_, i) => (
-          <div key={i} className="w-2 h-2 rounded-full bg-white" />
-        ))}
-      </div>
-    </div>
+    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
+      {/* Top-right decorative circle */}
+      <circle cx="350" cy="30" r="60" fill="white" fillOpacity="0.05" />
+      <circle cx="370" cy="10" r="40" fill="white" fillOpacity="0.03" />
+      {/* Bottom-left decorative circle */}
+      <circle cx="50" cy="180" r="50" fill="white" fillOpacity="0.04" />
+      {/* Dot pattern - bottom area like real card */}
+      <g fill="white" fillOpacity="0.06">
+        {Array.from({ length: 8 }).map((_, row) =>
+          Array.from({ length: 12 }).map((_, col) => (
+            <circle key={`${row}-${col}`} cx={20 + col * 16} cy={140 + row * 8} r="1.5" />
+          ))
+        )}
+      </g>
+      {/* Subtle wave lines */}
+      <path d="M0 160 Q100 140 200 160 Q300 180 400 160" stroke="white" strokeOpacity="0.04" strokeWidth="1" fill="none" />
+      <path d="M0 170 Q100 150 200 170 Q300 190 400 170" stroke="white" strokeOpacity="0.03" strokeWidth="1" fill="none" />
+    </svg>
   );
 }
 
-// Balance Card matching original design
+// ====== BALANCE CARD: Looks like a real plastic card ======
 function BalanceCard({
   card,
   balanceVisible,
@@ -101,55 +114,59 @@ function BalanceCard({
 }) {
   return (
     <div
-      className="relative w-full h-full rounded-2xl overflow-hidden"
-      style={{ backgroundColor: card.bgColor }}
+      className="relative w-full h-full rounded-[20px] overflow-hidden"
+      style={{
+        background: `linear-gradient(135deg, ${card.gradientFrom} 0%, ${card.gradientTo} 50%, ${card.gradientFrom} 100%)`,
+      }}
     >
-      {/* Dot pattern on left side */}
-      <CardDotPattern />
+      {/* Card texture pattern */}
+      <CardPattern />
 
-      {/* Decorative circles */}
-      <div className="absolute -top-6 -left-6 w-32 h-32 bg-white/[0.06] rounded-full" />
-      <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-white/[0.04] rounded-full" />
+      {/* Shimmer effect overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-transparent pointer-events-none" />
 
       {/* Content */}
       <div className="relative z-10 p-5 h-full flex flex-col justify-between">
         {/* Top row: Logo + Currency badge */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-              <Wallet className="w-4 h-4 text-white" />
+            <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+              <Wallet className="w-[18px] h-[18px] text-white" />
             </div>
-            <span className="text-white font-bold text-base">جيب</span>
+            <span className="text-white font-bold text-base tracking-wide">جيب</span>
           </div>
-          <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-1">
+          <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1.5 backdrop-blur-sm">
             <span className="text-sm">{card.flagEmoji}</span>
-            <span className="text-white/80 text-[11px] font-semibold">{card.currency}</span>
+            <span className="text-white/90 text-[11px] font-semibold">{card.currency}</span>
           </div>
         </div>
 
         {/* Balance section */}
         <div className="flex-1 flex flex-col justify-center">
-          <p className="text-white/70 text-xs mb-1">رصيدك الحالي</p>
+          <p className="text-white/60 text-[11px] mb-1.5">رصيدك الحالي</p>
           <motion.div
             className="flex items-end gap-2"
             key={`bal-${balanceVisible}-${card.currency}`}
             initial={{ opacity: 0, filter: 'blur(8px)' }}
             animate={{ opacity: 1, filter: 'blur(0px)' }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
           >
-            <span className="text-white text-5xl font-bold leading-none">
+            <span className="text-white text-[44px] font-bold leading-none tracking-tight">
               {balanceVisible ? card.balance.toLocaleString('ar-SA') : '••••'}
             </span>
-            <span className="text-white/50 text-base font-semibold mb-1">{card.currencyAr}</span>
+            <span className="text-white/40 text-base font-semibold mb-1.5">{card.currencyAr}</span>
           </motion.div>
         </div>
 
-        {/* Bottom row: Currency name + Eye toggle */}
+        {/* Bottom row: Currency name + Eye toggle (Privacy Feature) */}
         <div className="flex items-center justify-between">
-          <span className="text-white/40 text-[11px]">{card.currencyName}</span>
+          <span className="text-white/35 text-[11px] font-medium">{card.currencyName}</span>
           <motion.button
-            onClick={onToggleBalance}
-            className="p-1.5 rounded-full bg-white/15"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleBalance();
+            }}
+            className="p-2 rounded-full bg-white/15 backdrop-blur-sm active:scale-90 transition-transform"
             whileTap={{ scale: 0.85, rotate: 15 }}
           >
             {balanceVisible ? (
@@ -164,9 +181,11 @@ function BalanceCard({
   );
 }
 
+// ====== HOME SCREEN: Main layout following the detailed design specs ======
 export default function HomeScreen() {
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [activeCard, setActiveCard] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const handleDragEnd = useCallback((_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const threshold = 40;
@@ -183,122 +202,98 @@ export default function HomeScreen() {
 
   return (
     <div className="pb-4">
-      {/* Header - matching original: icons left, text right */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2">
-        <div className="flex items-center gap-2.5">
-          <button className="relative p-2.5 rounded-full bg-white shadow-sm active:scale-95 transition-transform">
-            <Bell className="w-5 h-5 text-[#E60000]" />
-            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#E60000] rounded-full border-2 border-white" />
+      {/* ====== 1. HEADER (Welcoming) ====== */}
+      {/* User name in bold + notification icon with badge + support/AI assistant */}
+      <div className="flex items-center justify-between px-5 pt-5 pb-2">
+        {/* Icons on the left side (in RTL) */}
+        <div className="flex items-center gap-3">
+          {/* Notification bell with red badge */}
+          <button className="relative p-2.5 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] active:scale-95 transition-transform">
+            <Bell className="w-[20px] h-[20px] text-[#1a1a1a] stroke-[1.5px]" />
+            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[#E60000] rounded-full border-2 border-white" />
           </button>
-          <button className="p-2.5 rounded-full bg-white shadow-sm active:scale-95 transition-transform">
-            <Headphones className="w-5 h-5 text-[#E60000]" />
+          {/* Support / AI Assistant button */}
+          <button className="p-2.5 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] active:scale-95 transition-transform">
+            <Headphones className="w-[20px] h-[20px] text-[#1a1a1a] stroke-[1.5px]" />
           </button>
         </div>
+        {/* Greeting with user name in bold */}
         <div className="text-right">
-          <p className="text-[13px] text-gray-500">مساء الخير،</p>
-          <p className="text-base font-bold text-gray-900">محمود</p>
+          <p className="text-[13px] text-gray-400 font-medium">مساء الخير،</p>
+          <p className="text-[17px] font-bold text-[#1a1a1a]">محمود</p>
         </div>
       </div>
 
-      {/* Balance Card Carousel - matching original with side peek */}
-      <div className="px-4 py-2">
-        <div className="relative overflow-visible" style={{ height: '195px' }}>
-          {/* Previous card peek (shows on the LEFT in RTL) */}
-          {activeCard > 0 && (
-            <motion.div
-              className="absolute top-2 rounded-2xl pointer-events-none"
-              style={{
-                width: '85%',
-                height: '92%',
-                right: '-12%',
-                backgroundColor: balanceCards[activeCard - 1].darkBg,
-                zIndex: 0,
-              }}
-              initial={{ x: 0, opacity: 0, scale: 0.9 }}
-              animate={{ x: 0, opacity: 0.5, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.3 }}
-            >
-              <CardDotPattern />
-            </motion.div>
-          )}
+      {/* ====== PULL TO REFRESH HINT ====== */}
+      {/* Light gray instructional text - Micro-UX detail */}
+      <div className="flex items-center justify-center gap-1.5 py-1.5">
+        <RefreshCw className="w-3 h-3 text-gray-400" />
+        <span className="text-[10px] text-gray-400 font-medium">اسحب للأسفل للتحديث</span>
+        <ChevronDown className="w-3 h-3 text-gray-400" />
+      </div>
 
-          {/* Next card peek (shows on the RIGHT in RTL) */}
-          {activeCard < balanceCards.length - 1 && (
-            <motion.div
-              className="absolute top-2 rounded-2xl pointer-events-none"
-              style={{
-                width: '85%',
-                height: '92%',
-                left: '-12%',
-                backgroundColor: balanceCards[activeCard + 1].darkBg,
-                zIndex: 0,
-              }}
-              initial={{ x: 0, opacity: 0, scale: 0.9 }}
-              animate={{ x: 0, opacity: 0.5, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.3 }}
-            >
-              <CardDotPattern />
-            </motion.div>
-          )}
+      {/* ====== 2. BALANCE CARD CAROUSEL ====== */}
+      {/* viewportFraction ~0.82 - main card takes 82%, adjacent cards peek at edges */}
+      {/* Visual Cue: showing edges of adjacent cards hints at swipeable content */}
+      {/* Scale: center=1, sides=0.88 | Opacity: center=1, sides=0.45 | Focus effect */}
+      <div className="px-4 pb-1">
+        <div
+          ref={containerRef}
+          className="relative overflow-visible"
+          style={{ height: '195px' }}
+        >
+          {/* Render ALL visible cards - viewportFraction effect */}
+          {balanceCards.map((card, index) => {
+            const offset = index - activeCard;
+            const isActive = offset === 0;
+            const isVisible = Math.abs(offset) <= 1;
 
-          {/* Active card - with 3D epic animation */}
-          <AnimatePresence mode="popLayout">
-            <motion.div
-              key={activeCard}
-              className="absolute inset-0 rounded-2xl shadow-xl cursor-grab active:cursor-grabbing z-10"
-              style={{ margin: '0 4px' }}
-              initial={{
-                x: 280,
-                opacity: 0,
-                scale: 0.5,
-                rotateY: -50,
-                rotateZ: -6,
-                filter: 'blur(10px) brightness(0.4)',
-              }}
-              animate={{
-                x: 0,
-                opacity: 1,
-                scale: 1,
-                rotateY: 0,
-                rotateZ: 0,
-                filter: 'blur(0px) brightness(1)',
-              }}
-              exit={{
-                x: -280,
-                opacity: 0,
-                scale: 0.5,
-                rotateY: 50,
-                rotateZ: 6,
-                filter: 'blur(10px) brightness(0.4)',
-              }}
-              transition={{
-                type: 'spring',
-                stiffness: 180,
-                damping: 22,
-                mass: 0.9,
-              }}
-              drag="x"
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.15}
-              onDragEnd={handleDragEnd}
-              whileDrag={{
-                scale: 0.96,
-                boxShadow: '0 30px 60px rgba(0,0,0,0.35)',
-              }}
-            >
-              <BalanceCard
-                card={balanceCards[activeCard]}
-                balanceVisible={balanceVisible}
-                onToggleBalance={() => setBalanceVisible(!balanceVisible)}
-              />
-            </motion.div>
-          </AnimatePresence>
+            if (!isVisible) return null;
+
+            return (
+              <motion.div
+                key={card.id}
+                className="absolute inset-0 cursor-grab active:cursor-grabbing"
+                style={{
+                  zIndex: 10 - Math.abs(offset),
+                  margin: '0 4px',
+                }}
+                animate={{
+                  // RTL direction: negative x moves card to the left
+                  x: offset * -82, // ~82% card width offset
+                  scale: isActive ? 1 : 0.88,
+                  opacity: isActive ? 1 : 0.45,
+                  rotateZ: isActive ? 0 : offset * -1.5,
+                }}
+                initial={false}
+                transition={{
+                  type: 'spring',
+                  stiffness: 280,
+                  damping: 30,
+                  mass: 0.8,
+                }}
+                drag={isActive ? 'x' : false}
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.12}
+                onDragEnd={isActive ? handleDragEnd : undefined}
+                whileDrag={isActive ? {
+                  scale: 0.96,
+                  boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+                } : undefined}
+              >
+                <BalanceCard
+                  card={card}
+                  balanceVisible={balanceVisible}
+                  onToggleBalance={() => setBalanceVisible(!balanceVisible)}
+                />
+              </motion.div>
+            );
+          })}
         </div>
 
-        {/* Carousel Dots */}
-        <div className="flex items-center justify-center gap-2 mt-3">
+        {/* ====== PAGE INDICATOR DOTS ====== */}
+        {/* Red for active, gray for inactive - Visual Cue for swipe */}
+        <div className="flex items-center justify-center gap-2 mt-4">
           {balanceCards.map((card, i) => (
             <motion.button
               key={i}
@@ -311,7 +306,7 @@ export default function HomeScreen() {
                 animate={{
                   width: i === activeCard ? 24 : 8,
                   height: 8,
-                  backgroundColor: i === activeCard ? card.bgColor : '#ccc',
+                  backgroundColor: i === activeCard ? card.gradientTo : '#d1d5db',
                 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
               />
@@ -320,22 +315,61 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      {/* Service Grid - matching original 3x3 layout */}
+      {/* ====== 3. PROMOTIONAL BANNER ====== */}
+      {/* Horizontal dynamic strip - separates account area from services */}
+      {/* Dark theme matching brand colors */}
       <div className="px-4 py-3">
-        <div className="grid grid-cols-3 gap-2.5">
+        <motion.div
+          className="relative rounded-2xl p-4 overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+          }}
+          whileTap={{ scale: 0.98 }}
+        >
+          {/* Decorative elements */}
+          <div className="absolute top-0 left-0 w-28 h-28 bg-white/[0.03] rounded-full -translate-x-1/3 -translate-y-1/3" />
+          <div className="absolute bottom-0 right-0 w-20 h-20 bg-white/[0.02] rounded-full translate-x-1/4 translate-y-1/4" />
+          <div className="absolute top-3 right-20 w-2 h-2 bg-[#E60000]/30 rounded-full" />
+          <div className="absolute bottom-4 right-32 w-1.5 h-1.5 bg-[#E60000]/20 rounded-full" />
+
+          <div className="relative z-10 flex items-center justify-between">
+            <div>
+              <h3 className="text-white font-bold text-sm mb-0.5">شحن ألعاب ترفيهية</h3>
+              <p className="text-white/50 text-[11px]">بطاقات ببجي، فري فاير والمزيد</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-11 h-11 bg-[#E60000]/20 rounded-xl flex items-center justify-center">
+                <Gamepad2 className="w-5 h-5 text-[#E60000]" />
+              </div>
+              <button className="bg-white/10 p-1.5 rounded-full active:scale-90 transition-transform">
+                <ChevronLeft className="w-4 h-4 text-white/70" />
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* ====== 4. SERVICES GRID (3x3) ====== */}
+      {/* Minimalist Line Icons with red accent touch */}
+      {/* Black icons + red dot on each for visual consistency */}
+      <div className="px-4 py-2">
+        <div className="grid grid-cols-3 gap-3">
           {services.map((service, index) => (
             <motion.button
               key={index}
-              className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl shadow-sm active:scale-95 transition-transform"
+              className="relative flex flex-col items-center gap-2.5 p-3.5 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] active:scale-95 transition-transform"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.04 }}
               whileTap={{ scale: 0.92 }}
             >
-              <div className={`w-12 h-12 ${service.color} rounded-xl flex items-center justify-center`}>
-                <service.icon className="w-5 h-5 text-white" />
+              {/* Line icon - minimalist with red accent dot */}
+              <div className="relative w-12 h-12 rounded-xl flex items-center justify-center bg-[#F8F8F8]">
+                <service.icon className="w-[22px] h-[22px] text-[#1a1a1a] stroke-[1.5px]" />
+                {/* Small red dot accent on each icon - brand visual link */}
+                <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#E60000] rounded-full border border-white" />
               </div>
-              <span className="text-[11px] text-gray-700 text-center leading-tight font-medium">
+              <span className="text-[11px] text-[#1a1a1a] text-center leading-tight font-semibold">
                 {service.label}
               </span>
             </motion.button>
@@ -343,62 +377,38 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      {/* Promotional Banner */}
-      <div className="px-4 py-2">
-        <motion.div
-          className="relative bg-gradient-to-l from-[#6C63FF] to-[#4834d4] rounded-2xl p-4 overflow-hidden"
-          whileTap={{ scale: 0.98 }}
-        >
-          <div className="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 right-0 w-20 h-20 bg-white/5 rounded-full translate-x-1/3 translate-y-1/3" />
-          <div className="relative z-10 flex items-center justify-between">
-            <div>
-              <h3 className="text-white font-bold text-sm mb-0.5">اشتركوا في بطولات</h3>
-              <p className="text-white/70 text-[11px]">استمتعوا بمكافآت حصرية</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center">
-                <Trophy className="w-6 h-6 text-white/60" />
-              </div>
-              <button className="bg-white/20 p-1.5 rounded-full active:scale-90 transition-transform">
-                <ChevronLeft className="w-4 h-4 text-white" />
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Transactions Section */}
-      <div className="px-4 py-2">
+      {/* ====== TRANSACTIONS SECTION ====== */}
+      <div className="px-4 pt-4 pb-2">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold text-gray-900">العمليات</h2>
-          <button className="text-[#E60000] text-xs font-medium">عرض الكل</button>
+          <h2 className="text-[15px] font-bold text-[#1a1a1a]">العمليات الأخيرة</h2>
+          <button className="text-[#E60000] text-xs font-bold">عرض الكل</button>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {transactions.map((tx, index) => {
             const txCurrency = balanceCards.find(c => c.currency === tx.currency);
             return (
               <motion.div
                 key={tx.id}
-                className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm"
+                className="flex items-center gap-3 bg-white rounded-2xl p-3.5 shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.08 }}
               >
+                {/* Transaction icon - line style */}
                 <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                     tx.amount > 0 ? 'bg-green-50' : 'bg-red-50'
                   }`}
                 >
                   {tx.amount > 0 ? (
-                    <ArrowDownRight className="w-4 h-4 text-green-500" />
+                    <ArrowDownRight className="w-[18px] h-[18px] text-green-500 stroke-[1.5px]" />
                   ) : (
-                    <ArrowUpRight className="w-4 h-4 text-[#E60000]" />
+                    <ArrowUpRight className="w-[18px] h-[18px] text-[#E60000] stroke-[1.5px]" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-[13px] font-semibold text-gray-900">{tx.title}</h4>
-                  <p className="text-[11px] text-gray-500 truncate">{tx.subtitle}</p>
+                  <h4 className="text-[13px] font-bold text-[#1a1a1a]">{tx.title}</h4>
+                  <p className="text-[11px] text-gray-400 truncate font-medium">{tx.subtitle}</p>
                 </div>
                 <div className="text-left">
                   <p
@@ -411,7 +421,7 @@ export default function HomeScreen() {
                   </p>
                   <div className="flex items-center gap-1 justify-end">
                     <span className="text-[9px]">{txCurrency?.flagEmoji}</span>
-                    <p className="text-[9px] text-gray-400">{txCurrency?.currencyAr}</p>
+                    <p className="text-[9px] text-gray-400 font-medium">{txCurrency?.currencyAr}</p>
                   </div>
                 </div>
               </motion.div>

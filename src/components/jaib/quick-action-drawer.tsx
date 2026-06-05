@@ -16,13 +16,14 @@ interface QuickActionDrawerProps {
   onClose: () => void;
 }
 
+// Quick actions - line icons with red accent matching brand
 const quickActions = [
-  { icon: ArrowLeftRight, label: 'تحويل أموال', color: 'bg-[#2EC4B6]', desc: 'إرسال أموال فوراً' },
-  { icon: RotateCcw, label: 'طلب أموال', color: 'bg-[#FF9F1C]', desc: 'اطلب تحويلاً' },
-  { icon: Smartphone, label: 'شحن رصيد', color: 'bg-[#6C63FF]', desc: 'شحن خطك' },
-  { icon: QrCode, label: 'مسح QR', color: 'bg-[#E63946]', desc: 'ادفع بالمسح' },
-  { icon: FileText, label: 'دفع فواتير', color: 'bg-[#2EC4B6]', desc: 'سدد فواتيرك' },
-  { icon: HandCoins, label: 'إيداع رصيد', color: 'bg-[#FF9F1C]', desc: 'أضف رصيدك' },
+  { icon: ArrowLeftRight, label: 'تحويل أموال', desc: 'إرسال أموال فوراً' },
+  { icon: RotateCcw, label: 'طلب أموال', desc: 'اطلب تحويلاً' },
+  { icon: Smartphone, label: 'شحن رصيد', desc: 'شحن خطك' },
+  { icon: QrCode, label: 'مسح QR', desc: 'ادفع بالمسح' },
+  { icon: FileText, label: 'دفع فواتير', desc: 'سدد فواتيرك' },
+  { icon: HandCoins, label: 'إيداع رصيد', desc: 'أضف رصيدك' },
 ];
 
 export default function QuickActionDrawer({ isOpen, onClose }: QuickActionDrawerProps) {
@@ -32,7 +33,7 @@ export default function QuickActionDrawer({ isOpen, onClose }: QuickActionDrawer
         <>
           {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 bg-black/40 z-50"
+            className="fixed inset-0 bg-black/40 z-50 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -54,32 +55,34 @@ export default function QuickActionDrawer({ isOpen, onClose }: QuickActionDrawer
 
             {/* Header */}
             <div className="flex items-center justify-between px-5 pb-3">
-              <h2 className="text-lg font-bold text-gray-900">إجراء سريع</h2>
+              <h2 className="text-lg font-bold text-[#1a1a1a]">إجراء سريع</h2>
               <button
                 onClick={onClose}
-                className="p-2 rounded-full bg-gray-100 active:scale-90 transition-transform"
+                className="p-2 rounded-full bg-[#F8F8F8] active:scale-90 transition-transform"
               >
-                <X className="w-4 h-4 text-gray-600" />
+                <X className="w-4 h-4 text-[#1a1a1a] stroke-[1.5px]" />
               </button>
             </div>
 
-            {/* Quick Actions Grid */}
+            {/* Quick Actions Grid - Line icons with red accent */}
             <div className="px-5 pb-8 pt-2">
               <div className="grid grid-cols-3 gap-4">
                 {quickActions.map((action, index) => (
                   <motion.button
                     key={index}
-                    className="flex flex-col items-center gap-2 p-3 rounded-2xl active:scale-95 transition-transform"
+                    className="relative flex flex-col items-center gap-2 p-3 rounded-2xl active:scale-95 transition-transform"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.05 * index }}
                     whileTap={{ scale: 0.9 }}
                     onClick={onClose}
                   >
-                    <div className={`w-14 h-14 ${action.color} rounded-2xl flex items-center justify-center shadow-sm`}>
-                      <action.icon className="w-7 h-7 text-white" />
+                    {/* Line icon with light background + red accent dot */}
+                    <div className="relative w-14 h-14 bg-[#F8F8F8] rounded-2xl flex items-center justify-center">
+                      <action.icon className="w-7 h-7 text-[#1a1a1a] stroke-[1.5px]" />
+                      <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#E60000] rounded-full border border-white" />
                     </div>
-                    <span className="text-xs font-semibold text-gray-800 text-center leading-tight">
+                    <span className="text-xs font-bold text-[#1a1a1a] text-center leading-tight">
                       {action.label}
                     </span>
                   </motion.button>
