@@ -182,6 +182,37 @@ html, body {
   transition: none !important;
 }
 
+/* Responsive container - works on all phone sizes */
+@media (max-width: 360px) {
+  .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .grid-cols-4 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
+
+@media (min-width: 361px) and (max-width: 400px) {
+  .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+}
+
+/* Touch-friendly button sizes for mobile */
+button {
+  min-height: 36px;
+}
+
+/* Prevent text selection on interactive elements */
+button, [role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Smooth scrolling */
+.scroll-smooth {
+  scroll-behavior: smooth;
+}
+
+/* Prevent layout shift on scrollbar appearance */
+html {
+  overflow-y: scroll;
+}
+
 /* Input styles for mobile */
 input, textarea, select {
   font-size: 16px !important; /* Prevents zoom on iOS */

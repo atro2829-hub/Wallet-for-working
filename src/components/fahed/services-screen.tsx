@@ -2,152 +2,196 @@
 
 import { useTheme } from 'next-themes';
 import { motion } from 'framer-motion';
+import { useAppStore, type ServiceProvider } from '@/lib/store';
+import { currencySymbols } from '@/lib/utils';
 import {
-  Receipt,
-  CalendarClock,
-  CreditCard,
-  Building2,
-  Clock,
-  Landmark,
   Smartphone,
   Wifi,
-  Tv,
   Gamepad2,
-  Zap,
   Gift,
-  Send,
-  QrCode,
-  Banknote,
+  ChevronLeft,
 } from 'lucide-react';
 
-interface ServiceItem {
-  id: string;
-  label: string;
-  icon: typeof Receipt;
-  color: string;
-  desc: string;
+// Provider icon component that supports both lucide icons and base64 custom icons
+function ProviderIcon({ provider, size = 28 }: { provider: ServiceProvider; size?: number }) {
+  const isDark = useTheme().theme === 'dark';
+
+  // If provider has a base64 icon, render it as an image
+  if (provider.icon && provider.icon.startsWith('data:')) {
+    return (
+      <img
+        src={provider.icon}
+        alt={provider.name}
+        className="rounded-lg object-cover"
+        style={{ width: size + 8, height: size + 8 }}
+      />
+    );
+  }
+
+  // Otherwise, use the provider color with a letter
+  return (
+    <div
+      className="rounded-xl flex items-center justify-center"
+      style={{
+        width: size + 8,
+        height: size + 8,
+        background: `${provider.color}18`,
+      }}
+    >
+      <span
+        className="font-bold"
+        style={{
+          color: provider.color,
+          fontSize: size * 0.5,
+        }}
+      >
+        {provider.name.charAt(0)}
+      </span>
+    </div>
+  );
 }
-
-const mainServices: ServiceItem[] = [
-  { id: 'bills', label: 'دفع الفواتير', icon: Receipt, color: '#E60000', desc: 'دفع جميع أنواع الفواتير' },
-  { id: 'installments', label: 'الأقساط', icon: CalendarClock, color: '#10B981', desc: 'سداد الأقساط الشهرية' },
-  { id: 'future', label: 'الفواتير المستقبلية', icon: CreditCard, color: '#3B82F6', desc: 'جدولة الدفعات القادمة' },
-  { id: 'method', label: 'وسيلة الدفع', icon: Building2, color: '#F59E0B', desc: 'إدارة وسائل الدفع' },
-  { id: 'bank', label: 'تحويل بنكي', icon: Landmark, color: '#8B5CF6', desc: 'تحويل إلى حساب بنكي' },
-  { id: 'history', label: 'سجل المدفوعات', icon: Clock, color: '#EC4899', desc: 'عرض جميع المدفوعات' },
-];
-
-const quickAccess: ServiceItem[] = [
-  { id: 'transfer', label: 'تحويل أموال', icon: Send, color: '#E60000', desc: '' },
-  { id: 'recharge', label: 'شحن رصيد', icon: Smartphone, color: '#F59E0B', desc: '' },
-  { id: 'internet', label: 'باقات إنترنت', icon: Wifi, color: '#3B82F6', desc: '' },
-  { id: 'qr', label: 'مسح QR', icon: QrCode, color: '#6366F1', desc: '' },
-];
-
-const products: ServiceItem[] = [
-  { id: 'p1', label: 'بطاقة PSN', icon: Gamepad2, color: '#6366F1', desc: '' },
-  { id: 'p2', label: 'شحن MTN', icon: Smartphone, color: '#F59E0B', desc: '' },
-  { id: 'p3', label: 'بطاقة Xbox', icon: Gift, color: '#10B981', desc: '' },
-  { id: 'p4', label: 'باقة يمن موبايل', icon: Wifi, color: '#E60000', desc: '' },
-  { id: 'p5', label: 'كهرباء عدن', icon: Zap, color: '#EC4899', desc: '' },
-  { id: 'p6', label: 'شحن Y', icon: Smartphone, color: '#3B82F6', desc: '' },
-];
 
 export default function ServicesScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const { categories, providers, setSelectedProvider, setOrderOpen } = useAppStore();
+
+  const handleProviderClick = (provider: ServiceProvider) => {
+    setSelectedProvider(provider);
+    setOrderOpen(true);
+  };
+
+  const getCategoryIcon = (type: string, size: number) => {
+    switch (type) {
+      case 'telecom': return <Smartphone size={size} strokeWidth={1.5} color="#E60000" />;
+      case 'internet': return <Wifi size={size} strokeWidth={1.5} color="#3B82F6" />;
+      case 'games': return <Gamepad2 size={size} strokeWidth={1.5} color="#F59E0B" />;
+      case 'cards': return <Gift size={size} strokeWidth={1.5} color="#14B8A6" />;
+      default: return <Smartphone size={size} strokeWidth={1.5} color="#E60000" />;
+    }
+  };
 
   return (
     <div className="pb-4">
       {/* Header */}
-      <div className="px-5 pt-4 pb-6 rounded-b-3xl" style={{ background: 'linear-gradient(145deg, #E60000 0%, #8B0000 100%)' }}>
-        <h1 className="text-white text-xl font-bold">خدمات الدفع</h1>
-        <p className="text-white/50 text-sm mt-1">جميع خدمات الدفع والتحويل في مكان واحد</p>
+      <div className="px-5 pt-4 pb-5 rounded-b-3xl" style={{ background: 'linear-gradient(145deg, #E60000 0%, #8B0000 100%)' }}>
+        <h1 className="text-white text-xl font-bold">الخدمات</h1>
+        <p className="text-white/50 text-sm mt-1">الاتصالات والإنترنت والألعاب</p>
       </div>
 
-      {/* Quick Access */}
-      <div className="px-5 -mt-4">
-        <div className="grid grid-cols-4 gap-3">
-          {quickAccess.map((service, index) => {
-            const Icon = service.icon;
-            return (
-              <motion.button
-                key={service.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="flex flex-col items-center gap-2 py-4 rounded-2xl active:scale-95 transition-transform"
+      {/* Service Categories */}
+      {categories.map((category) => {
+        const categoryProviders = providers.filter(
+          (p) => p.categoryId === category.id && p.isActive
+        );
+
+        if (categoryProviders.length === 0) return null;
+
+        return (
+          <div key={category.id} className="px-5 mt-5">
+            {/* Category Header */}
+            <div className="flex items-center gap-2 mb-3">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
                 style={{
-                  background: isDark ? '#1E1E1E' : '#FFFFFF',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+                  background: category.type === 'telecom' || category.type === 'internet'
+                    ? 'rgba(230,0,0,0.1)'
+                    : 'rgba(245,158,11,0.1)',
                 }}
               >
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: `${service.color}15` }}>
-                  <Icon size={22} strokeWidth={1.5} color={service.color} />
+                {getCategoryIcon(category.type, 18)}
+              </div>
+              <div>
+                <h3 className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
+                  {category.name}
+                </h3>
+              </div>
+            </div>
+
+            {/* Provider Grid */}
+            <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
+              {categoryProviders.map((provider, index) => (
+                <motion.button
+                  key={provider.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.04 }}
+                  onClick={() => handleProviderClick(provider)}
+                  className="flex flex-col items-center gap-2 py-4 px-2 rounded-2xl active:scale-95 transition-transform"
+                  style={{
+                    background: isDark ? '#1E1E1E' : '#FFFFFF',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                  }}
+                >
+                  <ProviderIcon provider={provider} size={28} />
+                  <span
+                    className="text-[11px] font-medium text-center leading-tight max-w-[90px]"
+                    style={{ color: isDark ? '#CCC' : '#555' }}
+                  >
+                    {provider.name}
+                  </span>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* How it works */}
+      <div className="px-5 mt-6">
+        <div
+          className="rounded-2xl p-4"
+          style={{ background: isDark ? '#1E1E1E' : '#FFF', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+        >
+          <h3 className="text-sm font-bold mb-3" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
+            كيف تعمل الخدمة؟
+          </h3>
+          <div className="space-y-3">
+            {[
+              { step: '1', title: 'اختر الخدمة', desc: 'اختر مزود الخدمة ثم الباقة المناسبة' },
+              { step: '2', title: 'أدخل بياناتك', desc: 'رقم الهاتف أو معرف اللاعب' },
+              { step: '3', title: 'تأكيد الشراء', desc: 'يخصم المبلغ من رصيدك تلقائياً' },
+              { step: '4', title: 'استلم الخدمة', desc: 'يتم تنفيذ الطلب في أقرب وقت' },
+            ].map((item) => (
+              <div key={item.step} className="flex items-start gap-3">
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-white text-xs font-bold"
+                  style={{ background: '#E60000' }}
+                >
+                  {item.step}
                 </div>
-                <span className="text-[10px] font-medium text-center leading-tight" style={{ color: isDark ? '#CCC' : '#666' }}>
-                  {service.label}
-                </span>
-              </motion.button>
-            );
-          })}
+                <div>
+                  <p className="text-xs font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
+                    {item.title}
+                  </p>
+                  <p className="text-[10px] mt-0.5" style={{ color: isDark ? '#888' : '#AAA' }}>
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Main Services */}
+      {/* My Orders */}
       <div className="px-5 mt-5">
-        <h3 className="text-sm font-bold mb-3" style={{ color: isDark ? '#FFFFFF' : '#1a1a1a' }}>الخدمات الرئيسية</h3>
-        <div className="rounded-2xl overflow-hidden" style={{ background: isDark ? '#1E1E1E' : '#FFFFFF', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-          {mainServices.map((service, index) => {
-            const Icon = service.icon;
-            return (
-              <motion.button
-                key={service.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.04 }}
-                className="w-full flex items-center gap-3 px-4 py-4 active:bg-[#E60000]/5 transition-colors"
-                style={{ borderBottom: index < mainServices.length - 1 ? (isDark ? '1px solid #2A2A2A' : '1px solid #F0F0F0') : 'none' }}
-              >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${service.color}12` }}>
-                  <Icon size={20} strokeWidth={1.5} color={service.color} />
-                </div>
-                <div className="flex-1 text-right">
-                  <span className="text-sm font-medium block" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{service.label}</span>
-                  <span className="text-[10px] block mt-0.5" style={{ color: isDark ? '#666' : '#AAA' }}>{service.desc}</span>
-                </div>
-                <div className="w-1.5 h-1.5 rounded-full" style={{ background: service.color }} />
-              </motion.button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Products */}
-      <div className="px-5 mt-5">
-        <h3 className="text-sm font-bold mb-3" style={{ color: isDark ? '#FFFFFF' : '#1a1a1a' }}>المنتجات</h3>
-        <div className="grid grid-cols-3 gap-3">
-          {products.map((product, index) => {
-            const Icon = product.icon;
-            return (
-              <motion.button
-                key={product.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.03 }}
-                className="flex flex-col items-center gap-2 py-4 px-2 rounded-2xl active:scale-95 transition-transform"
-                style={{ background: isDark ? '#1E1E1E' : '#FFFFFF', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-              >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${product.color}12` }}>
-                  <Icon size={20} strokeWidth={1.5} color={product.color} />
-                </div>
-                <span className="text-[10px] font-medium text-center leading-tight" style={{ color: isDark ? '#BBB' : '#666' }}>
-                  {product.label}
-                </span>
-              </motion.button>
-            );
-          })}
-        </div>
+        <button
+          onClick={() => useAppStore.getState().setActiveTab('wallet')}
+          className="w-full flex items-center justify-between py-3 px-4 rounded-2xl"
+          style={{ background: isDark ? '#1E1E1E' : '#FFF', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(230,0,0,0.1)' }}>
+              <Smartphone size={18} strokeWidth={1.5} color="#E60000" />
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-medium block" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>طلباتي</span>
+              <span className="text-[10px] block" style={{ color: isDark ? '#666' : '#AAA' }}>متابعة حالة الطلبات</span>
+            </div>
+          </div>
+          <ChevronLeft size={16} strokeWidth={1.5} color={isDark ? '#444' : '#CCC'} />
+        </button>
       </div>
     </div>
   );

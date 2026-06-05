@@ -17,6 +17,7 @@ import NotificationsScreen from '@/components/fahed/notifications-screen';
 import BottomNav from '@/components/fahed/bottom-nav';
 import QuickActionDrawer from '@/components/fahed/quick-action-drawer';
 import TransferModal from '@/components/fahed/transfer-modal';
+import OrderBottomSheet from '@/components/fahed/order-bottom-sheet';
 
 function AppContent() {
   const { user, isAuthenticated, activeTab, activeScreen, setActiveScreen, theme: storeTheme } = useAppStore();
@@ -128,6 +129,7 @@ function AppContent() {
       <BottomNav />
       <QuickActionDrawer />
       <TransferModal />
+      <OrderBottomSheet />
     </div>
   );
 }
