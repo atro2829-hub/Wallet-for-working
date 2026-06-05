@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -24,6 +24,8 @@ import {
   LayoutDashboard,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { database } from '@/lib/firebase';
+import { ref, get } from 'firebase/database';
 
 interface SettingsItem {
   id: string;
@@ -102,7 +104,30 @@ export default function SettingsScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { setActiveScreen, logout, user } = useAppStore();
-  const isAdmin = user?.role === 'admin';
+  const [isAdmin, setIsAdmin] = useState(user?.role === 'admin');
+
+  // Double-check admin role directly from Firebase
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      if (!user?.id) return;
+      try {
+        const userRef = ref(database, `users/${user.id}`);
+        const snapshot = await get(userRef);
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          const isAdminInFirebase = data.role === 'admin' || (data.email && data.email.toLowerCase().includes('admin'));
+          setIsAdmin(isAdminInFirebase);
+          // If admin in Firebase but not in store, update store
+          if (isAdminInFirebase && user.role !== 'admin') {
+            useAppStore.getState().setUser({ ...user, role: 'admin' });
+          }
+        }
+      } catch (error) {
+        console.error('Error checking admin role:', error);
+      }
+    };
+    checkAdminRole();
+  }, [user?.id, user?.role]);
   const [expandedSections, setExpandedSections] = useState<string[]>(['account-settings', 'privacy-security']);
   const [toggleStates, setToggleStates] = useState<Record<string, boolean>>({
     'auto-login': true,

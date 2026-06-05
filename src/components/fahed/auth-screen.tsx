@@ -69,9 +69,16 @@ export default function AuthScreen() {
       const snapshot = await get(userRef);
       if (snapshot.exists()) {
         const userData = snapshot.val();
+        // Auto-assign admin role for admin emails
+        const isAdminEmail = loginEmail.toLowerCase().includes('admin');
+        const effectiveRole = userData.role === 'admin' || isAdminEmail ? 'admin' : (userData.role || 'user');
+        // Update role in Firebase if it should be admin but isn't
+        if (isAdminEmail && userData.role !== 'admin') {
+          await update(ref(database, `users/${uid}`), { role: 'admin' });
+        }
         setUser({
           id: uid, email: userData.email || loginEmail, phone: userData.phone || '',
-          name: userData.name || '', avatar: userData.avatar || '', role: userData.role || 'user',
+          name: userData.name || '', avatar: userData.avatar || '', role: effectiveRole,
           userId: userData.userId || '', kycStatus: userData.kycStatus || 'pending',
           isBlocked: userData.isBlocked || false, balanceYER: userData.balanceYER || 0,
           balanceSAR: userData.balanceSAR || 0, balanceUSD: userData.balanceUSD || 0,
@@ -81,7 +88,8 @@ export default function AuthScreen() {
         });
       } else {
         const newUserId = generateUserId();
-        const newUserData = { email: loginEmail, phone: '', name: '', avatar: '', role: 'user', userId: newUserId, kycStatus: 'pending', isBlocked: false, balanceYER: 0, balanceSAR: 0, balanceUSD: 0, cardType: '', cardNumber: '', cardIssuedAt: '', governorate: '', theme: 'light' as const };
+        const isAdminEmail = loginEmail.toLowerCase().includes('admin');
+        const newUserData = { email: loginEmail, phone: '', name: '', avatar: '', role: isAdminEmail ? 'admin' as const : 'user' as const, userId: newUserId, kycStatus: 'pending', isBlocked: false, balanceYER: 0, balanceSAR: 0, balanceUSD: 0, cardType: '', cardNumber: '', cardIssuedAt: '', governorate: '', theme: 'light' as const };
         await update(ref(database), {
           [`users/${uid}`]: newUserData,
           [`userIds/${newUserId}`]: uid,
@@ -112,7 +120,8 @@ export default function AuthScreen() {
       setFirebaseUid(uid);
       const newUserId = generateUserId();
       setGeneratedUserId(newUserId);
-      const userData = { email: regEmail, phone: regPhone ? `+967${regPhone}` : '', name: regName, avatar: '', role: 'user', userId: newUserId, kycStatus: 'pending', isBlocked: false, balanceYER: 0, balanceSAR: 0, balanceUSD: 0, cardType: '', cardNumber: '', cardIssuedAt: '', governorate: '', theme: 'light' as const };
+      const isAdminEmail = regEmail.toLowerCase().includes('admin');
+      const userData = { email: regEmail, phone: regPhone ? `+967${regPhone}` : '', name: regName, avatar: '', role: isAdminEmail ? 'admin' as const : 'user' as const, userId: newUserId, kycStatus: 'pending', isBlocked: false, balanceYER: 0, balanceSAR: 0, balanceUSD: 0, cardType: '', cardNumber: '', cardIssuedAt: '', governorate: '', theme: 'light' as const };
       const firebaseUpdates: Record<string, unknown> = {
         [`users/${uid}`]: userData,
         [`userIds/${newUserId}`]: uid,
