@@ -18,6 +18,9 @@ import {
   Zap,
   Package,
   Edit3,
+  X,
+  Share2,
+  Download,
 } from 'lucide-react';
 import { useAppStore, type Order } from '@/lib/store';
 import { currencySymbols, currencyBadgeColors, generateReference } from '@/lib/utils';
@@ -25,6 +28,7 @@ import { ref, set, update } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useToast } from '@/components/fahed/toast-provider';
 import { serviceIcons } from '@/lib/service-icons';
+import { LOGO_BASE64, RED_LOGO_FILTER } from '@/lib/logo';
 
 const telecomCompanies = [
   { id: 'yemen-mobile', name: 'يمن موبايل', nameEn: 'Yemen Mobile', color: '#E60000', letter: 'YM', inputLabel: 'رقم الهاتف', inputType: 'phone' as const, inputPrefix: '+967' },
@@ -270,6 +274,7 @@ export default function RechargeScreen() {
 
       setCompletedOrderId(orderId);
       setOrderResult('success');
+      setShowReceipt(true);
     } catch {
       setOrderResult('error');
       setErrorMessage('حدث خطأ أثناء المعالجة');
@@ -290,10 +295,43 @@ export default function RechargeScreen() {
     setErrorMessage('');
   };
 
+  const handleShare = async () => {
+    const text = `إيصال دفع - محفظة الجنوب\nرقم المرجع: ${completedOrderId}\nالشركة: ${selectedCompany?.name}\nالخدمة: ${rechargeMode === 'packages' ? selectedPackage?.name : 'شحن فوري'}\nالمبلغ: ${effectivePrice.toLocaleString()} ${currencySymbols[CURRENCY]}\nرقم الهاتف: ${selectedCompany?.inputPrefix}${customerInput}\nالتاريخ: ${new Date().toLocaleDateString('ar-SA')}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'إيصال دفع', text });
+      } else {
+        await navigator.clipboard.writeText(text);
+        showToast('success', 'تم النسخ', 'تم نسخ تفاصيل الإيصال');
+      }
+    } catch {
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('success', 'تم النسخ', 'تم نسخ تفاصيل الإيصال');
+      } catch {}
+    }
+  };
+
+  const handleSave = () => {
+    showToast('success', 'تم الحفظ', 'تم حفظ الإيصال بنجاح');
+  };
+
   const cardBg = isDark ? '#1A1A1A' : '#FFFFFF';
   const inputBg = isDark ? '#222' : '#F8F8F8';
   const borderColor = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)';
+  const dividerColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
   const subTextColor = isDark ? '#888' : '#AAA';
+
+  // Receipt detail rows data
+  const receiptRows = selectedCompany ? [
+    { label: 'رقم المرجع', value: completedOrderId, isRef: true },
+    { label: 'الشركة', value: selectedCompany.name },
+    { label: 'الخدمة', value: rechargeMode === 'packages' ? selectedPackage?.name || '' : `شحن فوري ${parseInt(customAmount).toLocaleString()} ر.ي` },
+    { label: 'المبلغ', value: `${effectivePrice.toLocaleString()} ${currencySymbols[CURRENCY]}`, isAmount: true },
+    { label: 'رقم الهاتف', value: `${selectedCompany.inputPrefix}${customerInput}`, dir: 'ltr' as const },
+    { label: 'التاريخ', value: new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) },
+    { label: 'الحالة', value: 'قيد الانتظار', isStatus: true },
+  ] : [];
 
   return (
     <div className="min-h-screen pb-4" style={{ background: isDark ? '#0A0A0A' : '#F5F5F5' }}>
@@ -306,7 +344,7 @@ export default function RechargeScreen() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => useAppStore.getState().setActiveTab('services')}
-            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            className="w-10 h-10 rounded-xl flex items-center justify-center active:scale-95 transition-transform"
             style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}
           >
             <ChevronLeft size={20} strokeWidth={1.5} color={isDark ? '#FFF' : '#666'} />
@@ -337,7 +375,8 @@ export default function RechargeScreen() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.03 * index }}
                 onClick={() => handleCompanySelect(company.id)}
-                className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all active:scale-[0.97]"
+                whileTap={{ scale: 0.96 }}
+                className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all"
                 style={{
                   background: selectedCompanyId === company.id
                     ? isDark ? '#1A1A1A' : '#FFFFFF'
@@ -448,7 +487,7 @@ export default function RechargeScreen() {
                         </h3>
                         <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
                           {providerPackages.map((pkg) => (
-                            <button
+                            <motion.button
                               key={pkg.id}
                               onClick={() => {
                                 setSelectedPackageId(pkg.id);
@@ -457,7 +496,8 @@ export default function RechargeScreen() {
                                 setPromoApplied(false);
                                 setPromoDiscount(0);
                               }}
-                              className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all active:scale-[0.98]"
+                              whileTap={{ scale: 0.98 }}
+                              className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all"
                               style={{
                                 background: selectedPackageId === pkg.id
                                   ? isDark ? '#1E1E1E' : '#FFFFFF'
@@ -504,7 +544,7 @@ export default function RechargeScreen() {
                                   {currencySymbols[CURRENCY]}
                                 </span>
                               </div>
-                            </button>
+                            </motion.button>
                           ))}
                         </div>
                       </div>
@@ -559,10 +599,11 @@ export default function RechargeScreen() {
                     {/* Quick Amount Buttons */}
                     <div className="flex gap-2">
                       {[100, 200, 500, 1000, 2000, 5000].map(amount => (
-                        <button
+                        <motion.button
                           key={amount}
                           onClick={() => setCustomAmount(String(amount))}
-                          className="flex-1 py-2 rounded-xl text-[11px] font-bold transition-all active:scale-[0.97]"
+                          whileTap={{ scale: 0.96 }}
+                          className="flex-1 py-2 rounded-xl text-[11px] font-bold transition-all"
                           style={{
                             background: customAmount === String(amount) ? selectedCompany.color : (isDark ? '#1A1A1A' : '#F0F0F0'),
                             color: customAmount === String(amount) ? '#FFF' : (isDark ? '#CCC' : '#666'),
@@ -570,7 +611,7 @@ export default function RechargeScreen() {
                           }}
                         >
                           {amount.toLocaleString()}
-                        </button>
+                        </motion.button>
                       ))}
                     </div>
                     <p className="text-[11px]" style={{ color: subTextColor }}>
@@ -589,7 +630,7 @@ export default function RechargeScreen() {
                 {lastOrder && (
                   <button
                     onClick={handleQuickRecharge}
-                    className="w-full py-2.5 rounded-2xl flex items-center justify-center gap-2 text-xs font-medium mb-3"
+                    className="w-full py-2.5 rounded-2xl flex items-center justify-center gap-2 text-xs font-medium mb-3 active:scale-[0.98] transition-transform"
                     style={{
                       background: 'rgba(230,0,0,0.06)',
                       border: '1px solid rgba(230,0,0,0.15)',
@@ -730,7 +771,7 @@ export default function RechargeScreen() {
                           </span>
                         </div>
                       )}
-                      <div className="h-px" style={{ background: isDark ? '#333' : '#EEE' }} />
+                      <div className="h-px" style={{ background: dividerColor }} />
                       <div className="flex justify-between">
                         <span className="text-xs" style={{ color: subTextColor }}>رصيدك الحالي</span>
                         <span className="text-xs font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
@@ -764,14 +805,15 @@ export default function RechargeScreen() {
                   )}
 
                   {/* Confirm Button */}
-                  <button
+                  <motion.button
                     onClick={handleConfirm}
                     disabled={
                       isProcessing ||
                       !customerInput.trim() ||
                       (rechargeMode === 'packages' ? !selectedPackageId : parseInt(customAmount) < 50)
                     }
-                    className="w-full py-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-white text-sm transition-all active:scale-[0.98] disabled:opacity-40"
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full py-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-white text-sm transition-all disabled:opacity-40"
                     style={{
                       background: `linear-gradient(135deg, ${selectedCompany.color} 0%, ${selectedCompany.color}CC 100%)`,
                       boxShadow: `0 4px 16px ${selectedCompany.color}40`,
@@ -787,16 +829,16 @@ export default function RechargeScreen() {
                         </span>
                       </>
                     )}
-                  </button>
+                  </motion.button>
                 </motion.div>
               )}
             </motion.div>
           )}
 
-          {/* Success Result */}
-          {selectedCompany && orderResult === 'success' && (
+          {/* Success Result - No inline receipt, will be shown in full modal */}
+          {selectedCompany && orderResult === 'success' && !showReceipt && (
             <motion.div
-              key="success"
+              key="success-buttons"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="flex flex-col items-center py-6"
@@ -813,80 +855,6 @@ export default function RechargeScreen() {
               <p className="text-sm text-center mb-4" style={{ color: subTextColor }}>
                 سيتم تنفيذ طلبك في أقرب وقت ممكن
               </p>
-
-              {/* Receipt */}
-              {showReceipt && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="w-full rounded-2xl p-4 mb-4"
-                  style={{
-                    background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.02)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
-                  }}
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <Receipt size={16} strokeWidth={1.5} color="#E60000" />
-                    <span className="text-xs font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
-                      إيصال الطلب
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-[10px]" style={{ color: subTextColor }}>رقم المرجع</span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-mono font-bold" style={{ color: '#E60000' }} dir="ltr">{completedOrderId}</span>
-                        <button
-                          onClick={async () => {
-                            try { await navigator.clipboard.writeText(completedOrderId); showToast('success', 'تم النسخ', 'تم نسخ رقم المرجع'); } catch {}
-                          }}
-                        >
-                          <Copy size={10} color="#E60000" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[10px]" style={{ color: subTextColor }}>الشركة</span>
-                      <span className="text-[10px] font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{selectedCompany.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[10px]" style={{ color: subTextColor }}>الخدمة</span>
-                      <span className="text-[10px] font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
-                        {rechargeMode === 'packages' ? selectedPackage?.name : `شحن فوري ${parseInt(customAmount).toLocaleString()} ر.ي`}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[10px]" style={{ color: subTextColor }}>المبلغ</span>
-                      <span className="text-[10px] font-bold" style={{ color: '#E60000' }}>
-                        {effectivePrice.toLocaleString()} {currencySymbols[CURRENCY]}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[10px]" style={{ color: subTextColor }}>الحالة</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
-                        قيد الانتظار
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {!showReceipt && (
-                <button
-                  onClick={() => setShowReceipt(true)}
-                  className="w-full py-2.5 rounded-2xl text-xs font-medium mb-3"
-                  style={{
-                    background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
-                    color: isDark ? '#FFF' : '#1a1a1a',
-                  }}
-                >
-                  <Receipt size={14} className="inline ml-1" />
-                  عرض الإيصال
-                </button>
-              )}
 
               <div className="flex gap-2 w-full">
                 <button
@@ -910,17 +878,190 @@ export default function RechargeScreen() {
               </div>
             </motion.div>
           )}
+        </AnimatePresence>
+      </div>
 
-          {/* Insufficient Balance Result */}
-          {selectedCompany && orderResult === 'insufficient' && (
+      {/* ==========================================
+          JAIB-STYLE RECEIPT MODAL
+          Full-screen overlay with blur background
+          ========================================== */}
+      <AnimatePresence>
+        {showReceipt && orderResult === 'success' && selectedCompany && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{
+              background: 'rgba(0,0,0,0.5)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+            }}
+            onClick={() => setShowReceipt(false)}
+          >
             <motion.div
-              key="insufficient"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="flex flex-col items-center py-8"
+              initial={{ opacity: 0, y: 60, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 60, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-[360px] rounded-3xl overflow-hidden relative"
+              style={{
+                background: isDark ? '#1E1E1E' : '#FFFFFF',
+                boxShadow: '0 25px 60px rgba(0,0,0,0.3)',
+              }}
+            >
+              {/* Close button */}
+              <button
+                onClick={() => setShowReceipt(false)}
+                className="absolute top-3 left-3 w-8 h-8 rounded-full flex items-center justify-center z-10"
+                style={{ background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }}
+              >
+                <X size={16} strokeWidth={2} color={isDark ? '#999' : '#666'} />
+              </button>
+
+              <div className="p-6 pt-8">
+                {/* Logo centered at top */}
+                <div className="flex flex-col items-center mb-5">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden mb-2">
+                    <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" style={{ filter: RED_LOGO_FILTER }} />
+                  </div>
+                  <span className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>الجنوب</span>
+                </div>
+
+                {/* Title */}
+                <h2 className="text-center text-base font-bold mb-5" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
+                  تفاصيل الدفع
+                </h2>
+
+                {/* Amount Section - Gray rounded rectangle */}
+                <div
+                  className="rounded-2xl p-4 mb-5 text-center"
+                  style={{ background: isDark ? 'rgba(255,255,255,0.06)' : '#F5F5F5' }}
+                >
+                  <p className="text-[11px] mb-1" style={{ color: subTextColor }}>المبلغ المدفوع</p>
+                  <p className="text-2xl font-bold" style={{ color: '#E60000' }}>
+                    {effectivePrice.toLocaleString()}
+                    <span className="text-sm font-medium mr-1" style={{ color: subTextColor }}>{currencySymbols[CURRENCY]}</span>
+                  </p>
+                </div>
+
+                {/* Detail Rows with iPhone-style thin gray separator lines */}
+                <div
+                  className="rounded-2xl overflow-hidden mb-5"
+                  style={{
+                    background: isDark ? 'rgba(255,255,255,0.03)' : '#FAFAFA',
+                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'}`,
+                  }}
+                >
+                  {receiptRows.map((row, index) => (
+                    <div key={row.label}>
+                      <div
+                        className="flex items-center justify-between px-4 py-3"
+                      >
+                        <span className="text-[12px]" style={{ color: isDark ? '#888' : '#999' }}>
+                          {row.label}
+                        </span>
+                        {row.isRef ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[12px] font-mono font-bold" style={{ color: '#E60000' }} dir="ltr">{row.value}</span>
+                            <button
+                              onClick={async () => {
+                                try { await navigator.clipboard.writeText(row.value); showToast('success', 'تم النسخ', 'تم نسخ رقم المرجع'); } catch {}
+                              }}
+                              className="active:scale-90 transition-transform"
+                            >
+                              <Copy size={12} color="#E60000" />
+                            </button>
+                          </div>
+                        ) : row.isAmount ? (
+                          <span className="text-[12px] font-bold" style={{ color: '#E60000' }}>{row.value}</span>
+                        ) : row.isStatus ? (
+                          <span className="text-[11px] px-2.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}>
+                            {row.value}
+                          </span>
+                        ) : (
+                          <span
+                            className="text-[12px] font-medium"
+                            style={{ color: isDark ? '#FFF' : '#1a1a1a' }}
+                            dir={row.dir || 'rtl'}
+                          >
+                            {row.value}
+                          </span>
+                        )}
+                      </div>
+                      {index < receiptRows.length - 1 && (
+                        <div className="h-px mx-4" style={{ background: dividerColor }} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <motion.button
+                    onClick={handleShare}
+                    whileTap={{ scale: 0.96 }}
+                    className="flex-1 py-3 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold transition-all"
+                    style={{
+                      background: 'rgba(37,99,235,0.08)',
+                      color: '#2563EB',
+                      border: '1px solid rgba(37,99,235,0.15)',
+                    }}
+                  >
+                    <Share2 size={16} strokeWidth={1.5} />
+                    مشاركة
+                  </motion.button>
+                  <motion.button
+                    onClick={handleSave}
+                    whileTap={{ scale: 0.96 }}
+                    className="flex-1 py-3 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold text-white transition-all"
+                    style={{
+                      background: '#E60000',
+                      boxShadow: '0 2px 8px rgba(230,0,0,0.2)',
+                    }}
+                  >
+                    <Download size={16} strokeWidth={1.5} />
+                    حفظ
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Insufficient Balance - also show as modal */}
+      <AnimatePresence>
+        {orderResult === 'insufficient' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{
+              background: 'rgba(0,0,0,0.5)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+            }}
+            onClick={() => setOrderResult(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 60, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 60, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-[360px] rounded-3xl overflow-hidden p-6 text-center"
+              style={{
+                background: isDark ? '#1E1E1E' : '#FFFFFF',
+                boxShadow: '0 25px 60px rgba(0,0,0,0.3)',
+              }}
             >
               <div
-                className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
                 style={{ background: 'rgba(230,0,0,0.15)' }}
               >
                 <AlertTriangle size={32} strokeWidth={2} color="#E60000" />
@@ -931,13 +1072,13 @@ export default function RechargeScreen() {
               <p className="text-sm text-center mb-2" style={{ color: subTextColor }}>
                 رصيدك الحالي لا يكفي لإتمام هذه العملية
               </p>
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center justify-center gap-2 mb-5">
                 <span className="text-xs" style={{ color: subTextColor }}>رصيدك:</span>
                 <span className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
                   {getBalance().toLocaleString()} {currencySymbols[CURRENCY]}
                 </span>
               </div>
-              <div className="flex gap-2 w-full">
+              <div className="flex gap-2">
                 <button
                   onClick={() => useAppStore.getState().setActiveTab('services')}
                   className="flex-1 py-3.5 rounded-2xl font-bold text-white text-sm"
@@ -958,9 +1099,9 @@ export default function RechargeScreen() {
                 </button>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -48,6 +48,9 @@ const menuSections = [
       { id: 'instant-pay', label: 'مدفوعات فورية', iconKey: 'instant-pay' },
       { id: 'health', label: 'صحة', iconKey: 'health' },
       { id: 'digital-wallet', label: 'المحفظة الرقمية', iconKey: 'digital-wallet' },
+      { id: 'deposit', label: 'إيداع', iconKey: 'deposit' },
+      { id: 'exchange', label: 'صرف عملات', iconKey: 'exchange' },
+      { id: 'savings', label: 'ادخار', iconKey: 'savings' },
     ],
   },
 ];
@@ -57,6 +60,8 @@ export default function ServicesScreen() {
   const isDark = theme === 'dark';
   const { setActiveScreen, setSelectedProvider, setOrderOpen, providers } = useAppStore();
   const [searchQuery, setSearchQuery] = useState('');
+
+  const dividerColor = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)';
 
   const handleItemClick = (itemId: string) => {
     // Telecom companies go to unified recharge screen
@@ -78,6 +83,13 @@ export default function ServicesScreen() {
     // For non-provider items, open appropriate screen
     if (itemId === 'transfer-local' || itemId === 'transfer-intl' || itemId === 'transfer-account') {
       useAppStore.getState().setTransferOpen(true);
+    }
+    // For other services, navigate to recharge or wallet
+    if (itemId === 'digital-wallet' || itemId === 'deposit') {
+      useAppStore.getState().setActiveTab('wallet');
+    }
+    if (itemId === 'instant-pay' || itemId === 'pay-bill' || itemId === 'pay-bills') {
+      useAppStore.getState().setActiveScreen('recharge');
     }
   };
 
@@ -120,7 +132,7 @@ export default function ServicesScreen() {
         </div>
       </motion.div>
 
-      {/* Menu Sections */}
+      {/* Menu Sections - iOS-style grouped lists */}
       {filteredSections.map((section, sectionIndex) => (
         <motion.div
           key={section.title}
@@ -145,10 +157,10 @@ export default function ServicesScreen() {
                 <button
                   key={item.id}
                   onClick={() => handleItemClick(item.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 active:scale-[0.99] transition-transform"
+                  className="w-full flex items-center gap-3 px-4 py-3.5 active:scale-[0.98] transition-transform"
                   style={{
                     borderBottom: index < section.items.length - 1
-                      ? `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}`
+                      ? `1px solid ${dividerColor}`
                       : 'none',
                   }}
                 >

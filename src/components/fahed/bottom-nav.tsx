@@ -89,8 +89,9 @@ export default function BottomNav() {
                 : 'linear-gradient(145deg, #1A1A1A 0%, #0A0A0A 100%)',
               boxShadow: '0 4px 16px rgba(0,0,0,0.25), 0 0 0 3px rgba(0,0,0,0.05)',
             }}
-            whileTap={{ scale: 0.92 }}
+            whileTap={{ scale: 0.9 }}
             whileHover={{ scale: 1.05 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
           >
             <Plus size={26} strokeWidth={2.5} color="#FFFFFF" />
           </motion.button>

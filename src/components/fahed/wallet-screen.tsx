@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { formatBalance, formatNumber, currencySymbols, currencyNames, currencyBadgeColors, timeAgo, transactionTypeLabels, transactionTypeColors } from '@/lib/utils';
-import { LOGO_BASE64 } from '@/lib/logo';
+import { LOGO_BASE64, RED_LOGO_FILTER } from '@/lib/logo';
 
 type FilterTab = 'all' | 'incoming' | 'outgoing' | 'orders' | 'deposit' | 'withdraw';
 
@@ -145,6 +145,8 @@ export default function WalletScreen() {
   const startX = useRef(0);
   const currentTranslate = useRef(0);
   const prevTranslate = useRef(0);
+
+  const dividerColor = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)';
 
   const CARD_GAP = 12;
   const CARD_SIDE_PADDING = 32;
@@ -314,7 +316,7 @@ export default function WalletScreen() {
           </div>
           <button
             onClick={handleRefresh}
-            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            className="w-10 h-10 rounded-xl flex items-center justify-center active:scale-95 transition-transform"
             style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}
           >
             <RefreshCw size={18} strokeWidth={1.5} style={{ color: isDark ? '#999' : '#666' }} className={isRefreshing ? 'animate-spin' : ''} />
@@ -413,6 +415,7 @@ export default function WalletScreen() {
                           boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                         }}
                       >
+                        {/* White logo on colored card background */}
                         <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" />
                       </div>
                       <div className="flex flex-col leading-none">
@@ -430,7 +433,7 @@ export default function WalletScreen() {
 
                   {/* Balance + Income/Expense */}
                   <div>
-                    <p className="text-white/45 text-[11px] mb-1">رصيدك الآن</p>
+                    <p className="text-white/50 text-[12px] mb-1">رصيدك الآن</p>
                     <AnimatedBalance amount={getBalance(card.currency)} currency={card.currency} visible={balanceVisible} />
                     <div className="flex gap-4 mt-3">
                       <div className="flex items-center gap-1.5">
@@ -461,8 +464,8 @@ export default function WalletScreen() {
                       <span className="text-[10px] px-2 py-0.5 rounded font-bold text-white" style={{ background: currencyBadgeColors[card.currency] }}>{card.currency}</span>
                     </div>
                     <div className="flex items-center gap-1.5" dir="ltr">
-                      {[0,1,2,3,4].map((i) => (
-                        <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.35)' }} />
+                      {[0,1,2,3].map((i) => (
+                        <div key={i} className="w-[6px] h-[6px] rounded-full" style={{ background: 'rgba(255,255,255,0.35)' }} />
                       ))}
                       <span className="text-white/35 text-[10px] font-mono mr-1">
                         {user?.userId || '------'}
@@ -569,10 +572,11 @@ export default function WalletScreen() {
       <div className="px-4 mt-3">
         <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {filterTabs.map((tab) => (
-            <button
+            <motion.button
               key={tab.id}
               onClick={() => setActiveFilter(tab.id)}
-              className="shrink-0 px-4 py-2 rounded-xl text-xs font-medium transition-all card-press"
+              whileTap={{ scale: 0.96 }}
+              className="shrink-0 px-4 py-2 rounded-xl text-xs font-medium transition-all"
               style={{
                 background: activeFilter === tab.id ? '#E60000' : (isDark ? '#1A1A1A' : '#F5F5F5'),
                 color: activeFilter === tab.id ? '#FFF' : (isDark ? '#AAA' : '#666'),
@@ -581,12 +585,12 @@ export default function WalletScreen() {
               }}
             >
               {tab.label}
-            </button>
+            </motion.button>
           ))}
         </div>
       </div>
 
-      {/* Transaction List */}
+      {/* Transaction List - iOS-style grouped card with thin dividers */}
       <div className="px-4 mt-4">
         {filteredTransactions.length === 0 ? (
           <motion.div
@@ -605,7 +609,13 @@ export default function WalletScreen() {
             <p className="text-[11px] mt-1" style={{ color: isDark ? '#444' : '#CCC' }}>المعاملات ستظهر هنا</p>
           </motion.div>
         ) : (
-          <div className="space-y-2 max-h-[500px] overflow-y-auto scrollbar-thin">
+          <div
+            className="rounded-2xl overflow-hidden max-h-[500px] overflow-y-auto scrollbar-thin"
+            style={{
+              background: isDark ? '#1A1A1A' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}`,
+            }}
+          >
             {filteredTransactions.map((tx, index) => {
               const isIncoming = tx.toUserId === user?.id;
               const txColor = transactionTypeColors[tx.type] || '#E60000';
@@ -616,10 +626,11 @@ export default function WalletScreen() {
                   initial={{ opacity: 0, x: -15 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.03 * index }}
-                  className="flex items-center gap-3 p-3 rounded-2xl card-press"
+                  className="flex items-center gap-3 p-3 px-4 active:scale-[0.98] transition-transform"
                   style={{
-                    background: isDark ? '#1A1A1A' : '#FFFFFF',
-                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}`,
+                    borderBottom: index < filteredTransactions.length - 1
+                      ? `1px solid ${dividerColor}`
+                      : 'none',
                   }}
                 >
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${txColor}10` }}>

@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { formatBalance, formatNumber, currencySymbols, currencyNames, currencyBadgeColors, timeAgo, transactionTypeLabels, transactionTypeColors } from '@/lib/utils';
-import { LOGO_BASE64 } from '@/lib/logo';
+import { LOGO_BASE64, RED_LOGO_FILTER } from '@/lib/logo';
 import { serviceIcons } from '@/lib/service-icons';
 
 interface BalanceCard {
@@ -351,23 +351,31 @@ export default function HomeScreen() {
   const handleServiceClick = (serviceId: string) => {
     switch (serviceId) {
       case 'transfer':
+      case 'wallet-transfer':
         setTransferOpen(true);
         break;
       case 'recharge':
       case 'instant-charge':
         setActiveScreen('recharge');
         break;
-      case 'wallet-transfer':
-        setTransferOpen(true);
+      case 'instant-pay':
+      case 'app-store':
+      case 'health':
+        useAppStore.getState().setActiveTab('services');
         break;
       case 'games':
         useAppStore.getState().setActiveTab('services');
+        break;
+      case 'digital-wallet':
+        useAppStore.getState().setActiveTab('wallet');
         break;
       default:
         useAppStore.getState().setActiveTab('services');
         break;
     }
   };
+
+  const dividerColor = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)';
 
   return (
     <div className="pb-4">
@@ -389,7 +397,7 @@ export default function HomeScreen() {
               className="w-10 h-10 rounded-xl overflow-hidden"
               style={{ boxShadow: '0 2px 8px rgba(230,0,0,0.15)' }}
             >
-              <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" />
+              <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" style={{ filter: RED_LOGO_FILTER }} />
             </div>
             <button onClick={handleGreetingTap} className="active:scale-95 transition-transform">
               <h1 className="text-base font-bold" style={{ color: isDark ? '#FFFFFF' : '#1a1a1a' }}>
@@ -403,7 +411,7 @@ export default function HomeScreen() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveScreen('notifications')}
-              className="relative w-10 h-10 rounded-xl flex items-center justify-center"
+              className="relative w-10 h-10 rounded-xl flex items-center justify-center active:scale-95 transition-transform"
               style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}
             >
               <Bell size={20} strokeWidth={1.5} color={isDark ? '#CCC' : '#666'} />
@@ -418,7 +426,7 @@ export default function HomeScreen() {
             </button>
             <button
               onClick={() => setActiveScreen('support')}
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              className="w-10 h-10 rounded-xl flex items-center justify-center active:scale-95 transition-transform"
               style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}
             >
               <Headphones size={20} strokeWidth={1.5} color={isDark ? '#CCC' : '#666'} />
@@ -456,7 +464,7 @@ export default function HomeScreen() {
                 className="shrink-0 relative overflow-hidden select-none"
                 style={{
                   width: getCardWidth(),
-                  height: 190,
+                  height: index === activeCardIndex ? 195 : 190,
                   borderRadius: 20,
                   background: index === activeCardIndex
                     ? `linear-gradient(145deg, ${card.accentColor}DD, ${card.accentColorEnd}CC)`
@@ -471,7 +479,7 @@ export default function HomeScreen() {
                     : '0 4px 16px rgba(0, 0, 0, 0.1)',
                   transform: index === activeCardIndex ? 'scale(1)' : 'scale(0.92)',
                   opacity: index === activeCardIndex ? 1 : 0.5,
-                  transition: 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease, box-shadow 0.4s ease, background 0.4s ease, border 0.4s ease',
+                  transition: 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease, box-shadow 0.4s ease, background 0.4s ease, border 0.4s ease, height 0.3s ease',
                 }}
                 onClick={() => snapToCard(index)}
                 dir="rtl"
@@ -506,7 +514,7 @@ export default function HomeScreen() {
                 )}
 
                 {/* Card Content - Jaib Style: Logo + Branding + Balance */}
-                <div className="relative z-10 h-full flex flex-col justify-between p-5">
+                <div className="relative z-10 h-full flex flex-col justify-between p-6">
                   {/* Top Row - Logo + Brand Name (right) | Eye toggle (left) */}
                   <div className="flex items-center justify-between">
                     {/* Logo + Brand Name - Jaib style */}
@@ -518,6 +526,7 @@ export default function HomeScreen() {
                           boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                         }}
                       >
+                        {/* White logo on colored card background */}
                         <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" />
                       </div>
                       <div className="flex flex-col leading-none">
@@ -540,7 +549,7 @@ export default function HomeScreen() {
 
                   {/* Balance Section - Jaib style: "رصيدك الآن" label */}
                   <div className="flex flex-col items-start">
-                    <p className="text-white/45 text-[11px] mb-1">رصيدك الآن</p>
+                    <p className="text-white/50 text-[12px] mb-1">رصيدك الآن</p>
                     <AnimatedBalance amount={getBalance(card.currency)} currency={card.currency} visible={balanceVisible} />
                   </div>
 
@@ -554,8 +563,8 @@ export default function HomeScreen() {
                     </div>
                     {/* Card number dots - Jaib style */}
                     <div className="flex items-center gap-1.5" dir="ltr">
-                      {[0,1,2,3,4].map((i) => (
-                        <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.35)' }} />
+                      {[0,1,2,3].map((i) => (
+                        <div key={i} className="w-[6px] h-[6px] rounded-full" style={{ background: 'rgba(255,255,255,0.35)' }} />
                       ))}
                       <span className="text-white/35 text-[10px] font-mono mr-1">
                         {user?.userId || '------'}
@@ -678,15 +687,17 @@ export default function HomeScreen() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.03 * index }}
                 onClick={() => handleServiceClick(service.id)}
-                className="flex flex-col items-center justify-center gap-2 py-4 px-2 card-press"
+                whileTap={{ scale: 0.96 }}
+                className="flex flex-col items-center justify-center gap-2.5 py-4 px-3"
                 style={{
                   background: isDark ? '#1A1A1A' : '#FFFFFF',
                   borderRadius: 16,
                   border: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}`,
-                  boxShadow: isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)',
+                  boxShadow: isDark ? 'none' : '0 1px 4px rgba(0,0,0,0.05)',
+                  transition: 'box-shadow 0.2s ease, transform 0.2s ease',
                 }}
               >
-                <div className="w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center" style={{ background: 'transparent' }}>
+                <div className="w-11 h-11 rounded-2xl overflow-hidden flex items-center justify-center" style={{ background: 'transparent' }}>
                   <img src={iconSrc} alt={service.label} className="w-full h-full object-contain" />
                 </div>
                 <span
@@ -708,8 +719,8 @@ export default function HomeScreen() {
       </motion.div>
 
       {/* ========================================
-          RECENT TRANSACTIONS - Jaib Style
-          Green for incoming, Red for outgoing
+          RECENT TRANSACTIONS - iOS Style Grouped
+          Single white card with thin 1px dividers
           ======================================== */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
@@ -744,7 +755,14 @@ export default function HomeScreen() {
             <p className="text-[11px] mt-1" style={{ color: isDark ? '#444' : '#CCC' }}>أول تحويل سيظهر هنا</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          /* iOS-style grouped card with thin dividers */
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{
+              background: isDark ? '#1A1A1A' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}`,
+            }}
+          >
             {recentTx.map((tx, index) => {
               const isIncoming = tx.toUserId === user?.id;
               const txColor = transactionTypeColors[tx.type] || '#E60000';
@@ -754,10 +772,11 @@ export default function HomeScreen() {
                   initial={{ opacity: 0, x: -15 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.04 * index }}
-                  className="flex items-center gap-3 p-3 rounded-2xl"
+                  className="flex items-center gap-3 px-4 py-3 active:scale-[0.98] transition-transform"
                   style={{
-                    background: isDark ? '#1A1A1A' : '#FFFFFF',
-                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}`,
+                    borderBottom: index < recentTx.length - 1
+                      ? `1px solid ${dividerColor}`
+                      : 'none',
                   }}
                 >
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${txColor}10` }}>

@@ -264,6 +264,37 @@ const ordersSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48
   <path d="M20 23L22 25L26 21" stroke="#E60000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>`;
 
+// ─── Additional Service Icons ────────────────────────────────────────
+
+const depositSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
+  <rect x="2" y="2" width="44" height="44" rx="12" fill="white"/>
+  <rect x="8" y="18" width="28" height="18" rx="3" stroke="#1a1a1a" stroke-width="1.8" fill="none"/>
+  <rect x="28" y="24" width="8" height="6" rx="2" stroke="#1a1a1a" stroke-width="1.5" fill="none"/>
+  <circle cx="32" cy="27" r="1.2" fill="#1a1a1a"/>
+  <path d="M24 8V16" stroke="#E60000" stroke-width="2" stroke-linecap="round"/>
+  <path d="M20 12L24 8L28 12" stroke="#E60000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M18 16H30" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/>
+</svg>`;
+
+const exchangeSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
+  <rect x="2" y="2" width="44" height="44" rx="12" fill="white"/>
+  <circle cx="24" cy="24" r="12" stroke="#1a1a1a" stroke-width="1.8" fill="none"/>
+  <text x="24" y="28" text-anchor="middle" font-family="Arial,sans-serif" font-weight="bold" font-size="10" fill="#1a1a1a">$</text>
+  <path d="M16 14L12 18L16 22" stroke="#E60000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M12 18H20" stroke="#E60000" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M32 26L36 30L32 34" stroke="#E60000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M36 30H28" stroke="#E60000" stroke-width="1.8" stroke-linecap="round"/>
+</svg>`;
+
+const savingsSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
+  <rect x="2" y="2" width="44" height="44" rx="12" fill="white"/>
+  <path d="M24 10C17 10 12 15 12 20C12 25 16 28 16 28V36C16 37.5 17 38 18 38H30C31 38 32 37.5 32 36V28C32 28 36 25 36 20C36 15 31 10 24 10Z" stroke="#1a1a1a" stroke-width="1.8" fill="none"/>
+  <line x1="16" y1="28" x2="32" y2="28" stroke="#1a1a1a" stroke-width="1.5"/>
+  <circle cx="24" cy="20" r="4" stroke="#E60000" stroke-width="1.8" fill="none"/>
+  <text x="24" y="23" text-anchor="middle" font-family="Arial,sans-serif" font-weight="bold" font-size="7" fill="#E60000">$</text>
+  <path d="M21 34H27" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/>
+</svg>`;
+
 // ─── Export all icons ────────────────────────────────────────────────
 
 export const serviceIcons: Record<string, string> = {
@@ -301,6 +332,11 @@ export const serviceIcons: Record<string, string> = {
   'support': svgToDataUrl(supportSvg),
   'offers': svgToDataUrl(offersSvg),
   'orders': svgToDataUrl(ordersSvg),
+
+  // Additional Services
+  'deposit': svgToDataUrl(depositSvg),
+  'exchange': svgToDataUrl(exchangeSvg),
+  'savings': svgToDataUrl(savingsSvg),
 };
 
 /**
