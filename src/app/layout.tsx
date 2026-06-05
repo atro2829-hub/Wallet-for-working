@@ -1,13 +1,31 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: "جيب - محفظتك الرقمية",
-  description: "محفظة جيب الرقمية - الدفع والتحويل وإدارة الأموال",
+  title: "فهد نت - محفظتك الرقمية",
+  description: "محفظة فهد نت الرقمية - الدفع والتحويل وإدارة الأموال لليمنيين",
+  manifest: "/manifest.json",
   icons: {
     icon: "/logo.svg",
+    apple: "/logo.svg",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "فهد نت",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F5F5F5" },
+    { media: "(prefers-color-scheme: dark)", color: "#0F0F0F" },
+  ],
 };
 
 export default function RootLayout({
@@ -17,7 +35,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
-      <body className="antialiased bg-[#F5F5F5] text-foreground font-sans" style={{ fontFamily: "'Segoe UI', Tahoma, 'Noto Sans Arabic', 'Arial', sans-serif" }}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="format-detection" content="telephone=yes" />
+        <meta name="msapplication-tap-highlight" content="no" />
+      </head>
+      <body
+        className="antialiased font-sans"
+        style={{
+          fontFamily: "'Segoe UI', Tahoma, 'Noto Sans Arabic', 'Arial', sans-serif",
+          background: '#F5F5F5',
+          overscrollBehavior: 'none',
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      >
         {children}
         <Toaster />
       </body>
