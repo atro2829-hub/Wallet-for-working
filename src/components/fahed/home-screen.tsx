@@ -63,6 +63,23 @@ export default function HomeScreen() {
   const currentTranslate = useRef(0);
   const prevTranslate = useRef(0);
 
+  // Hidden admin access - tap logo 5 times within 3 seconds
+  const tapCount = useRef(0);
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleLogoTap = () => {
+    tapCount.current += 1;
+    if (tapTimer.current) clearTimeout(tapTimer.current);
+    if (tapCount.current >= 5) {
+      tapCount.current = 0;
+      setActiveScreen('admin');
+      return;
+    }
+    tapTimer.current = setTimeout(() => {
+      tapCount.current = 0;
+    }, 3000);
+  };
+
 
   const CARD_GAP = 14;
 
@@ -210,11 +227,11 @@ export default function HomeScreen() {
       {/* Header */}
       <div className="px-5 pt-4 pb-2">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold" style={{ color: isDark ? '#FFFFFF' : '#1a1a1a' }}>
+          <button onClick={handleLogoTap} className="active:scale-95 transition-transform">
+            <h1 className="text-xl font-bold select-none" style={{ color: isDark ? '#FFFFFF' : '#1a1a1a' }}>
               {getGreeting()}، {user?.name || 'مستخدم'}
             </h1>
-          </div>
+          </button>
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => setActiveScreen('notifications')}

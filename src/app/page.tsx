@@ -88,16 +88,12 @@ function AppContent() {
     );
   }
 
-  if (activeScreen === 'admin' && user.role === 'admin') {
+  if (activeScreen === 'admin') {
     return (
       <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative">
         <AdminScreen />
       </div>
     );
-  }
-
-  if (activeScreen === 'admin' && user.role !== 'admin') {
-    setActiveScreen('main');
   }
 
   const renderScreen = () => {
