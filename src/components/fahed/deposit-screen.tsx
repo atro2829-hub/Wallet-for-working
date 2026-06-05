@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -22,11 +22,13 @@ import {
   Tag,
   Info,
   Wallet,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { formatNumber, currencySymbols, currencyBadgeColors, generateReference, compressBase64Image } from '@/lib/utils';
+import { formatNumber, currencySymbols, currencyBadgeColors, generateReference, compressBase64Image, defaultExchangeRates } from '@/lib/utils';
 import { database } from '@/lib/firebase';
-import { ref, push, set } from 'firebase/database';
+import { ref, get, set } from 'firebase/database';
 
 type Tab = 'deposit' | 'withdraw';
 type DepositMethod = 'bank_transfer' | 'cash' | 'card';
@@ -43,11 +45,12 @@ const withdrawMethods: { id: WithdrawMethod; label: string; icon: typeof Buildin
   { id: 'cash', label: 'نقطة بيع', icon: MapPin, desc: 'استلام نقداً' },
 ];
 
-const bankDetails = {
-  bankName: 'بنك الكريمي',
-  accountName: 'محفظة الجنوب',
-  accountNumber: '0123-4567-8901-2345',
-};
+interface BankInfo {
+  id: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+}
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: typeof CheckCircle2 }> = {
   pending: { label: 'قيد الانتظار', color: '#F59E0B', bgColor: 'rgba(245,158,11,0.12)', icon: Clock },
@@ -81,6 +84,98 @@ export default function DepositScreen() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Banks from Firebase
+  const [banks, setBanks] = useState<BankInfo[]>([]);
+  const [banksLoading, setBanksLoading] = useState(true);
+
+  // Exchange rates from Firebase
+  const [exchangeRates, setExchangeRates] = useState(defaultExchangeRates);
+
+  // Copy feedback
+  const [copiedBankId, setCopiedBankId] = useState<string | null>(null);
+
+  // Fetch banks and exchange rates from Firebase on mount
+  useEffect(() => {
+    const fetchBanks = async () => {
+      try {
+        const banksRef = ref(database, 'adminSettings/banks');
+        const snapshot = await get(banksRef);
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          // Firebase stores banks as an object with IDs as keys, or as an array
+          const banksList: BankInfo[] = [];
+          if (Array.isArray(data)) {
+            data.forEach((item: Record<string, string>, index: number) => {
+              if (item && item.bankName) {
+                banksList.push({
+                  id: String(index),
+                  bankName: item.bankName || '',
+                  accountName: item.accountName || '',
+                  accountNumber: item.accountNumber || '',
+                });
+              }
+            });
+          } else if (typeof data === 'object') {
+            Object.entries(data).forEach(([key, item]: [string, Record<string, string>]) => {
+              if (item && item.bankName) {
+                banksList.push({
+                  id: key,
+                  bankName: item.bankName || '',
+                  accountName: item.accountName || '',
+                  accountNumber: item.accountNumber || '',
+                });
+              }
+            });
+          }
+          setBanks(banksList);
+        } else {
+          setBanks([]);
+        }
+      } catch (error) {
+        console.error('Error fetching banks:', error);
+        setBanks([]);
+      }
+      setBanksLoading(false);
+    };
+
+    const fetchExchangeRates = async () => {
+      try {
+        const ratesRef = ref(database, 'adminSettings/exchangeRates');
+        const snapshot = await get(ratesRef);
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          setExchangeRates({
+            YER: data.YER ?? defaultExchangeRates.YER,
+            SAR: data.SAR ?? defaultExchangeRates.SAR,
+            USD: data.USD ?? defaultExchangeRates.USD,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching exchange rates:', error);
+      }
+    };
+
+    fetchBanks();
+    fetchExchangeRates();
+  }, []);
+
+  const handleCopyAccountNumber = (bankId: string, accountNumber: string) => {
+    navigator.clipboard.writeText(accountNumber).then(() => {
+      setCopiedBankId(bankId);
+      setTimeout(() => setCopiedBankId(null), 2000);
+    }).catch(() => {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = accountNumber;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopiedBankId(bankId);
+      setTimeout(() => setCopiedBankId(null), 2000);
+    });
+  };
+
   const getBalance = (currency: string): number => {
     if (!user) return 0;
     const field = `balance${currency}` as keyof typeof user;
@@ -94,6 +189,14 @@ export default function DepositScreen() {
   const withdrawAmountNum = parseFloat(withdrawAmount) || 0;
   const withdrawBalance = getBalance(withdrawCurrency);
   const balanceAfterWithdraw = withdrawBalance - withdrawAmountNum;
+
+  // Convert amount using Firebase exchange rates
+  const convertAmount = (amount: number, from: string, to: string): number => {
+    if (from === to) return amount;
+    const fromRate = exchangeRates[from as keyof typeof exchangeRates] ?? 1;
+    const toRate = exchangeRates[to as keyof typeof exchangeRates] ?? 1;
+    return (amount / fromRate) * toRate;
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -389,20 +492,49 @@ export default function DepositScreen() {
                     <Building2 size={14} color="#E60000" strokeWidth={1.5} />
                     <span className="text-xs font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>بيانات التحويل البنكي</span>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: isDark ? '#1A1A1A' : '#F8F8F8' }}>
-                      <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>البنك</span>
-                      <span className="text-xs font-medium" style={{ color: isDark ? '#CCC' : '#333' }}>{bankDetails.bankName}</span>
+
+                  {banksLoading ? (
+                    <div className="flex items-center justify-center py-6">
+                      <div className="w-6 h-6 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
                     </div>
-                    <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: isDark ? '#1A1A1A' : '#F8F8F8' }}>
-                      <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>اسم الحساب</span>
-                      <span className="text-xs font-medium" style={{ color: isDark ? '#CCC' : '#333' }}>{bankDetails.accountName}</span>
+                  ) : banks.length === 0 ? (
+                    <div className="flex flex-col items-center py-6">
+                      <Building2 size={24} strokeWidth={1.5} color={isDark ? '#333' : '#DDD'} />
+                      <p className="text-xs mt-2" style={{ color: isDark ? '#555' : '#AAA' }}>لا توجد بنوك متاحة حالياً</p>
                     </div>
-                    <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: isDark ? '#1A1A1A' : '#F8F8F8' }}>
-                      <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>رقم الحساب</span>
-                      <span className="text-xs font-medium font-mono" style={{ color: isDark ? '#CCC' : '#333' }} dir="ltr">{bankDetails.accountNumber}</span>
+                  ) : (
+                    <div className="space-y-3">
+                      {banks.map((bank) => (
+                        <div key={bank.id} className="rounded-xl p-3" style={{ background: isDark ? '#1A1A1A' : '#F8F8F8' }}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Building2 size={12} color="#E60000" strokeWidth={1.5} />
+                            <span className="text-xs font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{bank.bankName}</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>اسم الحساب</span>
+                              <span className="text-xs font-medium" style={{ color: isDark ? '#CCC' : '#333' }}>{bank.accountName}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>رقم الحساب</span>
+                              <button
+                                onClick={() => handleCopyAccountNumber(bank.id, bank.accountNumber)}
+                                className="flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all"
+                                style={{ background: isDark ? '#222' : '#F0F0F0' }}
+                              >
+                                <span className="text-xs font-medium font-mono" style={{ color: isDark ? '#CCC' : '#333' }} dir="ltr">{bank.accountNumber}</span>
+                                {copiedBankId === bank.id ? (
+                                  <Check size={12} color="#10B981" />
+                                ) : (
+                                  <Copy size={12} color={isDark ? '#666' : '#AAA'} />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  )}
 
                   {/* Receipt Upload */}
                   <div className="mt-3">

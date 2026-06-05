@@ -8,8 +8,8 @@ import {
   Globe, Clock, Calculator, History, ChevronDown
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { currencySymbols, currencyNames, currencyBadgeColors, formatNumber, timeAgo } from '@/lib/utils';
-import { ref, set } from 'firebase/database';
+import { currencySymbols, currencyNames, currencyBadgeColors, formatNumber, timeAgo, defaultExchangeRates } from '@/lib/utils';
+import { ref, get, set } from 'firebase/database';
 import { database } from '@/lib/firebase';
 
 interface ConversionRecord {
@@ -18,6 +18,7 @@ interface ConversionRecord {
   toAmount: number;
   toCurrency: string;
   rate: number;
+  commission: number;
   date: string;
 }
 
@@ -28,6 +29,7 @@ export default function ExchangeScreen() {
 
   const [lastUpdate, setLastUpdate] = useState<string>(new Date().toISOString());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [commission, setCommission] = useState<number>(0);
 
   // Converter state
   const [fromAmount, setFromAmount] = useState('1000');
@@ -39,6 +41,30 @@ export default function ExchangeScreen() {
   const [trends, setTrends] = useState<Record<string, 'up' | 'down' | 'stable'>>({
     'YER-SAR': 'stable', 'YER-USD': 'stable', 'SAR-USD': 'stable'
   });
+
+  // Fetch exchange rates from Firebase on mount
+  useEffect(() => {
+    const fetchRates = async () => {
+      try {
+        const snapshot = await get(ref(database, 'adminSettings/exchangeRates'));
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          const rates = {
+            YER: 1,
+            SAR: data.YER_SAR ?? defaultExchangeRates.SAR,
+            USD: data.YER_USD ?? defaultExchangeRates.USD,
+          };
+          setExchangeRates(rates);
+          if (typeof data.commission === 'number') {
+            setCommission(data.commission);
+          }
+        }
+      } catch {
+        // Fall back to default rates from store (already initialized)
+      }
+    };
+    fetchRates();
+  }, []);
 
   // Calculate conversion result inline
   const getRate = (from: string, to: string): number => {
@@ -53,7 +79,8 @@ export default function ExchangeScreen() {
   };
 
   const currentRate = getRate(fromCurrency, toCurrency);
-  const result = (parseFloat(fromAmount) || 0) * currentRate;
+  const rawResult = (parseFloat(fromAmount) || 0) * currentRate;
+  const result = rawResult * (1 - commission / 100);
 
   const handleSwap = () => {
     const temp = fromCurrency;
@@ -63,23 +90,30 @@ export default function ExchangeScreen() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    // Simulate slight rate fluctuation
-    const newRates = {
-      YER: 1,
-      SAR: +(0.037 + (Math.random() - 0.5) * 0.002).toFixed(4),
-      USD: +(0.0099 + (Math.random() - 0.5) * 0.0005).toFixed(4),
-    };
-    setExchangeRates(newRates);
+    try {
+      const snapshot = await get(ref(database, 'adminSettings/exchangeRates'));
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const newRates = {
+          YER: 1,
+          SAR: data.YER_SAR ?? exchangeRates.SAR,
+          USD: data.YER_USD ?? exchangeRates.USD,
+        };
+        // Update trends
+        setTrends({
+          'YER-SAR': newRates.SAR > exchangeRates.SAR ? 'up' : newRates.SAR < exchangeRates.SAR ? 'down' : 'stable',
+          'YER-USD': newRates.USD > exchangeRates.USD ? 'up' : newRates.USD < exchangeRates.USD ? 'down' : 'stable',
+          'SAR-USD': (newRates.USD / newRates.SAR) > (exchangeRates.USD / exchangeRates.SAR) ? 'up' : 'down',
+        });
+        setExchangeRates(newRates);
+        if (typeof data.commission === 'number') {
+          setCommission(data.commission);
+        }
+      }
+    } catch {
+      // Keep existing rates on error
+    }
     setLastUpdate(new Date().toISOString());
-    
-    // Update trends
-    setTrends({
-      'YER-SAR': newRates.SAR > exchangeRates.SAR ? 'up' : newRates.SAR < exchangeRates.SAR ? 'down' : 'stable',
-      'YER-USD': newRates.USD > exchangeRates.USD ? 'up' : newRates.USD < exchangeRates.USD ? 'down' : 'stable',
-      'SAR-USD': (newRates.USD / newRates.SAR) > (exchangeRates.USD / exchangeRates.SAR) ? 'up' : 'down',
-    });
-
-    try { await set(ref(database, 'settings/exchangeRates'), newRates); } catch {}
     setTimeout(() => setIsRefreshing(false), 800);
   };
 
@@ -87,7 +121,7 @@ export default function ExchangeScreen() {
     if (!fromAmount || result === 0) return;
     const record: ConversionRecord = {
       fromAmount: parseFloat(fromAmount) || 0,
-      fromCurrency, toAmount: result, toCurrency, rate: currentRate, date: new Date().toISOString(),
+      fromCurrency, toAmount: result, toCurrency, rate: currentRate, commission, date: new Date().toISOString(),
     };
     setConversionHistory(prev => [record, ...prev].slice(0, 10));
   };
@@ -209,10 +243,15 @@ export default function ExchangeScreen() {
             </div>
 
             {/* Rate info */}
-            <div className="flex items-center justify-center p-2 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
+            <div className="flex items-center justify-center gap-3 p-2 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
               <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>
                 1 {currencySymbols[fromCurrency]} = {getRate(fromCurrency, toCurrency) < 1 ? getRate(fromCurrency, toCurrency).toFixed(4) : getRate(fromCurrency, toCurrency).toFixed(2)} {currencySymbols[toCurrency]}
               </p>
+              {commission > 0 && (
+                <span className="text-[10px]" style={{ color: '#E60000' }}>
+                  عمولة {commission}%
+                </span>
+              )}
             </div>
 
             <motion.button whileTap={{ scale: 0.95 }} onClick={handleSaveConversion}

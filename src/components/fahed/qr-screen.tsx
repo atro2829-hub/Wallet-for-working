@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   ArrowRight,
   QrCode,
@@ -22,65 +23,6 @@ import { useToast } from '@/components/fahed/toast-provider';
 
 type QRTab = 'scan' | 'generate';
 type GenerateType = 'receive' | 'request';
-
-// Simple deterministic QR-like pattern generator based on data
-function QRPattern({ data, size = 200 }: { data: string; size?: number }) {
-  const cells = 21;
-  const cellSize = size / cells;
-
-  // Generate a deterministic pattern from data
-  const hash = data.split('').reduce((acc, char) => {
-    return ((acc << 5) - acc + char.charCodeAt(0)) | 0;
-  }, 0);
-
-  const pattern: boolean[][] = [];
-  for (let row = 0; row < cells; row++) {
-    pattern[row] = [];
-    for (let col = 0; col < cells; col++) {
-      // Finder patterns (3 corners)
-      const isFinderTL = row < 7 && col < 7;
-      const isFinderTR = row < 7 && col >= cells - 7;
-      const isFinderBL = row >= cells - 7 && col < 7;
-
-      if (isFinderTL || isFinderTR || isFinderBL) {
-        const r = isFinderTR ? row : isFinderBL ? row - (cells - 7) : row;
-        const c = isFinderTR ? col - (cells - 7) : col;
-        if (r === 0 || r === 6 || c === 0 || c === 6) {
-          pattern[row][col] = true;
-        } else if (r >= 2 && r <= 4 && c >= 2 && c <= 4) {
-          pattern[row][col] = true;
-        } else {
-          pattern[row][col] = false;
-        }
-      } else {
-        // Data area - deterministic from hash
-        const seed = (hash * (row + 1) * (col + 1) + row * 31 + col * 17) & 0xffffffff;
-        pattern[row][col] = (seed % 3) !== 0;
-      }
-    }
-  }
-
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <rect width={size} height={size} fill="white" rx={8} />
-      {pattern.map((row, r) =>
-        row.map((cell, c) =>
-          cell ? (
-            <rect
-              key={`${r}-${c}`}
-              x={c * cellSize}
-              y={r * cellSize}
-              width={cellSize}
-              height={cellSize}
-              fill="#0F0F0F"
-              rx={1}
-            />
-          ) : null
-        )
-      )}
-    </svg>
-  );
-}
 
 export default function QRScreen() {
   const { theme } = useTheme();
@@ -255,6 +197,9 @@ export default function QRScreen() {
                     showToast('success', 'تم المسح', 'تم قراءة رمز QR بنجاح');
                   }}
                 />
+                <p className="text-[10px] mt-1" style={{ color: isDark ? '#555' : '#BBB' }}>
+                  مسح الكاميرا يتطلب تطبيق الموبايل
+                </p>
               </div>
 
               {/* Manual Input */}
@@ -468,8 +413,30 @@ export default function QRScreen() {
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                    className="flex flex-col items-center gap-3"
                   >
-                    <QRPattern data={qrData} size={200} />
+                    <div
+                      className="p-4 rounded-2xl"
+                      style={{
+                        background: '#FFFFFF',
+                        boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+                      }}
+                    >
+                      <QRCodeSVG
+                        value={qrData}
+                        size={200}
+                        level="H"
+                        bgColor="#FFFFFF"
+                        fgColor="#0F0F0F"
+                        marginSize={0}
+                        imageSettings={{
+                          src: LOGO_BASE64,
+                          height: 40,
+                          width: 40,
+                          excavate: true,
+                        }}
+                      />
+                    </div>
                   </motion.div>
                 </div>
 

@@ -43,9 +43,9 @@ const INACTIVE_GRADIENT = '#1A1A1A';
 const INACTIVE_GRADIENT_END = '#0F0F0F';
 
 const balanceCards: BalanceCard[] = [
-  { currency: 'YER', accentColor: '#E60000', patternColor: 'rgba(255,255,255,0.08)' },
-  { currency: 'SAR', accentColor: '#E60000', patternColor: 'rgba(255,255,255,0.08)' },
-  { currency: 'USD', accentColor: '#E60000', patternColor: 'rgba(255,255,255,0.08)' },
+  { currency: 'YER', accentColor: '#E60000', patternColor: 'rgba(255,255,255,0.04)' },
+  { currency: 'SAR', accentColor: '#E60000', patternColor: 'rgba(255,255,255,0.04)' },
+  { currency: 'USD', accentColor: '#E60000', patternColor: 'rgba(255,255,255,0.04)' },
 ];
 
 const filterTabs: { id: FilterTab; label: string }[] = [
@@ -351,20 +351,25 @@ export default function WalletScreen() {
                   height: 210,
                   borderRadius: 20,
                   background: index === activeCardIndex
-                    ? `linear-gradient(145deg, ${ACTIVE_GRADIENT} 0%, ${ACTIVE_GRADIENT_END} 100%)`
-                    : `linear-gradient(145deg, ${INACTIVE_GRADIENT} 0%, ${INACTIVE_GRADIENT_END} 100%)`,
+                    ? 'rgba(230, 0, 0, 0.15)'
+                    : 'rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  border: index === activeCardIndex
+                    ? '1px solid rgba(230, 0, 0, 0.3)'
+                    : '1px solid rgba(255, 255, 255, 0.1)',
                   boxShadow: index === activeCardIndex
-                    ? '0 4px 12px rgba(0,0,0,0.1), 0 12px 32px rgba(230,0,0,0.3)'
-                    : '0 2px 8px rgba(0,0,0,0.15)',
+                    ? '0 8px 32px rgba(230, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(230, 0, 0, 0.1)'
+                    : '0 4px 16px rgba(0, 0, 0, 0.1)',
                   transform: index === activeCardIndex ? 'scale(1)' : 'scale(0.93)',
                   opacity: index === activeCardIndex ? 1 : 0.6,
-                  transition: 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease, box-shadow 0.4s ease, background 0.4s ease',
+                  transition: 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease, box-shadow 0.4s ease, background 0.4s ease, border 0.4s ease',
                 }}
                 onClick={() => snapToCard(index)}
                 dir="rtl"
               >
                 {/* Logo Watermark */}
-                <img src={LOGO_BASE64} alt="" className="absolute bottom-1 left-1 w-24 h-24 object-contain opacity-[0.04] pointer-events-none select-none" aria-hidden="true" />
+                <img src={LOGO_BASE64} alt="" className="absolute bottom-1 left-1 w-24 h-24 object-contain opacity-[0.03] pointer-events-none select-none" aria-hidden="true" />
                 {/* Shimmer */}
                 <div className="absolute inset-0 shimmer pointer-events-none" />
                 {/* Card SVG Pattern */}
@@ -377,11 +382,11 @@ export default function WalletScreen() {
                   <rect width="100%" height="100%" fill={`url(#wallet-grid-${card.currency})`} />
                 </svg>
                 {/* Decorative circles */}
-                <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full" style={{ background: 'rgba(255,255,255,0.05)' }} />
-                <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full" style={{ background: 'rgba(255,255,255,0.03)' }} />
+                <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full" style={{ background: 'rgba(255,255,255,0.03)' }} />
+                <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full" style={{ background: 'rgba(255,255,255,0.02)' }} />
                 {/* Decorative wave */}
                 <svg className="absolute bottom-0 left-0 w-full" viewBox="0 0 300 40" preserveAspectRatio="none" style={{ height: '35px' }}>
-                  <path d="M0,30 C50,10 100,40 150,25 C200,10 250,35 300,20 L300,40 L0,40 Z" fill="rgba(255,255,255,0.03)" />
+                  <path d="M0,30 C50,10 100,40 150,25 C200,10 250,35 300,20 L300,40 L0,40 Z" fill="rgba(255,255,255,0.02)" />
                 </svg>
 
                 {/* Card Content - Jaib Style */}
@@ -392,7 +397,7 @@ export default function WalletScreen() {
                       <div
                         className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center shrink-0"
                         style={{
-                          background: 'rgba(255,255,255,0.18)',
+                          background: 'rgba(255,255,255,0.12)',
                           boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                         }}
                       >
