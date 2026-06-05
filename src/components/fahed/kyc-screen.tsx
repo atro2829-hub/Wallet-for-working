@@ -110,28 +110,18 @@ export default function KYCScreen() {
     setError('');
 
     try {
-      const res = await fetch('/api/user', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          kycStatus: 'submitted',
-          kycIdNumber: cardNumber,
-          kycIdPhoto: idPhoto,
-          kycSelfie: selfiePhoto,
-          cardType,
-          cardNumber,
-          cardIssuedAt,
-          governorate,
-        }),
+      // Update user KYC data directly in Firebase
+      const userRef = ref(database, `users/${user.id}`);
+      await update(userRef, {
+        kycStatus: 'submitted',
+        kycIdNumber: cardNumber,
+        kycIdPhoto: idPhoto,
+        kycSelfie: selfiePhoto,
+        cardType,
+        cardNumber,
+        cardIssuedAt,
+        governorate,
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'حدث خطأ في الإرسال');
-        return;
-      }
 
       setSuccess(true);
       setUser({

@@ -21,6 +21,8 @@ import {
 import { useAppStore } from '@/lib/store';
 import { currencySymbols, currencyNames, currencyFlags, currencyBadgeColors, generateReference } from '@/lib/utils';
 import { useToast } from '@/components/fahed/toast-provider';
+import { database } from '@/lib/firebase';
+import { ref, get, update, push } from 'firebase/database';
 
 type Currency = 'YER' | 'SAR' | 'USD';
 type TransferMode = 'userId' | 'phone';
@@ -126,7 +128,7 @@ export default function TransferModal() {
   };
 
   const handleUserIdChange = (value: string) => {
-    const cleaned = value.replace(/\D/g, '').slice(0, 6);
+    const cleaned = value.replace(/\D/g, '').slice(0, 4);
     setToUserId(cleaned);
   };
 
@@ -142,45 +144,153 @@ export default function TransferModal() {
     const effectiveAmount = parseFloat(amount);
 
     try {
-      const body: Record<string, unknown> = {
-        fromUserId: user.id,
-        amount: effectiveAmount,
-        currency,
-        description,
-      };
-
-      if (scheduledDate) {
-        body.scheduledDate = scheduledDate;
-      }
+      // ---- Find recipient in Firebase ----
+      let recipientUid = '';
+      const fullPhone = `+967${toPhone}`;
+      const fullUserId = `10${toUserId}`; // prepend "10" prefix
 
       if (transferMode === 'userId') {
-        body.toUserId = toUserId;
+        // Try userIds index first
+        const userIdIndexRef = ref(database, `userIds/${fullUserId}`);
+        const userIdIndexSnapshot = await get(userIdIndexRef);
+        if (userIdIndexSnapshot.exists()) {
+          recipientUid = userIdIndexSnapshot.val();
+        } else {
+          // Fallback: query users by userId field
+          const usersRef = ref(database, 'users');
+          const usersSnapshot = await get(usersRef);
+          if (usersSnapshot.exists()) {
+            usersSnapshot.forEach((child) => {
+              if (child.val()?.userId === fullUserId) {
+                recipientUid = child.key || '';
+              }
+            });
+          }
+          if (!recipientUid) {
+            setStatus('error');
+            setErrorMsg('رقم الحساب غير موجود');
+            setIsLoading(false);
+            return;
+          }
+        }
       } else {
-        body.toPhone = `+967${toPhone}`;
+        // Try phones index first
+        const phoneIndexRef = ref(database, `phones/${fullPhone.replace('+', 'P')}`);
+        const phoneIndexSnapshot = await get(phoneIndexRef);
+        if (phoneIndexSnapshot.exists()) {
+          recipientUid = phoneIndexSnapshot.val();
+        } else {
+          // Fallback: query users by phone field
+          const usersRef = ref(database, 'users');
+          const usersSnapshot = await get(usersRef);
+          if (usersSnapshot.exists()) {
+            usersSnapshot.forEach((child) => {
+              if (child.val()?.phone === fullPhone) {
+                recipientUid = child.key || '';
+              }
+            });
+          }
+          if (!recipientUid) {
+            setStatus('error');
+            setErrorMsg('رقم الهاتف غير مسجل');
+            setIsLoading(false);
+            return;
+          }
+        }
       }
 
-      const res = await fetch('/api/transfer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
+      // Cannot transfer to self
+      if (user.id === recipientUid) {
         setStatus('error');
-        setErrorMsg(data.error || 'حدث خطأ في التحويل');
+        setErrorMsg('لا يمكن التحويل لنفس الحساب');
+        setIsLoading(false);
         return;
       }
 
-      setStatus('success');
-      setTransferRef(data.reference || generateReference());
+      // ---- Read sender & recipient data from Firebase ----
+      const senderRef = ref(database, `users/${user.id}`);
+      const senderSnapshot = await get(senderRef);
+      const senderData = senderSnapshot.val();
 
-      // Update user balance in store
+      const recipientRef = ref(database, `users/${recipientUid}`);
+      const recipientSnapshot = await get(recipientRef);
+      const recipientData = recipientSnapshot.val();
+
+      if (!senderData) {
+        setStatus('error');
+        setErrorMsg('المستخدم المرسل غير موجود');
+        setIsLoading(false);
+        return;
+      }
+      if (!recipientData) {
+        setStatus('error');
+        setErrorMsg('المستخدم المستلم غير موجود');
+        setIsLoading(false);
+        return;
+      }
+
+      // ---- Check balance ----
+      const balanceField = `balance${currency}`;
+      const currentBalance = senderData[balanceField] || 0;
+      if (currentBalance < effectiveAmount) {
+        setStatus('error');
+        setErrorMsg('رصيد غير كافي');
+        setIsLoading(false);
+        return;
+      }
+
+      // ---- Execute atomic transfer via multi-path update ----
+      const txRef = generateReference();
+      const transactionId = push(ref(database, 'transactions')).key;
+      const notif1Id = push(ref(database, 'notifications')).key;
+      const notif2Id = push(ref(database, 'notifications')).key;
+
+      const recipientBalance = recipientData[balanceField] || 0;
+
+      const updates: Record<string, unknown> = {};
+      // Update sender balance
+      updates[`users/${user.id}/${balanceField}`] = currentBalance - effectiveAmount;
+      // Update recipient balance
+      updates[`users/${recipientUid}/${balanceField}`] = recipientBalance + effectiveAmount;
+      // Create transaction record
+      updates[`transactions/${transactionId}`] = {
+        fromUserId: user.id,
+        toUserId: recipientUid,
+        amount: effectiveAmount,
+        currency,
+        type: 'transfer',
+        status: 'completed',
+        description: description || `تحويل إلى ${recipientData.name || ''}`,
+        reference: txRef,
+        createdAt: new Date().toISOString(),
+      };
+      // Create notification for recipient
+      updates[`notifications/${recipientUid}/${notif1Id}`] = {
+        title: 'تحويل وارد',
+        body: `تم استلام ${effectiveAmount.toLocaleString()} ${currency} من ${senderData.name || ''}`,
+        type: 'transaction',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+      };
+      // Create notification for sender
+      updates[`notifications/${user.id}/${notif2Id}`] = {
+        title: 'تحويل صادر',
+        body: `تم تحويل ${effectiveAmount.toLocaleString()} ${currency} إلى ${recipientData.name || ''}`,
+        type: 'transaction',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+      };
+
+      await update(ref(database), updates);
+
+      setStatus('success');
+      setTransferRef(txRef);
+
+      // Update user balance in local store
       const updatedUser = { ...user };
-      const balanceField = `balance${currency}` as keyof typeof user;
-      (updatedUser as Record<string, unknown>)[balanceField] =
-        ((user as Record<string, unknown>)[balanceField] as number) - effectiveAmount;
+      const userBalanceField = `balance${currency}` as keyof typeof user;
+      (updatedUser as Record<string, unknown>)[userBalanceField] =
+        ((user as Record<string, unknown>)[userBalanceField] as number) - effectiveAmount;
       useAppStore.getState().setUser(updatedUser);
 
       if (!scheduledDate) {
@@ -196,7 +306,7 @@ export default function TransferModal() {
 
   const canSend = () => {
     if (!amount || !user) return false;
-    if (transferMode === 'userId') return toUserId.length >= 6;
+    if (transferMode === 'userId') return toUserId.length >= 4;
     if (transferMode === 'phone') return toPhone.length >= 9;
     return false;
   };
@@ -428,7 +538,7 @@ export default function TransferModal() {
                         className="flex-1 bg-transparent outline-none text-sm"
                         style={{ color: isDark ? '#FFF' : '#1a1a1a' }}
                         dir="ltr"
-                        maxLength={6}
+                        maxLength={4}
                       />
                     </div>
                   ) : (

@@ -7,7 +7,7 @@ import { Mail, Lock, User, Eye, EyeOff, ArrowLeft, ShieldCheck, Phone, Heart, Cr
 import { useAppStore } from '@/lib/store';
 import { auth, database } from '@/lib/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { ref, set, get } from 'firebase/database';
+import { ref, set, get, update } from 'firebase/database';
 import { generateUserId } from '@/lib/utils';
 import { LOGO_BASE64 } from '@/lib/logo';
 
@@ -82,7 +82,10 @@ export default function AuthScreen() {
       } else {
         const newUserId = generateUserId();
         const newUserData = { email: loginEmail, phone: '', name: '', avatar: '', role: 'user', userId: newUserId, kycStatus: 'pending', isBlocked: false, balanceYER: 0, balanceSAR: 0, balanceUSD: 0, cardType: '', cardNumber: '', cardIssuedAt: '', governorate: '', theme: 'light' as const };
-        await set(ref(database, `users/${uid}`), newUserData);
+        await update(ref(database), {
+          [`users/${uid}`]: newUserData,
+          [`userIds/${newUserId}`]: uid,
+        });
         setUser({ id: uid, ...newUserData });
       }
     } catch (err: unknown) {
@@ -110,8 +113,14 @@ export default function AuthScreen() {
       const newUserId = generateUserId();
       setGeneratedUserId(newUserId);
       const userData = { email: regEmail, phone: regPhone ? `+967${regPhone}` : '', name: regName, avatar: '', role: 'user', userId: newUserId, kycStatus: 'pending', isBlocked: false, balanceYER: 0, balanceSAR: 0, balanceUSD: 0, cardType: '', cardNumber: '', cardIssuedAt: '', governorate: '', theme: 'light' as const };
-      await set(ref(database, `users/${uid}`), userData);
-      try { await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: regEmail, password: regPassword, name: regName, phone: regPhone ? `+967${regPhone}` : '', firebaseUid: uid, userId: newUserId }) }); } catch {}
+      const firebaseUpdates: Record<string, unknown> = {
+        [`users/${uid}`]: userData,
+        [`userIds/${newUserId}`]: uid,
+      };
+      if (regPhone) {
+        firebaseUpdates[`phones/P967${regPhone}`] = uid;
+      }
+      await update(ref(database), firebaseUpdates);
       setStep('otp');
     } catch (err: unknown) {
       const firebaseError = err as { code?: string };
