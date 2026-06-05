@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+// Carousel uses native touch events for RTL support
 import {
   Bell,
   Headphones,
@@ -10,17 +10,15 @@ import {
   EyeOff,
   Smartphone,
   Receipt,
-  Wifi,
   Tv,
   Gamepad2,
-  Zap,
+  Send,
+  QrCode,
+  CreditCard,
+  ChevronLeft,
   ArrowUpRight,
   ArrowDownLeft,
-  ChevronLeft,
-  QrCode,
-  Send,
-  CreditCard,
-  Wifi as Contactless,
+  Wifi,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { formatBalance, currencySymbols, currencyNames, currencyBadgeColors } from '@/lib/utils';
@@ -56,16 +54,22 @@ export default function HomeScreen() {
   const isDark = theme === 'dark';
   const { user, balanceVisible, toggleBalance, setActiveScreen, notifications, setTransferOpen } = useAppStore();
   const [activeCardIndex, setActiveCardIndex] = useState(0);
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const [carouselWidth, setCarouselWidth] = useState(375);
-  const x = useMotionValue(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(375);
+
+  // Touch/drag tracking
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const currentTranslate = useRef(0);
+  const prevTranslate = useRef(0);
+
 
   const CARD_GAP = 14;
 
   useEffect(() => {
     const updateWidth = () => {
-      if (carouselRef.current) {
-        setCarouselWidth(carouselRef.current.offsetWidth);
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
       }
     };
     updateWidth();
@@ -74,8 +78,8 @@ export default function HomeScreen() {
   }, []);
 
   const getCardWidth = useCallback(() => {
-    return carouselWidth * 0.78;
-  }, [carouselWidth]);
+    return containerWidth * 0.78;
+  }, [containerWidth]);
 
   const getStepWidth = useCallback(() => {
     return getCardWidth() + CARD_GAP;
@@ -97,24 +101,109 @@ export default function HomeScreen() {
   const { transactions } = useAppStore();
   const recentTx = transactions.slice(0, 5);
 
-  const snapTo = useCallback((index: number) => {
+  // Snap to a specific card index with animation
+  const snapToCard = useCallback((index: number) => {
     const clamped = Math.max(0, Math.min(index, balanceCards.length - 1));
     setActiveCardIndex(clamped);
-    animate(x, -clamped * getStepWidth(), { type: 'spring', stiffness: 300, damping: 30 });
-  }, [x, getStepWidth]);
+    const targetTranslate = -clamped * getStepWidth();
+    currentTranslate.current = targetTranslate;
+    prevTranslate.current = targetTranslate;
 
-  const handleDragEnd = useCallback((_event: MouseEvent | TouchEvent | PointerEvent, info: { offset: { x: number }; velocity: { x: number } }) => {
-    const velocity = info.velocity.x;
-    const offset = info.offset.x;
+    if (containerRef.current) {
+      const track = containerRef.current.querySelector('[data-carousel-track]') as HTMLElement;
+      if (track) {
+        track.style.transform = `translateX(${targetTranslate}px)`;
+        track.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+      }
+    }
+  }, [getStepWidth]);
+
+  // Position the track
+  const setTrackPosition = useCallback((translateX: number) => {
+    if (containerRef.current) {
+      const track = containerRef.current.querySelector('[data-carousel-track]') as HTMLElement;
+      if (track) {
+        track.style.transform = `translateX(${translateX}px)`;
+      }
+    }
+  }, []);
+
+  // Touch/Mouse handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    isDragging.current = true;
+    startX.current = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    prevTranslate.current = currentTranslate.current;
+
+    // Remove transition during drag
+    if (containerRef.current) {
+      const track = containerRef.current.querySelector('[data-carousel-track]') as HTMLElement;
+      if (track) {
+        track.style.transition = 'none';
+      }
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    if (!isDragging.current) return;
+
+    const currentX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const diff = currentX - startX.current;
+    const newTranslate = prevTranslate.current + diff;
+
+    // Add rubber band effect at edges
+    const minTranslate = -(balanceCards.length - 1) * getStepWidth();
+    const maxTranslate = 0;
+
+    let clampedTranslate = newTranslate;
+    if (newTranslate > maxTranslate) {
+      clampedTranslate = maxTranslate + (newTranslate - maxTranslate) * 0.3;
+    } else if (newTranslate < minTranslate) {
+      clampedTranslate = minTranslate + (newTranslate - minTranslate) * 0.3;
+    }
+
+    currentTranslate.current = clampedTranslate;
+    setTrackPosition(clampedTranslate);
+  }, [getStepWidth, setTrackPosition]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+
+    const movedBy = currentTranslate.current - prevTranslate.current;
+    const stepWidth = getStepWidth();
+    const threshold = stepWidth * 0.2; // 20% of card width to trigger snap
 
     let newIndex = activeCardIndex;
-    if (offset < -40 || velocity < -300) {
+
+    if (movedBy < -threshold) {
+      // Swiped left (in LTR coordinates) -> Next card
       newIndex = Math.min(activeCardIndex + 1, balanceCards.length - 1);
-    } else if (offset > 40 || velocity > 300) {
+    } else if (movedBy > threshold) {
+      // Swiped right (in LTR coordinates) -> Previous card
       newIndex = Math.max(activeCardIndex - 1, 0);
     }
-    snapTo(newIndex);
-  }, [activeCardIndex, snapTo]);
+
+    // Animate to snapped position
+    const targetTranslate = -newIndex * stepWidth;
+    currentTranslate.current = targetTranslate;
+    prevTranslate.current = targetTranslate;
+
+    if (containerRef.current) {
+      const track = containerRef.current.querySelector('[data-carousel-track]') as HTMLElement;
+      if (track) {
+        track.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+        track.style.transform = `translateX(${targetTranslate}px)`;
+      }
+    }
+
+    setActiveCardIndex(newIndex);
+  }, [activeCardIndex, getStepWidth]);
+
+  // Initial position
+  useEffect(() => {
+    currentTranslate.current = 0;
+    prevTranslate.current = 0;
+  }, []);
 
   return (
     <div className="pb-4">
@@ -148,20 +237,28 @@ export default function HomeScreen() {
 
       {/* Balance Card Carousel */}
       <div className="px-5 mt-3">
-        <div ref={carouselRef} className="relative overflow-hidden" style={{ touchAction: 'pan-y' }}>
-          <motion.div
-            className="flex cursor-grab active:cursor-grabbing"
-            style={{ gap: CARD_GAP, x }}
-            drag="x"
-            dragConstraints={{
-              left: -(balanceCards.length - 1) * getStepWidth(),
-              right: 0,
+        <div
+          ref={containerRef}
+          className="relative overflow-hidden"
+          style={{ touchAction: 'pan-y' }}
+          dir="ltr"
+        >
+          <div
+            data-carousel-track=""
+            className="flex cursor-grab active:cursor-grabbing select-none"
+            style={{ gap: CARD_GAP }}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={handleTouchStart}
+            onMouseMove={handleTouchMove}
+            onMouseUp={handleTouchEnd}
+            onMouseLeave={() => {
+              if (isDragging.current) handleTouchEnd();
             }}
-            dragElastic={0.1}
-            onDragEnd={handleDragEnd}
           >
             {balanceCards.map((card, index) => (
-              <motion.div
+              <div
                 key={card.currency}
                 className="shrink-0 rounded-3xl relative overflow-hidden select-none"
                 style={{
@@ -171,14 +268,12 @@ export default function HomeScreen() {
                   boxShadow: index === activeCardIndex
                     ? `0 12px 32px ${card.accentColor}44, 0 4px 12px rgba(0,0,0,0.15)`
                     : '0 2px 8px rgba(0,0,0,0.08)',
-                }}
-                animate={{
-                  scale: index === activeCardIndex ? 1 : 0.9,
+                  transform: index === activeCardIndex ? 'scale(1)' : 'scale(0.9)',
                   opacity: index === activeCardIndex ? 1 : 0.5,
-                  y: index === activeCardIndex ? 0 : 8,
+                  transition: 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease, box-shadow 0.4s ease',
                 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                onClick={() => snapTo(index)}
+                onClick={() => snapToCard(index)}
+                dir="rtl"
               >
                 {/* Card SVG Pattern */}
                 <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
@@ -195,6 +290,12 @@ export default function HomeScreen() {
                 <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
                 <div className="absolute top-8 right-12 w-16 h-16 rounded-full" style={{ background: 'rgba(255,255,255,0.05)' }} />
 
+                {/* Decorative wave line */}
+                <svg className="absolute bottom-0 left-0 w-full" viewBox="0 0 300 40" preserveAspectRatio="none" style={{ height: '40px' }}>
+                  <path d="M0,30 C50,10 100,40 150,25 C200,10 250,35 300,20 L300,40 L0,40 Z" fill="rgba(255,255,255,0.04)" />
+                  <path d="M0,35 C75,20 125,38 200,28 C250,20 275,32 300,25 L300,40 L0,40 Z" fill="rgba(255,255,255,0.03)" />
+                </svg>
+
                 {/* Card Content */}
                 <div className="relative z-10 h-full flex flex-col justify-between p-5">
                   {/* Top Row */}
@@ -206,7 +307,7 @@ export default function HomeScreen() {
                       <span className="text-white/70 text-xs font-bold">فهد نت</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Contactless size={16} strokeWidth={1.5} color="rgba(255,255,255,0.5)" />
+                      <Wifi size={16} strokeWidth={1.5} color="rgba(255,255,255,0.5)" />
                       <button onClick={(e) => { e.stopPropagation(); toggleBalance(); }}>
                         {balanceVisible ? (
                           <Eye size={16} strokeWidth={1.5} color="rgba(255,255,255,0.5)" />
@@ -248,16 +349,16 @@ export default function HomeScreen() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
 
           {/* Page Indicator */}
-          <div className="flex items-center justify-center gap-1.5 mt-4">
+          <div className="flex items-center justify-center gap-1.5 mt-4" dir="rtl">
             {balanceCards.map((_, index) => (
               <button
                 key={index}
-                onClick={() => snapTo(index)}
+                onClick={() => snapToCard(index)}
                 className="rounded-full transition-all duration-300"
                 style={{
                   width: activeCardIndex === index ? 24 : 8,
