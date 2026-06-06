@@ -224,6 +224,10 @@ interface AppState {
   selectedProvider: ServiceProvider | null;
   setSelectedProvider: (prov: ServiceProvider | null) => void;
 
+  // Selected category for detail screen
+  selectedCategory: string | null;
+  setSelectedCategory: (category: string | null) => void;
+
   // Loading states
   isLoading: boolean;
   setLoading: (loading: boolean) => void;
@@ -338,53 +342,269 @@ const defaultProviders: ServiceProvider[] = [
   { id: 'municipal', categoryId: 'government', name: 'البلدية', color: '#059669', icon: '', isActive: true, inputLabel: 'رقم الرخصة', inputType: 'text' },
 ];
 
-// Default packages
+// Default packages — comprehensive product catalog with real YER market prices
+// Exchange rate: 1 USD = 1550 YER, 1 SAR = 410 YER
 const defaultPackages: ProductPackage[] = [
-  // Yemen Mobile
+  // ═══════════════════════════════════════════════════════════
+  //  TELECOM - Yemen Mobile (يمن موبايل)
+  // ═══════════════════════════════════════════════════════════
   { id: 'ym-1', providerId: 'yemen-mobile', name: 'شحنة 100 ر.ي', price: 100, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'ym-2', providerId: 'yemen-mobile', name: 'شحنة 200 ر.ي', price: 200, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'ym-3', providerId: 'yemen-mobile', name: 'شحنة 500 ر.ي', price: 500, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'ym-4', providerId: 'yemen-mobile', name: 'شحنة 1000 ر.ي', price: 1000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ym-5', providerId: 'yemen-mobile', name: 'شحنة 2000 ر.ي', price: 2000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ym-6', providerId: 'yemen-mobile', name: 'شحنة 5000 ر.ي', price: 5000, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'ym-net-1', providerId: 'yemen-mobile', name: 'باقة فورجي 1 جيجا', price: 200, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'ym-net-2', providerId: 'yemen-mobile', name: 'باقة فورجي 4 جيجا', price: 500, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'ym-net-3', providerId: 'yemen-mobile', name: 'باقة فورجي 10 جيجا', price: 1000, currency: 'YER', executionType: 'manual', isActive: true },
-  // Yo
+  { id: 'ym-net-4', providerId: 'yemen-mobile', name: 'باقة فورجي 20 جيجا', price: 2000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ym-net-5', providerId: 'yemen-mobile', name: 'باقة فورجي غير محدودة', price: 3000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // TELECOM - Yo (يو)
   { id: 'yo-1', providerId: 'yo', name: 'شحنة 100 ر.ي', price: 100, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'yo-2', providerId: 'yo', name: 'شحنة 200 ر.ي', price: 200, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'yo-3', providerId: 'yo', name: 'شحنة 500 ر.ي', price: 500, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'yo-4', providerId: 'yo', name: 'شحنة 1000 ر.ي', price: 1000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'yo-5', providerId: 'yo', name: 'شحنة 2000 ر.ي', price: 2000, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'yo-net-1', providerId: 'yo', name: 'باقة إنترنت 2 جيجا', price: 300, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'yo-net-2', providerId: 'yo', name: 'باقة إنترنت 5 جيجا', price: 600, currency: 'YER', executionType: 'manual', isActive: true },
-  // Sabafon
+  { id: 'yo-net-3', providerId: 'yo', name: 'باقة إنترنت 10 جيجا', price: 1100, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // TELECOM - Sabafon (سبأفون)
   { id: 'sab-1', providerId: 'sabafon', name: 'شحنة 100 ر.ي', price: 100, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'sab-2', providerId: 'sabafon', name: 'شحنة 200 ر.ي', price: 200, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'sab-3', providerId: 'sabafon', name: 'شحنة 500 ر.ي', price: 500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'sab-4', providerId: 'sabafon', name: 'شحنة 1000 ر.ي', price: 1000, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'sab-net-1', providerId: 'sabafon', name: 'باقة إنترنت 3 جيجا', price: 400, currency: 'YER', executionType: 'manual', isActive: true },
-  // Y
+  { id: 'sab-net-2', providerId: 'sabafon', name: 'باقة إنترنت 7 جيجا', price: 800, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'sab-net-3', providerId: 'sabafon', name: 'باقة إنترنت 15 جيجا', price: 1500, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // TELECOM - WA (واي)
   { id: 'y-1', providerId: 'y', name: 'شحنة 100 ر.ي', price: 100, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'y-2', providerId: 'y', name: 'شحنة 200 ر.ي', price: 200, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'y-3', providerId: 'y', name: 'شحنة 500 ر.ي', price: 500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'y-4', providerId: 'y', name: 'شحنة 1000 ر.ي', price: 1000, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'y-net-1', providerId: 'y', name: 'باقة إنترنت 2 جيجا', price: 250, currency: 'YER', executionType: 'manual', isActive: true },
-  // Yemen Net
+  { id: 'y-net-2', providerId: 'y', name: 'باقة إنترنت 5 جيجا', price: 550, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // ═══════════════════════════════════════════════════════════
+  //  INTERNET - Yemen Net (يمن نت)
+  // ═══════════════════════════════════════════════════════════
   { id: 'ynet-1', providerId: 'yemen-net', name: 'باقة 1 جيجا - يوم', price: 150, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'ynet-2', providerId: 'yemen-net', name: 'باقة 5 جيجا - أسبوع', price: 500, currency: 'YER', executionType: 'manual', isActive: true },
   { id: 'ynet-3', providerId: 'yemen-net', name: 'باقة 10 جيجا - شهر', price: 1000, currency: 'YER', executionType: 'manual', isActive: true },
-  // PUBG
-  { id: 'pubg-1', providerId: 'pubg', name: '60 شدة', price: 1200, currency: 'YER', executionType: 'manual', isActive: true },
-  { id: 'pubg-2', providerId: 'pubg', name: '325 شدة', price: 5500, currency: 'YER', executionType: 'manual', isActive: true },
-  { id: 'pubg-3', providerId: 'pubg', name: '660 شدة', price: 10500, currency: 'YER', executionType: 'manual', isActive: true },
-  { id: 'pubg-4', providerId: 'pubg', name: '1800 شدة', price: 28000, currency: 'YER', executionType: 'manual', isActive: true },
-  // Free Fire
-  { id: 'ff-1', providerId: 'freefire', name: '100 جوهرة', price: 800, currency: 'YER', executionType: 'manual', isActive: true },
-  { id: 'ff-2', providerId: 'freefire', name: '310 جوهرة', price: 2200, currency: 'YER', executionType: 'manual', isActive: true },
-  { id: 'ff-3', providerId: 'freefire', name: '520 جوهرة', price: 3500, currency: 'YER', executionType: 'manual', isActive: true },
-  { id: 'ff-4', providerId: 'freefire', name: '1060 جوهرة', price: 6500, currency: 'YER', executionType: 'manual', isActive: true },
-  // Gift Cards
-  { id: 'gc-1', providerId: 'gift-cards', name: 'بطاقة Google Play 5$', price: 3000, currency: 'YER', executionType: 'manual', isActive: true },
-  { id: 'gc-2', providerId: 'gift-cards', name: 'بطاقة Google Play 10$', price: 5800, currency: 'YER', executionType: 'manual', isActive: true },
-  { id: 'gc-3', providerId: 'gift-cards', name: 'بطاقة Google Play 25$', price: 14000, currency: 'YER', executionType: 'manual', isActive: true },
-  { id: 'gc-4', providerId: 'gift-cards', name: 'بطاقة PSN 10$', price: 6000, currency: 'YER', executionType: 'manual', isActive: true },
-  { id: 'gc-5', providerId: 'gift-cards', name: 'بطاقة Xbox 10$', price: 6000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ynet-4', providerId: 'yemen-net', name: 'باقة 20 جيجا - شهر', price: 1800, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ynet-5', providerId: 'yemen-net', name: 'باقة غير محدودة - شهر', price: 3500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ynet-int-1', providerId: 'y-net-internet', name: 'باقة 3 جيجا - أسبوع', price: 400, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ynet-int-2', providerId: 'y-net-internet', name: 'باقة 8 جيجا - شهر', price: 900, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ynet-int-3', providerId: 'y-net-internet', name: 'باقة 15 جيجا - شهر', price: 1500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'sabnet-1', providerId: 'sabafon-internet', name: 'باقة 3 جيجا - أسبوع', price: 400, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'sabnet-2', providerId: 'sabafon-internet', name: 'باقة 10 جيجا - شهر', price: 1000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // ═══════════════════════════════════════════════════════════
+  //  GAMING - PUBG Mobile (ببجي موبايل)
+  // ═══════════════════════════════════════════════════════════
+  { id: 'pubg-1', providerId: 'pubg', name: '60 شدة ببجي', price: 1200, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'pubg-2', providerId: 'pubg', name: '325 شدة ببجي', price: 5500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'pubg-3', providerId: 'pubg', name: '660 شدة ببجي', price: 10500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'pubg-4', providerId: 'pubg', name: '1800 شدة ببجي', price: 28000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'pubg-5', providerId: 'pubg', name: '3850 شدة ببجي', price: 58000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'pubg-6', providerId: 'pubg', name: '8100 شدة ببجي', price: 120000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'pubg-7', providerId: 'pubg', name: 'عضوية رويال باس شهري', price: 3000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'pubg-8', providerId: 'pubg', name: 'عضوية رويال باس أسبوعي', price: 1000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // GAMING - Free Fire (فري فاير)
+  { id: 'ff-1', providerId: 'freefire', name: '100 جوهرة فري فاير', price: 800, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ff-2', providerId: 'freefire', name: '310 جوهرة فري فاير', price: 2200, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ff-3', providerId: 'freefire', name: '520 جوهرة فري فاير', price: 3500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ff-4', providerId: 'freefire', name: '1060 جوهرة فري فاير', price: 6500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ff-5', providerId: 'freefire', name: '2180 جوهرة فري فاير', price: 13000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ff-6', providerId: 'freefire', name: '5600 جوهرة فري فاير', price: 32000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ff-7', providerId: 'freefire', name: 'عضوية ماموث أسبوعية', price: 1200, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ff-8', providerId: 'freefire', name: 'عضوية ماموث شهرية', price: 4000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // GAMING - Call of Duty Mobile
+  { id: 'cod-1', providerId: 'call-of-duty', name: '80 CP كود', price: 1500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'cod-2', providerId: 'call-of-duty', name: '400 CP كود', price: 5500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'cod-3', providerId: 'call-of-duty', name: '800 CP كود', price: 10500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'cod-4', providerId: 'call-of-duty', name: '2000 CP كود', price: 25000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'cod-5', providerId: 'call-of-duty', name: '4000 CP كود', price: 48000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'cod-6', providerId: 'call-of-duty', name: 'بطاقة قتال الموسم', price: 3500, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // GAMING - Fortnite (فورتنايت)
+  { id: 'fn-1', providerId: 'fortnite', name: '1000 V-Bucks', price: 2000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'fn-2', providerId: 'fortnite', name: '2800 V-Bucks', price: 5200, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'fn-3', providerId: 'fortnite', name: '5000 V-Bucks', price: 9000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'fn-4', providerId: 'fortnite', name: '13500 V-Bucks', price: 22000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'fn-5', providerId: 'fortnite', name: 'بطاقة قتال الموسم', price: 2500, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // GAMING - Valorant (فالورانت)
+  { id: 'val-1', providerId: 'valorant', name: '125 VP فالورانت', price: 1800, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'val-2', providerId: 'valorant', name: '420 VP فالورانت', price: 5500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'val-3', providerId: 'valorant', name: '700 VP فالورانت', price: 9000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'val-4', providerId: 'valorant', name: '1375 VP فالورانت', price: 17000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'val-5', providerId: 'valorant', name: '2400 VP فالورانت', price: 29000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'val-6', providerId: 'valorant', name: '4000 VP فالورانت', price: 48000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // GAMING - Apex Legends
+  { id: 'apex-1', providerId: 'apex-legends', name: '1000 عملة ابكس', price: 1500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'apex-2', providerId: 'apex-legends', name: '2150 عملة ابكس', price: 3000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'apex-3', providerId: 'apex-legends', name: '4350 عملة ابكس', price: 5800, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'apex-4', providerId: 'apex-legends', name: '6700 عملة ابكس', price: 8800, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // GAMING - Clash Royale
+  { id: 'cr-1', providerId: 'clash-royale', name: '80 جوهرة', price: 1000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'cr-2', providerId: 'clash-royale', name: '500 جوهرة', price: 5500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'cr-3', providerId: 'clash-royale', name: '1200 جوهرة', price: 12000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'cr-4', providerId: 'clash-royale', name: '2500 جوهرة', price: 23000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'cr-5', providerId: 'clash-royale', name: 'ممر البطولة', price: 3000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // GAMING - Clash of Clans
+  { id: 'coc-1', providerId: 'clash-of-clans', name: '80 جوهرة', price: 1000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'coc-2', providerId: 'clash-of-clans', name: '500 جوهرة', price: 5500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'coc-3', providerId: 'clash-of-clans', name: '1200 جوهرة', price: 12000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'coc-4', providerId: 'clash-of-clans', name: '2500 جوهرة', price: 23000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'coc-5', providerId: 'clash-of-clans', name: 'ممر الذهب', price: 3000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // GAMING - League of Legends
+  { id: 'lol-1', providerId: 'league-legends', name: '650 RIOT نقاط', price: 2000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'lol-2', providerId: 'league-legends', name: '1380 RIOT نقاط', price: 4000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'lol-3', providerId: 'league-legends', name: '2800 RIOT نقاط', price: 7500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'lol-4', providerId: 'league-legends', name: '5000 RIOT نقاط', price: 13000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // GAMING - Roblox
+  { id: 'rob-1', providerId: 'roblox', name: '400 Robux', price: 900, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'rob-2', providerId: 'roblox', name: '800 Robux', price: 1700, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'rob-3', providerId: 'roblox', name: '1700 Robux', price: 3500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'rob-4', providerId: 'roblox', name: '4500 Robux', price: 9000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'rob-5', providerId: 'roblox', name: '10000 Robux', price: 19000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'rob-6', providerId: 'roblox', name: 'عضوية بريميوم 450', price: 1200, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // GAMING - Minecraft
+  { id: 'mc-1', providerId: 'minecraft', name: 'بطاقة ماينكرافت 660 جوهرة', price: 2500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'mc-2', providerId: 'minecraft', name: 'بطاقة ماينكرافت 1720 جوهرة', price: 6000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'mc-3', providerId: 'minecraft', name: 'بطاقة ماينكرافت 3240 جوهرة', price: 11000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'mc-4', providerId: 'minecraft', name: 'رخصة Java Edition', price: 35000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // GAMING - Genshin Impact
+  { id: 'gi-1', providerId: 'genshin-impact', name: '60 جينشين كريستال', price: 1500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'gi-2', providerId: 'genshin-impact', name: '330 جينشين كريستال', price: 7500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'gi-3', providerId: 'genshin-impact', name: '1090 جينشين كريستال', price: 23000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'gi-4', providerId: 'genshin-impact', name: '2240 جينشين كريستال', price: 45000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'gi-5', providerId: 'genshin-impact', name: '3880 جينشين كريستال', price: 78000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'gi-6', providerId: 'genshin-impact', name: 'بطاقة القمر المبارك', price: 4000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // GAMING - Honkai Star Rail
+  { id: 'hsr-1', providerId: 'honkai-star', name: '60 هنكاي كريستال', price: 1500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'hsr-2', providerId: 'honkai-star', name: '330 هنكاي كريستال', price: 7500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'hsr-3', providerId: 'honkai-star', name: '1090 هنكاي كريستال', price: 23000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'hsr-4', providerId: 'honkai-star', name: '2240 هنكاي كريستال', price: 45000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'hsr-5', providerId: 'honkai-star', name: 'تذكرة السفر السري', price: 4000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // GAMING - Steam
+  { id: 'stm-1', providerId: 'steam', name: 'بطاقة ستيم 5$', price: 5000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'stm-2', providerId: 'steam', name: 'بطاقة ستيم 10$', price: 10000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'stm-3', providerId: 'steam', name: 'بطاقة ستيم 25$', price: 24000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'stm-4', providerId: 'steam', name: 'بطاقة ستيم 50$', price: 47000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'stm-5', providerId: 'steam', name: 'بطاقة ستيم 100$', price: 92000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // GAMING - EA FC 25
+  { id: 'eafc-1', providerId: 'ea-fc', name: '500 FC Points', price: 3000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'eafc-2', providerId: 'ea-fc', name: '1050 FC Points', price: 6000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'eafc-3', providerId: 'ea-fc', name: '2200 FC Points', price: 12000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'eafc-4', providerId: 'ea-fc', name: '4600 FC Points', price: 24000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'eafc-5', providerId: 'ea-fc', name: '12000 FC Points', price: 58000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // ═══════════════════════════════════════════════════════════
+  //  STREAMING
+  // ═══════════════════════════════════════════════════════════
+  { id: 'nfx-1', providerId: 'netflix', name: 'اشتراك نتفلكس شهري - أساسي', price: 3500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'nfx-2', providerId: 'netflix', name: 'اشتراك نتفلكس شهري - قياسي', price: 6000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'nfx-3', providerId: 'netflix', name: 'اشتراك نتفلكس شهري - مميز', price: 9000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'nfx-4', providerId: 'netflix', name: 'اشتراك نتفلكس سنوي - أساسي', price: 38000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  { id: 'spf-1', providerId: 'spotify', name: 'اشتراك سبوتيفاي فردي شهر', price: 2500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'spf-2', providerId: 'spotify', name: 'اشتراك سبوتيفاي مزدوج شهر', price: 3500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'spf-3', providerId: 'spotify', name: 'اشتراك سبوتيفاي عائلي شهر', price: 4500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'spf-4', providerId: 'spotify', name: 'اشتراك سبوتيفاي سنوي', price: 27000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  { id: 'yt-1', providerId: 'youtube-premium', name: 'اشتراك يوتيوب بريميوم فردي', price: 3000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'yt-2', providerId: 'youtube-premium', name: 'اشتراك يوتيوب بريميوم عائلي', price: 5500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'yt-3', providerId: 'youtube-premium', name: 'اشتراك يوتيوب بريميوم سنوي', price: 32000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // ═══════════════════════════════════════════════════════════
+  //  DIGITAL CARDS - Store Cards
+  // ═══════════════════════════════════════════════════════════
+  { id: 'gp-1', providerId: 'google-play', name: 'بطاقة جوجل بلاي 5$', price: 3000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'gp-2', providerId: 'google-play', name: 'بطاقة جوجل بلاي 10$', price: 5800, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'gp-3', providerId: 'google-play', name: 'بطاقة جوجل بلاي 25$', price: 14000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'gp-4', providerId: 'google-play', name: 'بطاقة جوجل بلاي 50$', price: 27000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  { id: 'itn-1', providerId: 'apple-itunes', name: 'بطاقة آيتونز 5$', price: 3500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'itn-2', providerId: 'apple-itunes', name: 'بطاقة آيتونز 10$', price: 6500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'itn-3', providerId: 'apple-itunes', name: 'بطاقة آيتونز 25$', price: 15500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'itn-4', providerId: 'apple-itunes', name: 'بطاقة آيتونز 50$', price: 30000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  { id: 'amz-1', providerId: 'amazon-gift', name: 'بطاقة امازون 5$', price: 3000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'amz-2', providerId: 'amazon-gift', name: 'بطاقة امازون 10$', price: 5800, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'amz-3', providerId: 'amazon-gift', name: 'بطاقة امازون 25$', price: 14000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'amz-4', providerId: 'amazon-gift', name: 'بطاقة امازون 50$', price: 27000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // DIGITAL CARDS - Gaming Cards
+  { id: 'psn-1', providerId: 'psn-card', name: 'بطاقة بلايستيشن 10$', price: 6000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'psn-2', providerId: 'psn-card', name: 'بطاقة بلايستيشن 25$', price: 14500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'psn-3', providerId: 'psn-card', name: 'بطاقة بلايستيشن 50$', price: 28000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'psn-4', providerId: 'psn-card', name: 'اشتراك PS Plus شهر', price: 7500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'psn-5', providerId: 'psn-card', name: 'اشتراك PS Plus سنة', price: 45000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  { id: 'xbx-1', providerId: 'xbox-card', name: 'بطاقة اكسبوكس 10$', price: 6000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'xbx-2', providerId: 'xbox-card', name: 'بطاقة اكسبوكس 25$', price: 14500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'xbx-3', providerId: 'xbox-card', name: 'بطاقة اكسبوكس 50$', price: 28000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'xbx-4', providerId: 'xbox-card', name: 'اشتراك Xbox Live شهر', price: 6000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'xbx-5', providerId: 'xbox-card', name: 'اشتراك Game Pass شهر', price: 8000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  { id: 'ntd-1', providerId: 'nintendo-card', name: 'بطاقة نينتندو 10$', price: 6000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ntd-2', providerId: 'nintendo-card', name: 'بطاقة نينتندو 25$', price: 14500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ntd-3', providerId: 'nintendo-card', name: 'بطاقة نينتندو 50$', price: 28000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ntd-4', providerId: 'nintendo-card', name: 'اشتراك Nintendo Online سنة', price: 12000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // DIGITAL CARDS - Payment Cards
+  { id: 'vis-1', providerId: 'visa-virtual', name: 'بطاقة فيزا افتراضية 5$', price: 5000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'vis-2', providerId: 'visa-virtual', name: 'بطاقة فيزا افتراضية 10$', price: 9500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'vis-3', providerId: 'visa-virtual', name: 'بطاقة فيزا افتراضية 25$', price: 22000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'vis-4', providerId: 'visa-virtual', name: 'بطاقة فيزا افتراضية 50$', price: 42000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  { id: 'mc-1', providerId: 'mastercard-virtual', name: 'بطاقة ماستركارد 5$', price: 5000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'mc-2', providerId: 'mastercard-virtual', name: 'بطاقة ماستركارد 10$', price: 9500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'mc-3', providerId: 'mastercard-virtual', name: 'بطاقة ماستركارد 25$', price: 22000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'mc-4', providerId: 'mastercard-virtual', name: 'بطاقة ماستركارد 50$', price: 42000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  { id: 'ppl-1', providerId: 'paypal', name: 'شحن بايبال 5$', price: 5000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ppl-2', providerId: 'paypal', name: 'شحن بايبال 10$', price: 9500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ppl-3', providerId: 'paypal', name: 'شحن بايبال 25$', price: 22000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ppl-4', providerId: 'paypal', name: 'شحن بايبال 50$', price: 42000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ppl-5', providerId: 'paypal', name: 'شحن بايبال 100$', price: 82000, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // ═══════════════════════════════════════════════════════════
+  //  ELECTRICITY & WATER
+  // ═══════════════════════════════════════════════════════════
+  { id: 'esn-1', providerId: 'elec-sanaa', name: 'فاتورة كهرباء صنعاء', price: 500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'ead-1', providerId: 'elec-aden', name: 'فاتورة كهرباء عدن', price: 500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'wsn-1', providerId: 'water-sanaa', name: 'فاتورة مياه صنعاء', price: 300, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'wad-1', providerId: 'water-aden', name: 'فاتورة مياه عدن', price: 300, currency: 'YER', executionType: 'manual', isActive: true },
+
+  // ═══════════════════════════════════════════════════════════
+  //  GOVERNMENT
+  // ═══════════════════════════════════════════════════════════
+  { id: 'cr-1', providerId: 'civil-registry', name: 'استخراج بطاقة شخصية', price: 1000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'cr-2', providerId: 'civil-registry', name: 'تجديد بطاقة شخصية', price: 800, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'cr-3', providerId: 'civil-registry', name: 'استخراج قيد عائلي', price: 1500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'psp-1', providerId: 'passport', name: 'استخراج جواز سفر', price: 5000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'psp-2', providerId: 'passport', name: 'تجديد جواز سفر', price: 4000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'trf-1', providerId: 'traffic', name: 'رسوم مخالفة مرورية', price: 500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'trf-2', providerId: 'traffic', name: 'تجديد رخصة قيادة', price: 2000, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'mun-1', providerId: 'municipal', name: 'رسوم رخصة تجارية', price: 500, currency: 'YER', executionType: 'manual', isActive: true },
+  { id: 'mun-2', providerId: 'municipal', name: 'رسوم بناء', price: 1000, currency: 'YER', executionType: 'manual', isActive: true },
 ];
 
 // Default promo codes
@@ -472,6 +692,10 @@ export const useAppStore = create<AppState>()(
       setOrderOpen: (isOrderOpen) => set({ isOrderOpen }),
       selectedProvider: null,
       setSelectedProvider: (selectedProvider) => set({ selectedProvider }),
+
+      // Selected category
+      selectedCategory: null,
+      setSelectedCategory: (selectedCategory) => set({ selectedCategory }),
 
       // Loading
       isLoading: false,

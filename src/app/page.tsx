@@ -28,6 +28,7 @@ import SubscriptionsScreen from '@/components/fahed/subscriptions-screen';
 import ChargingCompaniesScreen from '@/components/fahed/charging-companies-screen';
 import RechargeScreen from '@/components/fahed/recharge-screen';
 import SettingsScreen from '@/components/fahed/settings-screen';
+import CategoryDetailScreen from '@/components/fahed/category-detail-screen';
 import BottomNav from '@/components/fahed/bottom-nav';
 import QuickActionDrawer from '@/components/fahed/quick-action-drawer';
 import TransferModal from '@/components/fahed/transfer-modal';
@@ -142,13 +143,14 @@ function AppContent() {
     'charging-companies': ChargingCompaniesScreen,
     recharge: RechargeScreen,
     settings: SettingsScreen,
+    'category-detail': CategoryDetailScreen,
   };
 
   if (activeScreen in overlayScreens) {
     const OverlayComponent = overlayScreens[activeScreen];
     return (
       <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative">
-        <OverlayComponent />
+        <OverlayComponent key={activeScreen === 'category-detail' ? `category-detail-${useAppStore.getState().selectedCategory}` : activeScreen} />
       </div>
     );
   }

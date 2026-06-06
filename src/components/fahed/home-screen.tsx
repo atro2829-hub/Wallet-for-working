@@ -72,16 +72,16 @@ const balanceCards: BalanceCard[] = [
   { currency: 'USD', accentColor: '#0D47A1', accentColorEnd: '#1565C0', glowColor: 'rgba(13,71,161,0.35)', patternColor: 'rgba(255,255,255,0.06)' },
 ];
 
-// Services with custom SVG icons
+// Services with custom SVG icons - each maps to a category-detail screen
 const homeServices = [
-  { id: 'instant-pay', label: 'المدفوعات الفورية', iconKey: 'instant-pay' },
-  { id: 'transfer', label: 'تحويل الأموال', iconKey: 'transfer' },
-  { id: 'wallet-transfer', label: 'تحويل لمحفظة', iconKey: 'wallet-transfer' },
-  { id: 'recharge', label: 'شحن رصيد', iconKey: 'recharge' },
-  { id: 'app-store', label: 'متجر التطبيقات', iconKey: 'app-store' },
-  { id: 'instant-charge', label: 'شحن فوري', iconKey: 'instant-charge' },
-  { id: 'health', label: 'صحة', iconKey: 'health' },
+  { id: 'telecom', label: 'الاتصالات', iconKey: 'telecom-category' },
   { id: 'entertainment', label: 'خدمات ترفيهية', iconKey: 'entertainment-category' },
+  { id: 'cards', label: 'بطاقات رقمية', iconKey: 'cards-category' },
+  { id: 'transfer', label: 'تحويل الأموال', iconKey: 'transfer' },
+  { id: 'recharge', label: 'شحن رصيد', iconKey: 'recharge' },
+  { id: 'electricity', label: 'الكهرباء والماء', iconKey: 'electricity-category' },
+  { id: 'government', label: 'خدمات حكومية', iconKey: 'government-category' },
+  { id: 'internet', label: 'الإنترنت', iconKey: 'internet-category' },
   { id: 'digital-wallet', label: 'المحفظة الرقمية', iconKey: 'digital-wallet' },
 ];
 
@@ -404,28 +404,27 @@ export default function HomeScreen() {
   }, []);
 
   const handleServiceClick = (serviceId: string) => {
+    // Category IDs that navigate to dedicated category-detail screens
+    const categoryIds = ['telecom', 'entertainment', 'cards', 'electricity', 'government', 'internet'];
+    
     switch (serviceId) {
       case 'transfer':
-      case 'wallet-transfer':
         setTransferOpen(true);
         break;
       case 'recharge':
-      case 'instant-charge':
         setActiveScreen('recharge');
-        break;
-      case 'instant-pay':
-      case 'app-store':
-      case 'health':
-        useAppStore.getState().setActiveTab('services');
-        break;
-      case 'entertainment':
-        useAppStore.getState().setActiveTab('services');
         break;
       case 'digital-wallet':
         useAppStore.getState().setActiveTab('wallet');
         break;
       default:
-        useAppStore.getState().setActiveTab('services');
+        // All category services navigate to their dedicated screen
+        if (categoryIds.includes(serviceId)) {
+          useAppStore.getState().setSelectedCategory(serviceId);
+          useAppStore.getState().setActiveScreen('category-detail');
+        } else {
+          useAppStore.getState().setActiveTab('services');
+        }
         break;
     }
   };

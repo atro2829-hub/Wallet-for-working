@@ -83,6 +83,7 @@ export default function ServicesScreen() {
     setSelectedProvider,
     setOrderOpen,
     setActiveScreen,
+    setSelectedCategory,
   } = useAppStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -311,12 +312,20 @@ export default function ServicesScreen() {
           >
             {/* Section Header */}
             <div className="flex items-center justify-between mb-3">
-              <h3
-                className="text-sm font-bold"
-                style={{ color: isDark ? '#FFF' : '#1a1a1a' }}
+              <button
+                onClick={() => {
+                  setSelectedCategory(section.id);
+                  setActiveScreen('category-detail');
+                }}
+                className="active:scale-95 transition-transform"
               >
-                {section.name}
-              </h3>
+                <h3
+                  className="text-sm font-bold"
+                  style={{ color: isDark ? '#FFF' : '#1a1a1a' }}
+                >
+                  {section.name}
+                </h3>
+              </button>
               {hasMore && !searchQuery.trim() && (
                 <button
                   onClick={() => toggleCategoryExpand(section.id)}
