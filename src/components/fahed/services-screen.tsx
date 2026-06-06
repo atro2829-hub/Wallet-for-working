@@ -18,6 +18,32 @@ const categoryOrder = [
   { id: 'internet', name: 'الإنترنت' },
 ];
 
+// Sub-sections mapping for categories
+const categorySubSections: Record<string, { id: string; name: string; providerIds: string[] }[]> = {
+  telecom: [], // No sub-sections for telecom
+  entertainment: [
+    { id: 'shooting', name: 'ألعاب إطلاق النار', providerIds: ['pubg', 'freefire', 'call-of-duty', 'fortnite', 'apex-legends', 'valorant'] },
+    { id: 'strategy', name: 'ألعاب الاستراتيجية', providerIds: ['clash-royale', 'clash-of-clans', 'league-legends'] },
+    { id: 'adventure', name: 'ألعاب المغامرات', providerIds: ['roblox', 'minecraft', 'genshin-impact', 'honkai-star'] },
+    { id: 'platforms', name: 'منصات الألعاب', providerIds: ['steam', 'ea-fc'] },
+    { id: 'streaming', name: 'خدمات البث', providerIds: ['netflix', 'spotify', 'youtube-premium'] },
+  ],
+  cards: [
+    { id: 'store-cards', name: 'بطاقات المتاجر', providerIds: ['google-play', 'apple-itunes', 'amazon-gift'] },
+    { id: 'gaming-cards', name: 'بطاقات الألعاب', providerIds: ['psn-card', 'xbox-card', 'nintendo-card'] },
+    { id: 'payment-cards', name: 'بطاقات الدفع', providerIds: ['visa-virtual', 'mastercard-virtual', 'paypal'] },
+  ],
+  electricity: [
+    { id: 'elec', name: 'الكهرباء', providerIds: ['elec-sanaa', 'elec-aden'] },
+    { id: 'water', name: 'المياه', providerIds: ['water-sanaa', 'water-aden'] },
+  ],
+  government: [
+    { id: 'identity', name: 'الأوراق الثبوتية', providerIds: ['civil-registry', 'passport'] },
+    { id: 'traffic-municipal', name: 'المرور والبلدية', providerIds: ['traffic', 'municipal'] },
+  ],
+  internet: [], // No sub-sections for internet
+};
+
 // Icon fallback mapping for providers without dedicated product icons
 const iconFallbackMap: Record<string, string> = {
   'elec-sanaa': 'electricity',
@@ -119,6 +145,87 @@ export default function ServicesScreen() {
         .filter(section => section.providers.length > 0)
     : sections;
 
+  // Helper: build sub-section data for a category
+  const buildSubSections = (
+    categoryId: string,
+    catProviders: typeof providers
+  ) => {
+    const subDefs = categorySubSections[categoryId];
+    if (!subDefs || subDefs.length === 0) return null;
+
+    return subDefs
+      .map(sub => {
+        const subProviders = sub.providerIds
+          .map(pid => catProviders.find(p => p.id === pid))
+          .filter((p): p is NonNullable<typeof p> => !!p);
+        return {
+          id: sub.id,
+          name: sub.name,
+          providers: subProviders,
+        };
+      })
+      .filter(sub => sub.providers.length > 0);
+  };
+
+  // Helper: flatten sub-sections into a single provider list (preserving order)
+  const flattenSubSectionProviders = (
+    subSections: { id: string; name: string; providers: typeof providers }[]
+  ) => {
+    const result: typeof providers = [];
+    for (const sub of subSections) {
+      result.push(...sub.providers);
+    }
+    return result;
+  };
+
+  // Render a provider grid item
+  const renderProviderItem = (provider: typeof providers[number], index: number) => {
+    const iconSrc = getIconForProvider(provider.id);
+    return (
+      <motion.button
+        key={provider.id}
+        layout
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.8 }}
+        transition={{ delay: 0.02 * index, duration: 0.25 }}
+        onClick={() => handleProviderClick(provider.id)}
+        whileTap={{ scale: 0.92 }}
+        className="flex flex-col items-center justify-center gap-1.5 py-2"
+      >
+        {/* Icon Container */}
+        <div
+          className="w-14 h-14 rounded-2xl overflow-hidden flex items-center justify-center shrink-0"
+          style={{
+            background: isDark
+              ? 'rgba(255,255,255,0.05)'
+              : 'rgba(0,0,0,0.03)',
+          }}
+        >
+          <img
+            src={iconSrc}
+            alt={provider.name}
+            className="w-10 h-10 object-contain"
+            draggable={false}
+          />
+        </div>
+        {/* Provider Name */}
+        <span
+          className="text-[10px] font-medium text-center leading-tight max-w-[72px]"
+          style={{
+            color: isDark ? '#BBB' : '#555',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
+        >
+          {provider.name}
+        </span>
+      </motion.button>
+    );
+  };
+
   return (
     <div className="pb-6">
       {/* Header */}
@@ -157,10 +264,42 @@ export default function ServicesScreen() {
       {/* Category Sections */}
       {filteredSections.map((section, sectionIndex) => {
         const isExpanded = expandedCategories.has(section.id) || !!searchQuery.trim();
-        const displayProviders = isExpanded
-          ? section.providers
-          : section.providers.slice(0, COMPACT_LIMIT);
-        const hasMore = section.providers.length > COMPACT_LIMIT;
+        const subSections = buildSubSections(section.id, section.providers);
+        const hasSubSections = subSections && subSections.length > 0;
+
+        // Determine total provider count and display providers
+        const totalProviders = section.providers.length;
+        const hasMore = totalProviders > COMPACT_LIMIT;
+
+        // For categories with sub-sections, compute collapsed display
+        let displaySubSections: typeof subSections = null;
+        let displayFlatProviders: typeof section.providers | null = null;
+
+        if (hasSubSections) {
+          const allProviders = flattenSubSectionProviders(subSections!);
+          const limitedProviders = isExpanded ? allProviders : allProviders.slice(0, COMPACT_LIMIT);
+
+          if (isExpanded) {
+            // Show all sub-sections fully
+            displaySubSections = subSections;
+          } else {
+            // Collapsed: show only first COMPACT_LIMIT providers, distributed across sub-sections
+            let remaining = COMPACT_LIMIT;
+            displaySubSections = subSections!.map(sub => {
+              const take = Math.min(sub.providers.length, remaining);
+              remaining -= take;
+              return {
+                ...sub,
+                providers: sub.providers.slice(0, take),
+              };
+            }).filter(sub => sub.providers.length > 0);
+          }
+        } else {
+          // No sub-sections: flat grid
+          displayFlatProviders = isExpanded
+            ? section.providers
+            : section.providers.slice(0, COMPACT_LIMIT);
+        }
 
         return (
           <motion.div
@@ -197,61 +336,68 @@ export default function ServicesScreen() {
               )}
             </div>
 
-            {/* Provider Icon Grid */}
+            {/* Provider Content */}
             <div
               className="rounded-2xl p-4"
               style={cardStyle}
             >
-              <div className="grid grid-cols-4 gap-x-2 gap-y-4">
+              {hasSubSections && displaySubSections ? (
+                /* Render with sub-sections */
                 <AnimatePresence mode="popLayout">
-                  {displayProviders.map((provider, index) => {
-                    const iconSrc = getIconForProvider(provider.id);
+                  {displaySubSections.map((sub, subIndex) => {
+                    let itemIndexOffset = 0;
+                    for (let i = 0; i < subIndex; i++) {
+                      itemIndexOffset += displaySubSections![i].providers.length;
+                    }
+
                     return (
-                      <motion.button
-                        key={provider.id}
-                        layout
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        transition={{ delay: 0.02 * index, duration: 0.25 }}
-                        onClick={() => handleProviderClick(provider.id)}
-                        whileTap={{ scale: 0.92 }}
-                        className="flex flex-col items-center justify-center gap-1.5 py-2"
-                      >
-                        {/* Icon Container */}
+                      <div key={sub.id}>
+                        {/* Sub-section header */}
                         <div
-                          className="w-14 h-14 rounded-2xl overflow-hidden flex items-center justify-center shrink-0"
+                          className={`mb-2 pr-2 ${subIndex === 0 ? '' : 'mt-3'}`}
                           style={{
-                            background: isDark
-                              ? 'rgba(255,255,255,0.05)'
-                              : 'rgba(0,0,0,0.03)',
+                            borderRight: '2px solid #E60000',
                           }}
                         >
-                          <img
-                            src={iconSrc}
-                            alt={provider.name}
-                            className="w-10 h-10 object-contain"
-                            draggable={false}
-                          />
+                          <span
+                            className="text-xs font-semibold"
+                            style={{ color: isDark ? '#AAA' : '#666' }}
+                          >
+                            {sub.name}
+                          </span>
                         </div>
-                        {/* Provider Name */}
-                        <span
-                          className="text-[10px] font-medium text-center leading-tight max-w-[72px]"
-                          style={{
-                            color: isDark ? '#BBB' : '#555',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {provider.name}
-                        </span>
-                      </motion.button>
+
+                        {/* Provider grid for this sub-section */}
+                        <div className="grid grid-cols-4 gap-x-2 gap-y-4">
+                          {sub.providers.map((provider, pIndex) =>
+                            renderProviderItem(provider, itemIndexOffset + pIndex)
+                          )}
+                        </div>
+
+                        {/* Divider between sub-sections (not after last one) */}
+                        {subIndex < displaySubSections!.length - 1 && (
+                          <div
+                            className="my-3"
+                            style={{
+                              height: '1px',
+                              background: dividerColor,
+                            }}
+                          />
+                        )}
+                      </div>
                     );
                   })}
                 </AnimatePresence>
-              </div>
+              ) : (
+                /* Render flat grid (no sub-sections) */
+                <div className="grid grid-cols-4 gap-x-2 gap-y-4">
+                  <AnimatePresence mode="popLayout">
+                    {displayFlatProviders!.map((provider, index) =>
+                      renderProviderItem(provider, index)
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
             </div>
           </motion.div>
         );

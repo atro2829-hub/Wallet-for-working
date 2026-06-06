@@ -522,133 +522,133 @@ const googlePlayProducts: ProductItem[] = [
 ];
 
 // ============================================================
-// 18. iTunes (providerId: 'itunes')
+// 18. iTunes (providerId: 'apple-itunes')
 // ============================================================
 const itunesProducts: ProductItem[] = [
-  usdProduct('itunes', 'card-5', 'iTunes $5', 5),
-  usdProduct('itunes', 'card-10', 'iTunes $10', 10),
-  usdProduct('itunes', 'card-15', 'iTunes $15', 15),
-  usdProduct('itunes', 'card-25', 'iTunes $25', 25),
-  usdProduct('itunes', 'card-50', 'iTunes $50', 50),
-  usdProduct('itunes', 'card-100', 'iTunes $100', 100),
-  usdProduct('itunes', 'card-200', 'iTunes $200', 200),
-  usdProduct('itunes', 'card-300', 'iTunes $300', 300),
-  usdProduct('itunes', 'card-500', 'iTunes $500', 500),
-  usdProduct('itunes', 'app-store-5', 'App Store $5', 5),
-  usdProduct('itunes', 'app-store-10', 'App Store $10', 10),
-  usdProduct('itunes', 'app-store-25', 'App Store $25', 25),
-  usdProduct('itunes', 'app-store-50', 'App Store $50', 50),
-  usdProduct('itunes', 'app-store-100', 'App Store $100', 100),
-  usdProduct('itunes', 'gift-5', 'Gift Card $5', 5),
-  usdProduct('itunes', 'gift-10', 'Gift Card $10', 10),
-  usdProduct('itunes', 'gift-25', 'Gift Card $25', 25),
-  usdProduct('itunes', 'gift-50', 'Gift Card $50', 50),
-  usdProduct('itunes', 'bundle-30', 'Bundle $30', 30),
-  usdProduct('itunes', 'bundle-75', 'Bundle $75', 75),
+  usdProduct('apple-itunes', 'card-5', 'iTunes $5', 5),
+  usdProduct('apple-itunes', 'card-10', 'iTunes $10', 10),
+  usdProduct('apple-itunes', 'card-15', 'iTunes $15', 15),
+  usdProduct('apple-itunes', 'card-25', 'iTunes $25', 25),
+  usdProduct('apple-itunes', 'card-50', 'iTunes $50', 50),
+  usdProduct('apple-itunes', 'card-100', 'iTunes $100', 100),
+  usdProduct('apple-itunes', 'card-200', 'iTunes $200', 200),
+  usdProduct('apple-itunes', 'card-300', 'iTunes $300', 300),
+  usdProduct('apple-itunes', 'card-500', 'iTunes $500', 500),
+  usdProduct('apple-itunes', 'app-store-5', 'App Store $5', 5),
+  usdProduct('apple-itunes', 'app-store-10', 'App Store $10', 10),
+  usdProduct('apple-itunes', 'app-store-25', 'App Store $25', 25),
+  usdProduct('apple-itunes', 'app-store-50', 'App Store $50', 50),
+  usdProduct('apple-itunes', 'app-store-100', 'App Store $100', 100),
+  usdProduct('apple-itunes', 'gift-5', 'Gift Card $5', 5),
+  usdProduct('apple-itunes', 'gift-10', 'Gift Card $10', 10),
+  usdProduct('apple-itunes', 'gift-25', 'Gift Card $25', 25),
+  usdProduct('apple-itunes', 'gift-50', 'Gift Card $50', 50),
+  usdProduct('apple-itunes', 'bundle-30', 'Bundle $30', 30),
+  usdProduct('apple-itunes', 'bundle-75', 'Bundle $75', 75),
 ];
 
 // ============================================================
-// 19. Amazon (providerId: 'amazon')
+// 19. Amazon (providerId: 'amazon-gift')
 // ============================================================
 const amazonProducts: ProductItem[] = [
-  usdProduct('amazon', 'card-5', 'Amazon Gift Card $5', 5),
-  usdProduct('amazon', 'card-10', 'Amazon Gift Card $10', 10),
-  usdProduct('amazon', 'card-15', 'Amazon Gift Card $15', 15),
-  usdProduct('amazon', 'card-25', 'Amazon Gift Card $25', 25),
-  usdProduct('amazon', 'card-50', 'Amazon Gift Card $50', 50),
-  usdProduct('amazon', 'card-100', 'Amazon Gift Card $100', 100),
-  usdProduct('amazon', 'card-200', 'Amazon Gift Card $200', 200),
-  usdProduct('amazon', 'card-300', 'Amazon Gift Card $300', 300),
-  usdProduct('amazon', 'card-500', 'Amazon Gift Card $500', 500),
-  usdProduct('amazon', 'prime-1m', 'Amazon Prime Monthly', 14.99),
-  usdProduct('amazon', 'prime-1y', 'Amazon Prime 1 Year', 139),
-  usdProduct('amazon', 'prime-student', 'Prime Student Monthly', 7.49),
-  usdProduct('amazon', 'music-1m', 'Amazon Music Monthly', 9.99),
-  usdProduct('amazon', 'kindle-unlimited', 'Kindle Unlimited Monthly', 11.99),
-  usdProduct('amazon', 'audible-1m', 'Audible Monthly', 14.95),
-  usdProduct('amazon', 'card-25-gift', 'Gift Box $25', 25),
-  usdProduct('amazon', 'card-50-gift', 'Gift Box $50', 50),
-  usdProduct('amazon', 'card-75', 'Gift Card $75', 75),
-  usdProduct('amazon', 'card-150', 'Gift Card $150', 150),
-  usdProduct('amazon', 'card-250', 'Gift Card $250', 250),
+  usdProduct('amazon-gift', 'card-5', 'Amazon Gift Card $5', 5),
+  usdProduct('amazon-gift', 'card-10', 'Amazon Gift Card $10', 10),
+  usdProduct('amazon-gift', 'card-15', 'Amazon Gift Card $15', 15),
+  usdProduct('amazon-gift', 'card-25', 'Amazon Gift Card $25', 25),
+  usdProduct('amazon-gift', 'card-50', 'Amazon Gift Card $50', 50),
+  usdProduct('amazon-gift', 'card-100', 'Amazon Gift Card $100', 100),
+  usdProduct('amazon-gift', 'card-200', 'Amazon Gift Card $200', 200),
+  usdProduct('amazon-gift', 'card-300', 'Amazon Gift Card $300', 300),
+  usdProduct('amazon-gift', 'card-500', 'Amazon Gift Card $500', 500),
+  usdProduct('amazon-gift', 'prime-1m', 'Amazon Prime Monthly', 14.99),
+  usdProduct('amazon-gift', 'prime-1y', 'Amazon Prime 1 Year', 139),
+  usdProduct('amazon-gift', 'prime-student', 'Prime Student Monthly', 7.49),
+  usdProduct('amazon-gift', 'music-1m', 'Amazon Music Monthly', 9.99),
+  usdProduct('amazon-gift', 'kindle-unlimited', 'Kindle Unlimited Monthly', 11.99),
+  usdProduct('amazon-gift', 'audible-1m', 'Audible Monthly', 14.95),
+  usdProduct('amazon-gift', 'card-25-gift', 'Gift Box $25', 25),
+  usdProduct('amazon-gift', 'card-50-gift', 'Gift Box $50', 50),
+  usdProduct('amazon-gift', 'card-75', 'Gift Card $75', 75),
+  usdProduct('amazon-gift', 'card-150', 'Gift Card $150', 150),
+  usdProduct('amazon-gift', 'card-250', 'Gift Card $250', 250),
 ];
 
 // ============================================================
-// 20. PlayStation Network (providerId: 'psn')
+// 20. PlayStation Network (providerId: 'psn-card')
 // ============================================================
 const psnProducts: ProductItem[] = [
-  usdProduct('psn', 'card-5', 'PSN Card $5', 5),
-  usdProduct('psn', 'card-10', 'PSN Card $10', 10),
-  usdProduct('psn', 'card-15', 'PSN Card $15', 15),
-  usdProduct('psn', 'card-25', 'PSN Card $25', 25),
-  usdProduct('psn', 'card-50', 'PSN Card $50', 50),
-  usdProduct('psn', 'card-100', 'PSN Card $100', 100),
-  usdProduct('psn', 'plus-1m', 'PS Plus Essential Monthly', 9.99),
-  usdProduct('psn', 'plus-3m', 'PS Plus Essential 3 Months', 24.99),
-  usdProduct('psn', 'plus-1y', 'PS Plus Essential 1 Year', 59.99),
-  usdProduct('psn', 'plus-extra-1y', 'PS Plus Extra 1 Year', 99.99),
-  usdProduct('psn', 'plus-premium-1y', 'PS Plus Premium 1 Year', 159.99),
-  usdProduct('psn', 'now-1m', 'PS Now Monthly', 9.99),
-  usdProduct('psn', 'card-200', 'PSN Card $200', 200),
-  usdProduct('psn', 'card-300', 'PSN Card $300', 300),
-  usdProduct('psn', 'card-500', 'PSN Card $500', 500),
-  usdProduct('psn', 'game-29', 'Game Download $29.99', 29.99, 'manual'),
-  usdProduct('psn', 'game-49', 'Game Download $49.99', 49.99, 'manual'),
-  usdProduct('psn', 'game-69', 'Game Download $69.99', 69.99, 'manual'),
-  usdProduct('psn', 'add-on-10', 'Add-On $9.99', 9.99, 'manual'),
-  usdProduct('psn', 'add-on-25', 'Add-On $24.99', 24.99, 'manual'),
+  usdProduct('psn-card', 'card-5', 'PSN Card $5', 5),
+  usdProduct('psn-card', 'card-10', 'PSN Card $10', 10),
+  usdProduct('psn-card', 'card-15', 'PSN Card $15', 15),
+  usdProduct('psn-card', 'card-25', 'PSN Card $25', 25),
+  usdProduct('psn-card', 'card-50', 'PSN Card $50', 50),
+  usdProduct('psn-card', 'card-100', 'PSN Card $100', 100),
+  usdProduct('psn-card', 'plus-1m', 'PS Plus Essential Monthly', 9.99),
+  usdProduct('psn-card', 'plus-3m', 'PS Plus Essential 3 Months', 24.99),
+  usdProduct('psn-card', 'plus-1y', 'PS Plus Essential 1 Year', 59.99),
+  usdProduct('psn-card', 'plus-extra-1y', 'PS Plus Extra 1 Year', 99.99),
+  usdProduct('psn-card', 'plus-premium-1y', 'PS Plus Premium 1 Year', 159.99),
+  usdProduct('psn-card', 'now-1m', 'PS Now Monthly', 9.99),
+  usdProduct('psn-card', 'card-200', 'PSN Card $200', 200),
+  usdProduct('psn-card', 'card-300', 'PSN Card $300', 300),
+  usdProduct('psn-card', 'card-500', 'PSN Card $500', 500),
+  usdProduct('psn-card', 'game-29', 'Game Download $29.99', 29.99, 'manual'),
+  usdProduct('psn-card', 'game-49', 'Game Download $49.99', 49.99, 'manual'),
+  usdProduct('psn-card', 'game-69', 'Game Download $69.99', 69.99, 'manual'),
+  usdProduct('psn-card', 'add-on-10', 'Add-On $9.99', 9.99, 'manual'),
+  usdProduct('psn-card', 'add-on-25', 'Add-On $24.99', 24.99, 'manual'),
 ];
 
 // ============================================================
-// 21. Xbox (providerId: 'xbox')
+// 21. Xbox (providerId: 'xbox-card')
 // ============================================================
 const xboxProducts: ProductItem[] = [
-  usdProduct('xbox', 'card-5', 'Xbox Gift Card $5', 5),
-  usdProduct('xbox', 'card-10', 'Xbox Gift Card $10', 10),
-  usdProduct('xbox', 'card-15', 'Xbox Gift Card $15', 15),
-  usdProduct('xbox', 'card-25', 'Xbox Gift Card $25', 25),
-  usdProduct('xbox', 'card-50', 'Xbox Gift Card $50', 50),
-  usdProduct('xbox', 'card-100', 'Xbox Gift Card $100', 100),
-  usdProduct('xbox', 'game-pass-1m', 'Game Pass Core Monthly', 9.99),
-  usdProduct('xbox', 'game-pass-3m', 'Game Pass Core 3 Months', 24.99),
-  usdProduct('xbox', 'game-pass-1y', 'Game Pass Core 1 Year', 59.99),
-  usdProduct('xbox', 'game-pass-ultimate-1m', 'Game Pass Ultimate Monthly', 16.99),
-  usdProduct('xbox', 'game-pass-ultimate-3m', 'Game Pass Ultimate 3 Months', 49.99),
-  usdProduct('xbox', 'live-1m', 'Xbox Live Gold Monthly', 9.99),
-  usdProduct('xbox', 'live-3m', 'Xbox Live Gold 3 Months', 24.99),
-  usdProduct('xbox', 'live-1y', 'Xbox Live Gold 1 Year', 59.99),
-  usdProduct('xbox', 'card-200', 'Xbox Gift Card $200', 200),
-  usdProduct('xbox', 'card-300', 'Xbox Gift Card $300', 300),
-  usdProduct('xbox', 'card-500', 'Xbox Gift Card $500', 500),
-  usdProduct('xbox', 'game-29', 'Game Download $29.99', 29.99, 'manual'),
-  usdProduct('xbox', 'game-49', 'Game Download $49.99', 49.99, 'manual'),
-  usdProduct('xbox', 'game-69', 'Game Download $69.99', 69.99, 'manual'),
+  usdProduct('xbox-card', 'card-5', 'Xbox Gift Card $5', 5),
+  usdProduct('xbox-card', 'card-10', 'Xbox Gift Card $10', 10),
+  usdProduct('xbox-card', 'card-15', 'Xbox Gift Card $15', 15),
+  usdProduct('xbox-card', 'card-25', 'Xbox Gift Card $25', 25),
+  usdProduct('xbox-card', 'card-50', 'Xbox Gift Card $50', 50),
+  usdProduct('xbox-card', 'card-100', 'Xbox Gift Card $100', 100),
+  usdProduct('xbox-card', 'game-pass-1m', 'Game Pass Core Monthly', 9.99),
+  usdProduct('xbox-card', 'game-pass-3m', 'Game Pass Core 3 Months', 24.99),
+  usdProduct('xbox-card', 'game-pass-1y', 'Game Pass Core 1 Year', 59.99),
+  usdProduct('xbox-card', 'game-pass-ultimate-1m', 'Game Pass Ultimate Monthly', 16.99),
+  usdProduct('xbox-card', 'game-pass-ultimate-3m', 'Game Pass Ultimate 3 Months', 49.99),
+  usdProduct('xbox-card', 'live-1m', 'Xbox Live Gold Monthly', 9.99),
+  usdProduct('xbox-card', 'live-3m', 'Xbox Live Gold 3 Months', 24.99),
+  usdProduct('xbox-card', 'live-1y', 'Xbox Live Gold 1 Year', 59.99),
+  usdProduct('xbox-card', 'card-200', 'Xbox Gift Card $200', 200),
+  usdProduct('xbox-card', 'card-300', 'Xbox Gift Card $300', 300),
+  usdProduct('xbox-card', 'card-500', 'Xbox Gift Card $500', 500),
+  usdProduct('xbox-card', 'game-29', 'Game Download $29.99', 29.99, 'manual'),
+  usdProduct('xbox-card', 'game-49', 'Game Download $49.99', 49.99, 'manual'),
+  usdProduct('xbox-card', 'game-69', 'Game Download $69.99', 69.99, 'manual'),
 ];
 
 // ============================================================
-// 22. Nintendo (providerId: 'nintendo')
+// 22. Nintendo (providerId: 'nintendo-card')
 // ============================================================
 const nintendoProducts: ProductItem[] = [
-  usdProduct('nintendo', 'card-5', 'Nintendo eShop $5', 5),
-  usdProduct('nintendo', 'card-10', 'Nintendo eShop $10', 10),
-  usdProduct('nintendo', 'card-15', 'Nintendo eShop $15', 15),
-  usdProduct('nintendo', 'card-25', 'Nintendo eShop $25', 25),
-  usdProduct('nintendo', 'card-50', 'Nintendo eShop $50', 50),
-  usdProduct('nintendo', 'card-100', 'Nintendo eShop $100', 100),
-  usdProduct('nintendo', 'online-1m', 'Nintendo Switch Online Monthly', 3.99),
-  usdProduct('nintendo', 'online-3m', 'Nintendo Switch Online 3 Months', 7.99),
-  usdProduct('nintendo', 'online-1y', 'Nintendo Switch Online 1 Year', 19.99),
-  usdProduct('nintendo', 'online-family-1y', 'NSO Family 1 Year', 34.99),
-  usdProduct('nintendo', 'online-expansion-1y', 'NSO + Expansion Pack 1 Year', 49.99),
-  usdProduct('nintendo', 'online-expansion-family', 'NSO + Expansion Family', 79.99),
-  usdProduct('nintendo', 'card-200', 'Nintendo eShop $200', 200),
-  usdProduct('nintendo', 'card-300', 'Nintendo eShop $300', 300),
-  usdProduct('nintendo', 'card-500', 'Nintendo eShop $500', 500),
-  usdProduct('nintendo', 'game-29', 'Game Download $29.99', 29.99, 'manual'),
-  usdProduct('nintendo', 'game-49', 'Game Download $49.99', 49.99, 'manual'),
-  usdProduct('nintendo', 'game-59', 'Game Download $59.99', 59.99, 'manual'),
-  usdProduct('nintendo', 'dlc-10', 'DLC $9.99', 9.99, 'manual'),
-  usdProduct('nintendo', 'dlc-25', 'DLC $24.99', 24.99, 'manual'),
+  usdProduct('nintendo-card', 'card-5', 'Nintendo eShop $5', 5),
+  usdProduct('nintendo-card', 'card-10', 'Nintendo eShop $10', 10),
+  usdProduct('nintendo-card', 'card-15', 'Nintendo eShop $15', 15),
+  usdProduct('nintendo-card', 'card-25', 'Nintendo eShop $25', 25),
+  usdProduct('nintendo-card', 'card-50', 'Nintendo eShop $50', 50),
+  usdProduct('nintendo-card', 'card-100', 'Nintendo eShop $100', 100),
+  usdProduct('nintendo-card', 'online-1m', 'Nintendo Switch Online Monthly', 3.99),
+  usdProduct('nintendo-card', 'online-3m', 'Nintendo Switch Online 3 Months', 7.99),
+  usdProduct('nintendo-card', 'online-1y', 'Nintendo Switch Online 1 Year', 19.99),
+  usdProduct('nintendo-card', 'online-family-1y', 'NSO Family 1 Year', 34.99),
+  usdProduct('nintendo-card', 'online-expansion-1y', 'NSO + Expansion Pack 1 Year', 49.99),
+  usdProduct('nintendo-card', 'online-expansion-family', 'NSO + Expansion Family', 79.99),
+  usdProduct('nintendo-card', 'card-200', 'Nintendo eShop $200', 200),
+  usdProduct('nintendo-card', 'card-300', 'Nintendo eShop $300', 300),
+  usdProduct('nintendo-card', 'card-500', 'Nintendo eShop $500', 500),
+  usdProduct('nintendo-card', 'game-29', 'Game Download $29.99', 29.99, 'manual'),
+  usdProduct('nintendo-card', 'game-49', 'Game Download $49.99', 49.99, 'manual'),
+  usdProduct('nintendo-card', 'game-59', 'Game Download $59.99', 59.99, 'manual'),
+  usdProduct('nintendo-card', 'dlc-10', 'DLC $9.99', 9.99, 'manual'),
+  usdProduct('nintendo-card', 'dlc-25', 'DLC $24.99', 24.99, 'manual'),
 ];
 
 // ============================================================
@@ -730,374 +730,280 @@ const paypalProducts: ProductItem[] = [
 ];
 
 // ============================================================
-// 26. Yemen Mobile (providerId: 'yemen-mobile')
+// 26. EA FC 25 (providerId: 'ea-fc')
+// ============================================================
+const eaFcProducts: ProductItem[] = [
+  usdProduct('ea-fc', 'points-500', '500 FC Points', 4.99),
+  usdProduct('ea-fc', 'points-1050', '1050 FC Points', 9.99),
+  usdProduct('ea-fc', 'points-1600', '1600 FC Points', 14.99),
+  usdProduct('ea-fc', 'points-2800', '2800 FC Points', 24.99),
+  usdProduct('ea-fc', 'points-4600', '4600 FC Points', 39.99),
+  usdProduct('ea-fc', 'points-7300', '7300 FC Points', 59.99),
+  usdProduct('ea-fc', 'points-12000', '12000 FC Points', 99.99),
+  usdProduct('ea-fc', 'points-160-bonus', '160 FC Points Bonus', 1.99),
+  usdProduct('ea-fc', 'ultimate-edition', 'Ultimate Edition Upgrade', 29.99),
+  usdProduct('ea-fc', 'standard-edition', 'Standard Edition', 59.99),
+  usdProduct('ea-fc', 'points-300-bonus', '300 FC Points Bonus', 2.99),
+  usdProduct('ea-fc', 'points-750-bonus', '750 FC Points Bonus', 6.99),
+  usdProduct('ea-fc', 'points-2000-bonus', '2000 FC Points Bonus', 17.99),
+  usdProduct('ea-fc', 'points-3500-bonus', '3500 FC Points Bonus', 29.99),
+  usdProduct('ea-fc', 'season-pass', 'Season Pass', 19.99),
+  usdProduct('ea-fc', 'hero-pack', 'Hero Pack', 14.99),
+  usdProduct('ea-fc', 'starter-pack', 'Starter Pack', 4.99),
+  usdProduct('ea-fc', 'pro-pack', 'Pro Pack', 9.99),
+  usdProduct('ea-fc', 'mega-pack', 'Mega Pack', 19.99),
+  usdProduct('ea-fc', 'legend-pack', 'Legend Pack', 29.99),
+];
+
+// ============================================================
+// 27. Apex Legends (providerId: 'apex-legends')
+// ============================================================
+const apexLegendsProducts: ProductItem[] = [
+  usdProduct('apex-legends', 'coins-1000', '1000 Apex Coins', 9.99),
+  usdProduct('apex-legends', 'coins-2150', '2150 Apex Coins', 19.99),
+  usdProduct('apex-legends', 'coins-3350', '3350 Apex Coins', 29.99),
+  usdProduct('apex-legends', 'coins-4350', '4350 Apex Coins', 39.99),
+  usdProduct('apex-legends', 'coins-6700', '6700 Apex Coins', 59.99),
+  usdProduct('apex-legends', 'coins-11500', '11500 Apex Coins', 99.99),
+  usdProduct('apex-legends', 'battle-pass', 'Battle Pass', 9.99),
+  usdProduct('apex-legends', 'battle-pass-bundle', 'Battle Pass Bundle', 24.99),
+  usdProduct('apex-legends', 'coins-500-bonus', '500 Apex Coins Bonus', 4.99),
+  usdProduct('apex-legends', 'starter-pack', 'Starter Pack', 4.99),
+  usdProduct('apex-legends', 'legend-edition', 'Legend Edition', 19.99),
+  usdProduct('apex-legends', 'legend-pack', 'Legend Pack', 7.99),
+  usdProduct('apex-legends', 'skin-pack-1', 'Weapon Skin Pack', 4.99),
+  usdProduct('apex-legends', 'skin-pack-2', 'Legendary Skin Pack', 14.99),
+  usdProduct('apex-legends', 'charm-pack', 'Gun Charm Pack', 2.99),
+  usdProduct('apex-legends', 'banner-pack', 'Banner Frame Pack', 1.99),
+  usdProduct('apex-legends', 'emote-pack', 'Emote Pack', 2.99),
+  usdProduct('apex-legends', 'seasonal-pack', 'Seasonal Pack', 9.99),
+  usdProduct('apex-legends', 'anniversary-pack', 'Anniversary Pack', 14.99),
+  usdProduct('apex-legends', 'pro-pack', 'Pro Pack', 24.99),
+];
+
+// ============================================================
+// 28. Yemen Mobile (providerId: 'yemen-mobile')
 // ============================================================
 const yemenMobileProducts: ProductItem[] = [
-  // Recharge
-  yerProduct('yemen-mobile', 'recharge-50', 'شحن رصيد 50 ريال', 50),
-  yerProduct('yemen-mobile', 'recharge-100', 'شحن رصيد 100 ريال', 100),
-  yerProduct('yemen-mobile', 'recharge-200', 'شحن رصيد 200 ريال', 200),
-  yerProduct('yemen-mobile', 'recharge-300', 'شحن رصيد 300 ريال', 300),
-  yerProduct('yemen-mobile', 'recharge-500', 'شحن رصيد 500 ريال', 500),
-  yerProduct('yemen-mobile', 'recharge-1000', 'شحن رصيد 1000 ريال', 1000),
-  yerProduct('yemen-mobile', 'recharge-2000', 'شحن رصيد 2000 ريال', 2000),
-  yerProduct('yemen-mobile', 'recharge-3000', 'شحن رصيد 3000 ريال', 3000),
-  yerProduct('yemen-mobile', 'recharge-5000', 'شحن رصيد 5000 ريال', 5000),
-  // Internet Packages
-  yerProduct('yemen-mobile', 'net-daily-500mb', 'باقة يومية 500 ميجا', 100),
-  yerProduct('yemen-mobile', 'net-daily-1gb', 'باقة يومية 1 جيجا', 200),
-  yerProduct('yemen-mobile', 'net-weekly-2gb', 'باقة أسبوعية 2 جيجا', 500),
-  yerProduct('yemen-mobile', 'net-weekly-5gb', 'باقة أسبوعية 5 جيجا', 1000),
-  yerProduct('yemen-mobile', 'net-monthly-5gb', 'باقة شهرية 5 جيجا', 2000),
-  yerProduct('yemen-mobile', 'net-monthly-10gb', 'باقة شهرية 10 جيجا', 3500),
-  yerProduct('yemen-mobile', 'net-monthly-20gb', 'باقة شهرية 20 جيجا', 5000),
-  yerProduct('yemen-mobile', 'net-monthly-unlimited', 'باقة شهرية غير محدودة', 8000),
-  // Call Packages
-  yerProduct('yemen-mobile', 'call-50min', 'باقة مكالمات 50 دقيقة', 200),
-  yerProduct('yemen-mobile', 'call-100min', 'باقة مكالمات 100 دقيقة', 350),
-  yerProduct('yemen-mobile', 'call-200min', 'باقة مكالمات 200 دقيقة', 600),
-  // Combined Packages
-  yerProduct('yemen-mobile', 'combo-daily', 'باقة يومية متكاملة', 300),
-  yerProduct('yemen-mobile', 'combo-weekly', 'باقة أسبوعية متكاملة', 1500),
-  yerProduct('yemen-mobile', 'combo-monthly', 'باقة شهرية متكاملة', 4000),
+  yerProduct('yemen-mobile', 'charge-100', 'شحنة 100 ر.ي', 100),
+  yerProduct('yemen-mobile', 'charge-200', 'شحنة 200 ر.ي', 200),
+  yerProduct('yemen-mobile', 'charge-300', 'شحنة 300 ر.ي', 300),
+  yerProduct('yemen-mobile', 'charge-500', 'شحنة 500 ر.ي', 500),
+  yerProduct('yemen-mobile', 'charge-1000', 'شحنة 1000 ر.ي', 1000),
+  yerProduct('yemen-mobile', 'charge-2000', 'شحنة 2000 ر.ي', 2000),
+  yerProduct('yemen-mobile', 'charge-3000', 'شحنة 3000 ر.ي', 3000),
+  yerProduct('yemen-mobile', 'charge-5000', 'شحنة 5000 ر.ي', 5000),
+  yerProduct('yemen-mobile', 'net-1gb', 'باقة فورجي 1 جيجا', 200),
+  yerProduct('yemen-mobile', 'net-2gb', 'باقة فورجي 2 جيجا', 350),
+  yerProduct('yemen-mobile', 'net-4gb', 'باقة فورجي 4 جيجا', 500),
+  yerProduct('yemen-mobile', 'net-10gb', 'باقة فورجي 10 جيجا', 1000),
+  yerProduct('yemen-mobile', 'net-20gb', 'باقة فورجي 20 جيجا', 1800),
+  yerProduct('yemen-mobile', 'net-unlimited-day', 'باقة فورجي غير محدودة يوم', 300),
+  yerProduct('yemen-mobile', 'net-unlimited-week', 'باقة فورجي غير محدودة أسبوع', 700),
+  yerProduct('yemen-mobile', 'net-unlimited-month', 'باقة فورجي غير محدودة شهر', 2000),
+  yerProduct('yemen-mobile', 'call-30min', 'باقة مكالمات 30 دقيقة', 100),
+  yerProduct('yemen-mobile', 'call-60min', 'باقة مكالمات 60 دقيقة', 180),
+  yerProduct('yemen-mobile', 'call-120min', 'باقة مكالمات 120 دقيقة', 300),
+  yerProduct('yemen-mobile', 'sms-50', 'باقة رسائل 50 رسالة', 50),
 ];
 
 // ============================================================
-// 27. Yo (providerId: 'yo')
+// 29. Yo (providerId: 'yo')
 // ============================================================
 const yoProducts: ProductItem[] = [
-  // Recharge
-  yerProduct('yo', 'recharge-50', 'شحن رصيد 50 ريال', 50),
-  yerProduct('yo', 'recharge-100', 'شحن رصيد 100 ريال', 100),
-  yerProduct('yo', 'recharge-200', 'شحن رصيد 200 ريال', 200),
-  yerProduct('yo', 'recharge-300', 'شحن رصيد 300 ريال', 300),
-  yerProduct('yo', 'recharge-500', 'شحن رصيد 500 ريال', 500),
-  yerProduct('yo', 'recharge-1000', 'شحن رصيد 1000 ريال', 1000),
-  yerProduct('yo', 'recharge-2000', 'شحن رصيد 2000 ريال', 2000),
-  yerProduct('yo', 'recharge-3000', 'شحن رصيد 3000 ريال', 3000),
-  yerProduct('yo', 'recharge-5000', 'شحن رصيد 5000 ريال', 5000),
-  // Internet Packages
-  yerProduct('yo', 'net-daily-500mb', 'باقة يومية 500 ميجا', 100),
-  yerProduct('yo', 'net-daily-1gb', 'باقة يومية 1 جيجا', 200),
-  yerProduct('yo', 'net-weekly-3gb', 'باقة أسبوعية 3 جيجا', 600),
-  yerProduct('yo', 'net-weekly-5gb', 'باقة أسبوعية 5 جيجا', 1000),
-  yerProduct('yo', 'net-monthly-5gb', 'باقة شهرية 5 جيجا', 2000),
-  yerProduct('yo', 'net-monthly-10gb', 'باقة شهرية 10 جيجا', 3500),
-  yerProduct('yo', 'net-monthly-25gb', 'باقة شهرية 25 جيجا', 5500),
-  yerProduct('yo', 'net-monthly-unlimited', 'باقة شهرية غير محدودة', 8000),
-  // Call Packages
-  yerProduct('yo', 'call-50min', 'باقة مكالمات 50 دقيقة', 200),
-  yerProduct('yo', 'call-100min', 'باقة مكالمات 100 دقيقة', 350),
-  yerProduct('yo', 'call-unlimited', 'باقة مكالمات غير محدودة', 1500),
-  // Combined Packages
-  yerProduct('yo', 'combo-daily', 'باقة يومية متكاملة', 300),
-  yerProduct('yo', 'combo-weekly', 'باقة أسبوعية متكاملة', 1500),
-  yerProduct('yo', 'combo-monthly', 'باقة شهرية متكاملة', 4500),
+  yerProduct('yo', 'charge-100', 'شحنة 100 ر.ي', 100),
+  yerProduct('yo', 'charge-200', 'شحنة 200 ر.ي', 200),
+  yerProduct('yo', 'charge-300', 'شحنة 300 ر.ي', 300),
+  yerProduct('yo', 'charge-500', 'شحنة 500 ر.ي', 500),
+  yerProduct('yo', 'charge-1000', 'شحنة 1000 ر.ي', 1000),
+  yerProduct('yo', 'charge-2000', 'شحنة 2000 ر.ي', 2000),
+  yerProduct('yo', 'charge-3000', 'شحنة 3000 ر.ي', 3000),
+  yerProduct('yo', 'charge-5000', 'شحنة 5000 ر.ي', 5000),
+  yerProduct('yo', 'net-2gb', 'باقة إنترنت 2 جيجا', 300),
+  yerProduct('yo', 'net-5gb', 'باقة إنترنت 5 جيجا', 600),
+  yerProduct('yo', 'net-10gb', 'باقة إنترنت 10 جيجا', 1000),
+  yerProduct('yo', 'net-20gb', 'باقة إنترنت 20 جيجا', 1800),
+  yerProduct('yo', 'net-unlimited-day', 'باقة إنترنت غير محدودة يوم', 250),
+  yerProduct('yo', 'net-unlimited-week', 'باقة إنترنت غير محدودة أسبوع', 650),
+  yerProduct('yo', 'net-unlimited-month', 'باقة إنترنت غير محدودة شهر', 1800),
+  yerProduct('yo', 'call-30min', 'باقة مكالمات 30 دقيقة', 100),
+  yerProduct('yo', 'call-60min', 'باقة مكالمات 60 دقيقة', 180),
+  yerProduct('yo', 'call-120min', 'باقة مكالمات 120 دقيقة', 300),
+  yerProduct('yo', 'sms-50', 'باقة رسائل 50 رسالة', 50),
+  yerProduct('yo', 'sms-100', 'باقة رسائل 100 رسالة', 90),
 ];
 
 // ============================================================
-// 28. Sabafon (providerId: 'sabafon')
+// 30. Sabafon (providerId: 'sabafon')
 // ============================================================
 const sabafonProducts: ProductItem[] = [
-  // Recharge
-  yerProduct('sabafon', 'recharge-50', 'شحن رصيد 50 ريال', 50),
-  yerProduct('sabafon', 'recharge-100', 'شحن رصيد 100 ريال', 100),
-  yerProduct('sabafon', 'recharge-200', 'شحن رصيد 200 ريال', 200),
-  yerProduct('sabafon', 'recharge-300', 'شحن رصيد 300 ريال', 300),
-  yerProduct('sabafon', 'recharge-500', 'شحن رصيد 500 ريال', 500),
-  yerProduct('sabafon', 'recharge-1000', 'شحن رصيد 1000 ريال', 1000),
-  yerProduct('sabafon', 'recharge-2000', 'شحن رصيد 2000 ريال', 2000),
-  yerProduct('sabafon', 'recharge-3000', 'شحن رصيد 3000 ريال', 3000),
-  yerProduct('sabafon', 'recharge-5000', 'شحن رصيد 5000 ريال', 5000),
-  // Internet Packages
-  yerProduct('sabafon', 'net-daily-500mb', 'باقة يومية 500 ميجا', 100),
-  yerProduct('sabafon', 'net-daily-1gb', 'باقة يومية 1 جيجا', 200),
-  yerProduct('sabafon', 'net-weekly-2gb', 'باقة أسبوعية 2 جيجا', 500),
-  yerProduct('sabafon', 'net-weekly-5gb', 'باقة أسبوعية 5 جيجا', 1000),
-  yerProduct('sabafon', 'net-monthly-5gb', 'باقة شهرية 5 جيجا', 2000),
-  yerProduct('sabafon', 'net-monthly-10gb', 'باقة شهرية 10 جيجا', 3500),
-  yerProduct('sabafon', 'net-monthly-20gb', 'باقة شهرية 20 جيجا', 5500),
-  yerProduct('sabafon', 'net-monthly-unlimited', 'باقة شهرية غير محدودة', 8500),
-  // Call Packages
+  yerProduct('sabafon', 'charge-100', 'شحنة 100 ر.ي', 100),
+  yerProduct('sabafon', 'charge-200', 'شحنة 200 ر.ي', 200),
+  yerProduct('sabafon', 'charge-300', 'شحنة 300 ر.ي', 300),
+  yerProduct('sabafon', 'charge-500', 'شحنة 500 ر.ي', 500),
+  yerProduct('sabafon', 'charge-1000', 'شحنة 1000 ر.ي', 1000),
+  yerProduct('sabafon', 'charge-2000', 'شحنة 2000 ر.ي', 2000),
+  yerProduct('sabafon', 'charge-3000', 'شحنة 3000 ر.ي', 3000),
+  yerProduct('sabafon', 'charge-5000', 'شحنة 5000 ر.ي', 5000),
+  yerProduct('sabafon', 'net-3gb', 'باقة إنترنت 3 جيجا', 400),
+  yerProduct('sabafon', 'net-5gb', 'باقة إنترنت 5 جيجا', 600),
+  yerProduct('sabafon', 'net-10gb', 'باقة إنترنت 10 جيجا', 1000),
+  yerProduct('sabafon', 'net-20gb', 'باقة إنترنت 20 جيجا', 1800),
+  yerProduct('sabafon', 'net-unlimited-day', 'باقة إنترنت غير محدودة يوم', 250),
+  yerProduct('sabafon', 'net-unlimited-week', 'باقة إنترنت غير محدودة أسبوع', 600),
+  yerProduct('sabafon', 'net-unlimited-month', 'باقة إنترنت غير محدودة شهر', 1600),
+  yerProduct('sabafon', 'call-30min', 'باقة مكالمات 30 دقيقة', 120),
   yerProduct('sabafon', 'call-60min', 'باقة مكالمات 60 دقيقة', 200),
-  yerProduct('sabafon', 'call-120min', 'باقة مكالمات 120 دقيقة', 400),
-  yerProduct('sabafon', 'call-unlimited', 'باقة مكالمات غير محدودة', 1500),
-  // Combined Packages
-  yerProduct('sabafon', 'combo-daily', 'باقة يومية متكاملة', 250),
-  yerProduct('sabafon', 'combo-weekly', 'باقة أسبوعية متكاملة', 1200),
-  yerProduct('sabafon', 'combo-monthly', 'باقة شهرية متكاملة', 4000),
+  yerProduct('sabafon', 'call-120min', 'باقة مكالمات 120 دقيقة', 350),
+  yerProduct('sabafon', 'sms-50', 'باقة رسائل 50 رسالة', 60),
+  yerProduct('sabafon', 'sms-100', 'باقة رسائل 100 رسالة', 100),
 ];
 
 // ============================================================
-// 29. Y Telecom (providerId: 'y')
+// 31. Y (providerId: 'y')
 // ============================================================
-const yTelecomProducts: ProductItem[] = [
-  // Recharge
-  yerProduct('y', 'recharge-50', 'شحن رصيد 50 ريال', 50),
-  yerProduct('y', 'recharge-100', 'شحن رصيد 100 ريال', 100),
-  yerProduct('y', 'recharge-200', 'شحن رصيد 200 ريال', 200),
-  yerProduct('y', 'recharge-300', 'شحن رصيد 300 ريال', 300),
-  yerProduct('y', 'recharge-500', 'شحن رصيد 500 ريال', 500),
-  yerProduct('y', 'recharge-1000', 'شحن رصيد 1000 ريال', 1000),
-  yerProduct('y', 'recharge-2000', 'شحن رصيد 2000 ريال', 2000),
-  yerProduct('y', 'recharge-3000', 'شحن رصيد 3000 ريال', 3000),
-  yerProduct('y', 'recharge-5000', 'شحن رصيد 5000 ريال', 5000),
-  // Internet Packages
-  yerProduct('y', 'net-daily-500mb', 'باقة يومية 500 ميجا', 100),
-  yerProduct('y', 'net-daily-1gb', 'باقة يومية 1 جيجا', 200),
-  yerProduct('y', 'net-weekly-2gb', 'باقة أسبوعية 2 جيجا', 500),
-  yerProduct('y', 'net-weekly-5gb', 'باقة أسبوعية 5 جيجا', 1000),
-  yerProduct('y', 'net-monthly-5gb', 'باقة شهرية 5 جيجا', 2000),
-  yerProduct('y', 'net-monthly-10gb', 'باقة شهرية 10 جيجا', 3500),
-  yerProduct('y', 'net-monthly-20gb', 'باقة شهرية 20 جيجا', 5000),
-  yerProduct('y', 'net-monthly-unlimited', 'باقة شهرية غير محدودة', 7500),
-  // Call Packages
-  yerProduct('y', 'call-50min', 'باقة مكالمات 50 دقيقة', 200),
-  yerProduct('y', 'call-100min', 'باقة مكالمات 100 دقيقة', 350),
-  yerProduct('y', 'call-200min', 'باقة مكالمات 200 دقيقة', 600),
-  // Combined Packages
-  yerProduct('y', 'combo-daily', 'باقة يومية متكاملة', 300),
-  yerProduct('y', 'combo-weekly', 'باقة أسبوعية متكاملة', 1300),
-  yerProduct('y', 'combo-monthly', 'باقة شهرية متكاملة', 4000),
+const yProviderProducts: ProductItem[] = [
+  yerProduct('y', 'charge-100', 'شحنة 100 ر.ي', 100),
+  yerProduct('y', 'charge-200', 'شحنة 200 ر.ي', 200),
+  yerProduct('y', 'charge-300', 'شحنة 300 ر.ي', 300),
+  yerProduct('y', 'charge-500', 'شحنة 500 ر.ي', 500),
+  yerProduct('y', 'charge-1000', 'شحنة 1000 ر.ي', 1000),
+  yerProduct('y', 'charge-2000', 'شحنة 2000 ر.ي', 2000),
+  yerProduct('y', 'charge-3000', 'شحنة 3000 ر.ي', 3000),
+  yerProduct('y', 'charge-5000', 'شحنة 5000 ر.ي', 5000),
+  yerProduct('y', 'net-2gb', 'باقة إنترنت 2 جيجا', 250),
+  yerProduct('y', 'net-5gb', 'باقة إنترنت 5 جيجا', 500),
+  yerProduct('y', 'net-10gb', 'باقة إنترنت 10 جيجا', 900),
+  yerProduct('y', 'net-20gb', 'باقة إنترنت 20 جيجا', 1600),
+  yerProduct('y', 'net-unlimited-day', 'باقة إنترنت غير محدودة يوم', 200),
+  yerProduct('y', 'net-unlimited-week', 'باقة إنترنت غير محدودة أسبوع', 550),
+  yerProduct('y', 'net-unlimited-month', 'باقة إنترنت غير محدودة شهر', 1500),
+  yerProduct('y', 'call-30min', 'باقة مكالمات 30 دقيقة', 100),
+  yerProduct('y', 'call-60min', 'باقة مكالمات 60 دقيقة', 180),
+  yerProduct('y', 'call-120min', 'باقة مكالمات 120 دقيقة', 300),
+  yerProduct('y', 'sms-50', 'باقة رسائل 50 رسالة', 50),
+  yerProduct('y', 'sms-100', 'باقة رسائل 100 رسالة', 90),
 ];
 
 // ============================================================
-// 30. Yemen Net (providerId: 'yemen-net')
+// 32. Yemen Net (providerId: 'yemen-net')
 // ============================================================
 const yemenNetProducts: ProductItem[] = [
-  // ADSL Internet Packages
-  yerProduct('yemen-net', 'adsl-1mb-monthly', 'ADSL 1 ميجا شهري', 3000),
-  yerProduct('yemen-net', 'adsl-2mb-monthly', 'ADSL 2 ميجا شهري', 5000),
-  yerProduct('yemen-net', 'adsl-4mb-monthly', 'ADSL 4 ميجا شهري', 8000),
-  yerProduct('yemen-net', 'adsl-8mb-monthly', 'ADSL 8 ميجا شهري', 12000),
-  // Fiber Optic Packages
-  yerProduct('yemen-net', 'fiber-10mb-monthly', 'فايبر 10 ميجا شهري', 6000),
-  yerProduct('yemen-net', 'fiber-20mb-monthly', 'فايبر 20 ميجا شهري', 10000),
-  yerProduct('yemen-net', 'fiber-50mb-monthly', 'فايبر 50 ميجا شهري', 18000),
-  // 3G/4G Internet
-  yerProduct('yemen-net', '4g-daily-1gb', '4G يومي 1 جيجا', 200),
-  yerProduct('yemen-net', '4g-daily-2gb', '4G يومي 2 جيجا', 350),
-  yerProduct('yemen-net', '4g-weekly-5gb', '4G أسبوعي 5 جيجا', 1000),
-  yerProduct('yemen-net', '4g-weekly-10gb', '4G أسبوعي 10 جيجا', 1800),
-  yerProduct('yemen-net', '4g-monthly-10gb', '4G شهري 10 جيجا', 3000),
-  yerProduct('yemen-net', '4g-monthly-25gb', '4G شهري 25 جيجا', 5500),
-  yerProduct('yemen-net', '4g-monthly-50gb', '4G شهري 50 جيجا', 9000),
-  yerProduct('yemen-net', '4g-monthly-unlimited', '4G شهري غير محدود', 15000),
-  // Quarterly / Annual
-  yerProduct('yemen-net', 'adsl-2mb-quarterly', 'ADSL 2 ميجا ربع سنوي', 14000),
-  yerProduct('yemen-net', 'adsl-4mb-quarterly', 'ADSL 4 ميجا ربع سنوي', 22000),
-  yerProduct('yemen-net', 'fiber-20mb-quarterly', 'فايبر 20 ميجا ربع سنوي', 28000),
-  yerProduct('yemen-net', 'fiber-50mb-quarterly', 'فايبر 50 ميجا ربع سنوي', 50000),
-  yerProduct('yemen-net', 'adsl-2mb-annual', 'ADSL 2 ميجا سنوي', 55000),
-  yerProduct('yemen-net', 'adsl-4mb-annual', 'ADSL 4 ميجا سنوي', 88000),
+  yerProduct('yemen-net', 'net-1gb-day', 'باقة 1 جيجا - يوم', 150),
+  yerProduct('yemen-net', 'net-3gb-day', 'باقة 3 جيجا - يوم', 300),
+  yerProduct('yemen-net', 'net-5gb-week', 'باقة 5 جيجا - أسبوع', 500),
+  yerProduct('yemen-net', 'net-10gb-month', 'باقة 10 جيجا - شهر', 1000),
+  yerProduct('yemen-net', 'net-20gb-month', 'باقة 20 جيجا - شهر', 1800),
+  yerProduct('yemen-net', 'net-30gb-month', 'باقة 30 جيجا - شهر', 2500),
+  yerProduct('yemen-net', 'net-50gb-month', 'باقة 50 جيجا - شهر', 4000),
+  yerProduct('yemen-net', 'net-100gb-month', 'باقة 100 جيجا - شهر', 7000),
+  yerProduct('yemen-net', 'net-unlimited-1m', 'باقة غير محدودة شهر', 3000),
+  yerProduct('yemen-net', 'net-unlimited-3m', 'باقة غير محدودة 3 أشهر', 8000),
+  yerProduct('yemen-net', 'net-unlimited-6m', 'باقة غير محدودة 6 أشهر', 14000),
+  yerProduct('yemen-net', 'net-unlimited-1y', 'باقة غير محدودة سنة', 25000),
 ];
 
 // ============================================================
-// 31. Electricity Sanaa (providerId: 'elec-sanaa')
+// 33. Electricity and Water
 // ============================================================
 const elecSanaaProducts: ProductItem[] = [
-  yerProduct('elec-sanaa', 'pay-500', 'دفع فاتورة كهرباء 500 ريال', 500),
-  yerProduct('elec-sanaa', 'pay-1000', 'دفع فاتورة كهرباء 1000 ريال', 1000),
-  yerProduct('elec-sanaa', 'pay-2000', 'دفع فاتورة كهرباء 2000 ريال', 2000),
-  yerProduct('elec-sanaa', 'pay-3000', 'دفع فاتورة كهرباء 3000 ريال', 3000),
-  yerProduct('elec-sanaa', 'pay-5000', 'دفع فاتورة كهرباء 5000 ريال', 5000),
-  yerProduct('elec-sanaa', 'pay-10000', 'دفع فاتورة كهرباء 10000 ريال', 10000),
-  yerProduct('elec-sanaa', 'pay-15000', 'دفع فاتورة كهرباء 15000 ريال', 15000),
-  yerProduct('elec-sanaa', 'pay-20000', 'دفع فاتورة كهرباء 20000 ريال', 20000),
-  yerProduct('elec-sanaa', 'pay-25000', 'دفع فاتورة كهرباء 25000 ريال', 25000),
-  yerProduct('elec-sanaa', 'pay-30000', 'دفع فاتورة كهرباء 30000 ريال', 30000),
-  yerProduct('elec-sanaa', 'meter-reading', 'قراءة عداد', 200),
-  yerProduct('elec-sanaa', 'new-connection', 'ربط عداد جديد', 25000),
-  yerProduct('elec-sanaa', 'reconnect', 'إعادة ربط', 5000),
-  yerProduct('elec-sanaa', 'pay-40000', 'دفع فاتورة كهرباء 40000 ريال', 40000),
-  yerProduct('elec-sanaa', 'pay-50000', 'دفع فاتورة كهرباء 50000 ريال', 50000),
-  yerProduct('elec-sanaa', 'pay-75000', 'دفع فاتورة كهرباء 75000 ريال', 75000),
-  yerProduct('elec-sanaa', 'pay-100000', 'دفع فاتورة كهرباء 100000 ريال', 100000),
-  yerProduct('elec-sanaa', 'prepaid-500', 'كهرباء مسبقة الدفع 500', 500),
-  yerProduct('elec-sanaa', 'prepaid-1000', 'كهرباء مسبقة الدفع 1000', 1000),
-  yerProduct('elec-sanaa', 'prepaid-2000', 'كهرباء مسبقة الدفع 2000', 2000),
+  yerProduct('elec-sanaa', 'bill-500', 'فاتورة كهرباء 500 ر.ي', 500),
+  yerProduct('elec-sanaa', 'bill-1000', 'فاتورة كهرباء 1000 ر.ي', 1000),
+  yerProduct('elec-sanaa', 'bill-2000', 'فاتورة كهرباء 2000 ر.ي', 2000),
+  yerProduct('elec-sanaa', 'bill-3000', 'فاتورة كهرباء 3000 ر.ي', 3000),
+  yerProduct('elec-sanaa', 'bill-5000', 'فاتورة كهرباء 5000 ر.ي', 5000),
+  yerProduct('elec-sanaa', 'bill-10000', 'فاتورة كهرباء 10000 ر.ي', 10000),
+  yerProduct('elec-sanaa', 'bill-20000', 'فاتورة كهرباء 20000 ر.ي', 20000),
+  yerProduct('elec-sanaa', 'bill-50000', 'فاتورة كهرباء 50000 ر.ي', 50000),
 ];
 
-// ============================================================
-// 32. Electricity Aden (providerId: 'elec-aden')
-// ============================================================
 const elecAdenProducts: ProductItem[] = [
-  yerProduct('elec-aden', 'pay-500', 'دفع فاتورة كهرباء 500 ريال', 500),
-  yerProduct('elec-aden', 'pay-1000', 'دفع فاتورة كهرباء 1000 ريال', 1000),
-  yerProduct('elec-aden', 'pay-2000', 'دفع فاتورة كهرباء 2000 ريال', 2000),
-  yerProduct('elec-aden', 'pay-3000', 'دفع فاتورة كهرباء 3000 ريال', 3000),
-  yerProduct('elec-aden', 'pay-5000', 'دفع فاتورة كهرباء 5000 ريال', 5000),
-  yerProduct('elec-aden', 'pay-10000', 'دفع فاتورة كهرباء 10000 ريال', 10000),
-  yerProduct('elec-aden', 'pay-15000', 'دفع فاتورة كهرباء 15000 ريال', 15000),
-  yerProduct('elec-aden', 'pay-20000', 'دفع فاتورة كهرباء 20000 ريال', 20000),
-  yerProduct('elec-aden', 'pay-25000', 'دفع فاتورة كهرباء 25000 ريال', 25000),
-  yerProduct('elec-aden', 'pay-30000', 'دفع فاتورة كهرباء 30000 ريال', 30000),
-  yerProduct('elec-aden', 'meter-reading', 'قراءة عداد', 200),
-  yerProduct('elec-aden', 'new-connection', 'ربط عداد جديد', 25000),
-  yerProduct('elec-aden', 'reconnect', 'إعادة ربط', 5000),
-  yerProduct('elec-aden', 'pay-40000', 'دفع فاتورة كهرباء 40000 ريال', 40000),
-  yerProduct('elec-aden', 'pay-50000', 'دفع فاتورة كهرباء 50000 ريال', 50000),
-  yerProduct('elec-aden', 'pay-75000', 'دفع فاتورة كهرباء 75000 ريال', 75000),
-  yerProduct('elec-aden', 'pay-100000', 'دفع فاتورة كهرباء 100000 ريال', 100000),
-  yerProduct('elec-aden', 'prepaid-500', 'كهرباء مسبقة الدفع 500', 500),
-  yerProduct('elec-aden', 'prepaid-1000', 'كهرباء مسبقة الدفع 1000', 1000),
-  yerProduct('elec-aden', 'prepaid-2000', 'كهرباء مسبقة الدفع 2000', 2000),
+  yerProduct('elec-aden', 'bill-500', 'فاتورة كهرباء 500 ر.ي', 500),
+  yerProduct('elec-aden', 'bill-1000', 'فاتورة كهرباء 1000 ر.ي', 1000),
+  yerProduct('elec-aden', 'bill-2000', 'فاتورة كهرباء 2000 ر.ي', 2000),
+  yerProduct('elec-aden', 'bill-3000', 'فاتورة كهرباء 3000 ر.ي', 3000),
+  yerProduct('elec-aden', 'bill-5000', 'فاتورة كهرباء 5000 ر.ي', 5000),
+  yerProduct('elec-aden', 'bill-10000', 'فاتورة كهرباء 10000 ر.ي', 10000),
+  yerProduct('elec-aden', 'bill-20000', 'فاتورة كهرباء 20000 ر.ي', 20000),
+  yerProduct('elec-aden', 'bill-50000', 'فاتورة كهرباء 50000 ر.ي', 50000),
 ];
 
-// ============================================================
-// 33. Water Sanaa (providerId: 'water-sanaa')
-// ============================================================
 const waterSanaaProducts: ProductItem[] = [
-  yerProduct('water-sanaa', 'pay-500', 'دفع فاتورة مياه 500 ريال', 500),
-  yerProduct('water-sanaa', 'pay-1000', 'دفع فاتورة مياه 1000 ريال', 1000),
-  yerProduct('water-sanaa', 'pay-2000', 'دفع فاتورة مياه 2000 ريال', 2000),
-  yerProduct('water-sanaa', 'pay-3000', 'دفع فاتورة مياه 3000 ريال', 3000),
-  yerProduct('water-sanaa', 'pay-5000', 'دفع فاتورة مياه 5000 ريال', 5000),
-  yerProduct('water-sanaa', 'pay-10000', 'دفع فاتورة مياه 10000 ريال', 10000),
-  yerProduct('water-sanaa', 'pay-15000', 'دفع فاتورة مياه 15000 ريال', 15000),
-  yerProduct('water-sanaa', 'pay-20000', 'دفع فاتورة مياه 20000 ريال', 20000),
-  yerProduct('water-sanaa', 'pay-30000', 'دفع فاتورة مياه 30000 ريال', 30000),
-  yerProduct('water-sanaa', 'pay-50000', 'دفع فاتورة مياه 50000 ريال', 50000),
-  yerProduct('water-sanaa', 'new-connection', 'ربط خدمة مياه جديدة', 30000),
-  yerProduct('water-sanaa', 'reconnect', 'إعادة ربط خدمة المياه', 5000),
-  yerProduct('water-sanaa', 'meter-reading', 'قراءة عداد مياه', 200),
-  yerProduct('water-sanaa', 'maintenance', 'رسوم صيانة', 3000),
-  yerProduct('water-sanaa', 'pay-75000', 'دفع فاتورة مياه 75000 ريال', 75000),
-  yerProduct('water-sanaa', 'pay-100000', 'دفع فاتورة مياه 100000 ريال', 100000),
-  yerProduct('water-sanaa', 'tanker-5000', 'صهريج مياه 5000 جالون', 25000),
-  yerProduct('water-sanaa', 'tanker-3000', 'صهريج مياه 3000 جالون', 18000),
-  yerProduct('water-sanaa', 'tanker-1000', 'صهريج مياه 1000 جالون', 8000),
-  yerProduct('water-sanaa', 'sewage-fee', 'رسوم صرف صحي', 2000),
+  yerProduct('water-sanaa', 'bill-500', 'فاتورة مياه 500 ر.ي', 500),
+  yerProduct('water-sanaa', 'bill-1000', 'فاتورة مياه 1000 ر.ي', 1000),
+  yerProduct('water-sanaa', 'bill-2000', 'فاتورة مياه 2000 ر.ي', 2000),
+  yerProduct('water-sanaa', 'bill-3000', 'فاتورة مياه 3000 ر.ي', 3000),
+  yerProduct('water-sanaa', 'bill-5000', 'فاتورة مياه 5000 ر.ي', 5000),
+  yerProduct('water-sanaa', 'bill-10000', 'فاتورة مياه 10000 ر.ي', 10000),
 ];
 
-// ============================================================
-// 34. Water Aden (providerId: 'water-aden')
-// ============================================================
 const waterAdenProducts: ProductItem[] = [
-  yerProduct('water-aden', 'pay-500', 'دفع فاتورة مياه 500 ريال', 500),
-  yerProduct('water-aden', 'pay-1000', 'دفع فاتورة مياه 1000 ريال', 1000),
-  yerProduct('water-aden', 'pay-2000', 'دفع فاتورة مياه 2000 ريال', 2000),
-  yerProduct('water-aden', 'pay-3000', 'دفع فاتورة مياه 3000 ريال', 3000),
-  yerProduct('water-aden', 'pay-5000', 'دفع فاتورة مياه 5000 ريال', 5000),
-  yerProduct('water-aden', 'pay-10000', 'دفع فاتورة مياه 10000 ريال', 10000),
-  yerProduct('water-aden', 'pay-15000', 'دفع فاتورة مياه 15000 ريال', 15000),
-  yerProduct('water-aden', 'pay-20000', 'دفع فاتورة مياه 20000 ريال', 20000),
-  yerProduct('water-aden', 'pay-30000', 'دفع فاتورة مياه 30000 ريال', 30000),
-  yerProduct('water-aden', 'pay-50000', 'دفع فاتورة مياه 50000 ريال', 50000),
-  yerProduct('water-aden', 'new-connection', 'ربط خدمة مياه جديدة', 30000),
-  yerProduct('water-aden', 'reconnect', 'إعادة ربط خدمة المياه', 5000),
-  yerProduct('water-aden', 'meter-reading', 'قراءة عداد مياه', 200),
-  yerProduct('water-aden', 'maintenance', 'رسوم صيانة', 3000),
-  yerProduct('water-aden', 'pay-75000', 'دفع فاتورة مياه 75000 ريال', 75000),
-  yerProduct('water-aden', 'pay-100000', 'دفع فاتورة مياه 100000 ريال', 100000),
-  yerProduct('water-aden', 'tanker-5000', 'صهريج مياه 5000 جالون', 25000),
-  yerProduct('water-aden', 'tanker-3000', 'صهريج مياه 3000 جالون', 18000),
-  yerProduct('water-aden', 'tanker-1000', 'صهريج مياه 1000 جالون', 8000),
-  yerProduct('water-aden', 'sewage-fee', 'رسوم صرف صحي', 2000),
+  yerProduct('water-aden', 'bill-500', 'فاتورة مياه 500 ر.ي', 500),
+  yerProduct('water-aden', 'bill-1000', 'فاتورة مياه 1000 ر.ي', 1000),
+  yerProduct('water-aden', 'bill-2000', 'فاتورة مياه 2000 ر.ي', 2000),
+  yerProduct('water-aden', 'bill-3000', 'فاتورة مياه 3000 ر.ي', 3000),
+  yerProduct('water-aden', 'bill-5000', 'فاتورة مياه 5000 ر.ي', 5000),
+  yerProduct('water-aden', 'bill-10000', 'فاتورة مياه 10000 ر.ي', 10000),
 ];
 
 // ============================================================
-// 35. Civil Registry (providerId: 'civil-registry')
+// 34. Internet providers
+// ============================================================
+const yNetInternetProducts: ProductItem[] = [
+  yerProduct('y-net-internet', 'net-2gb', 'باقة إنترنت 2 جيجا', 300),
+  yerProduct('y-net-internet', 'net-5gb', 'باقة إنترنت 5 جيجا', 550),
+  yerProduct('y-net-internet', 'net-10gb', 'باقة إنترنت 10 جيجا', 950),
+  yerProduct('y-net-internet', 'net-20gb', 'باقة إنترنت 20 جيجا', 1700),
+  yerProduct('y-net-internet', 'net-unlimited-day', 'باقة غير محدودة يوم', 200),
+  yerProduct('y-net-internet', 'net-unlimited-week', 'باقة غير محدودة أسبوع', 550),
+  yerProduct('y-net-internet', 'net-unlimited-month', 'باقة غير محدودة شهر', 1500),
+];
+
+const sabafonInternetProducts: ProductItem[] = [
+  yerProduct('sabafon-internet', 'net-3gb', 'باقة إنترنت 3 جيجا', 400),
+  yerProduct('sabafon-internet', 'net-5gb', 'باقة إنترنت 5 جيجا', 600),
+  yerProduct('sabafon-internet', 'net-10gb', 'باقة إنترنت 10 جيجا', 1000),
+  yerProduct('sabafon-internet', 'net-20gb', 'باقة إنترنت 20 جيجا', 1800),
+  yerProduct('sabafon-internet', 'net-unlimited-day', 'باقة غير محدودة يوم', 250),
+  yerProduct('sabafon-internet', 'net-unlimited-week', 'باقة غير محدودة أسبوع', 600),
+  yerProduct('sabafon-internet', 'net-unlimited-month', 'باقة غير محدودة شهر', 1600),
+];
+
+// ============================================================
+// 35. Government services
 // ============================================================
 const civilRegistryProducts: ProductItem[] = [
-  yerProduct('civil-registry', 'birth-cert', 'شهادة ميلاد', 5000),
-  yerProduct('civil-registry', 'death-cert', 'شهادة وفاة', 5000),
-  yerProduct('civil-registry', 'marriage-cert', 'عقد زواج', 5000),
-  yerProduct('civil-registry', 'divorce-cert', 'شهادة طلاق', 5000),
-  yerProduct('civil-registry', 'id-card-new', 'بطاقة شخصية جديدة', 3000),
-  yerProduct('civil-registry', 'id-card-renew', 'تجديد بطاقة شخصية', 2000),
-  yerProduct('civil-registry', 'id-card-replace', 'بدل فاقد بطاقة شخصية', 3000),
-  yerProduct('civil-registry', 'family-card', 'دفتر عائلة', 5000),
-  yerProduct('civil-registry', 'family-card-replace', 'بدل فاقد دفتر عائلة', 5000),
-  yerProduct('civil-registry', 'birth-cert-copy', 'نسخة شهادة ميلاد', 1000),
-  yerProduct('civil-registry', 'death-cert-copy', 'نسخة شهادة وفاة', 1000),
-  yerProduct('civil-registry', 'marriage-cert-copy', 'نسخة عقد زواج', 1000),
-  yerProduct('civil-registry', 'name-change', 'تغيير اسم', 10000),
-  yerProduct('civil-registry', 'correction', 'تصحيح بيانات', 3000),
-  yerProduct('civil-registry', 'adoption-cert', 'شهادة تبني', 8000),
-  yerProduct('civil-registry', 'certified-copy', 'صورة مصدقة', 2000),
-  yerProduct('civil-registry', 'translation-cert', 'تصديق ترجمة', 3000),
-  yerProduct('civil-registry', 'legalization', 'توثيق', 4000),
-  yerProduct('civil-registry', 'id-card-urgent', 'بطاقة شخصية مستعجلة', 5000),
-  yerProduct('civil-registry', 'birth-cert-urgent', 'شهادة ميلاد مستعجلة', 8000),
+  yerProduct('civil-registry', 'id-renewal', 'تجديد بطاقة شخصية', 2000),
+  yerProduct('civil-registry', 'id-new', 'إصدار بطاقة شخصية جديدة', 3000),
+  yerProduct('civil-registry', 'id-duplicate', 'بدل فاقد بطاقة شخصية', 4000),
+  yerProduct('civil-registry', 'birth-cert', 'شهادة ميلاد', 1500),
+  yerProduct('civil-registry', 'death-cert', 'شهادة وفاة', 1500),
+  yerProduct('civil-registry', 'marriage-cert', 'عقد زواج', 2000),
+  yerProduct('civil-registry', 'family-card', 'بطاقة عائلية', 2000),
 ];
 
-// ============================================================
-// 36. Passport (providerId: 'passport')
-// ============================================================
 const passportProducts: ProductItem[] = [
-  yerProduct('passport', 'new-passport', 'جواز سفر جديد', 15000),
-  yerProduct('passport', 'renew-passport', 'تجديد جواز سفر', 12000),
-  yerProduct('passport', 'replace-passport', 'بدل فاقد جواز سفر', 18000),
-  yerProduct('passport', 'passport-urgent', 'جواز سفر مستعجل', 25000),
-  yerProduct('passport', 'travel-doc', 'وثيقة سفر', 10000),
-  yerProduct('passport', 'visa-service', 'خدمة تأشيرة', 8000),
-  yerProduct('passport', 'exit-visa', 'تأشيرة خروج', 5000),
-  yerProduct('passport', 'return-visa', 'تأشيرة عودة', 5000),
-  yerProduct('passport', 'transit-visa', 'تأشيرة ترانزيت', 3000),
-  yerProduct('passport', 'residence-permit', 'إقامة', 10000),
-  yerProduct('passport', 'residence-renew', 'تجديد إقامة', 8000),
-  yerProduct('passport', 'passport-pages', 'إضافة صفحات جواز', 5000),
-  yerProduct('passport', 'passport-correction', 'تصحيح بيانات جواز', 5000),
-  yerProduct('passport', 'passport-copy', 'صورة من جواز السفر', 1000),
-  yerProduct('passport', 'embassy-cert', 'تصديق سفارة', 10000),
-  yerProduct('passport', 'police-clearance', 'شهادة خلو سوابق', 3000),
-  yerProduct('passport', 'dual-citizenship', 'جنسية مزدوجة', 20000),
-  yerProduct('passport', 'minor-passport', 'جواز سفر قاصر', 10000),
-  yerProduct('passport', 'minor-travel', 'إذن سفر قاصر', 5000),
-  yerProduct('passport', 'deportation-doc', 'وثيقة ترحيل', 8000),
+  yerProduct('passport', 'passport-new', 'جواز سفر جديد', 10000),
+  yerProduct('passport', 'passport-renewal', 'تجديد جواز سفر', 8000),
+  yerProduct('passport', 'passport-duplicate', 'بدل فاقد جواز سفر', 12000),
+  yerProduct('passport', 'passport-urgent', 'جواز سفر مستعجل', 15000),
 ];
 
-// ============================================================
-// 37. Traffic (providerId: 'traffic')
-// ============================================================
 const trafficProducts: ProductItem[] = [
-  yerProduct('traffic', 'license-new', 'رخصة قيادة جديدة', 8000),
-  yerProduct('traffic', 'license-renew', 'تجديد رخصة قيادة', 5000),
-  yerProduct('traffic', 'license-replace', 'بدل فاقد رخصة قيادة', 6000),
-  yerProduct('traffic', 'license-international', 'رخصة قيادة دولية', 10000),
-  yerProduct('traffic', 'car-register', 'تسجيل مركبة جديدة', 15000),
-  yerProduct('traffic', 'car-renew', 'تجديد تسجيل مركبة', 5000),
-  yerProduct('traffic', 'car-transfer', 'نقل ملكية مركبة', 10000),
-  yerProduct('traffic', 'car-inspection', 'فحص مركبة', 3000),
-  yerProduct('traffic', 'car-insurance', 'تأمين مركبة سنوي', 20000),
-  yerProduct('traffic', 'plate-new', 'لوحات أرقام جديدة', 8000),
-  yerProduct('traffic', 'plate-custom', 'لوحات أرقام مميزة', 50000),
-  yerProduct('traffic', 'plate-replace', 'بدل فاقد لوحات أرقام', 5000),
-  yerProduct('traffic', 'fine-pay', 'دفع مخالفة مرورية', 2000),
-  yerProduct('traffic', 'fine-pay-heavy', 'دفع مخالفة مرورية كبيرة', 5000),
-  yerProduct('traffic', 'accident-report', 'تقرير حادث مروري', 3000),
-  yerProduct('traffic', 'permit-temp', 'تصريح مؤقت', 3000),
-  yerProduct('traffic', 'license-test', 'اختبار قيادة', 2000),
-  yerProduct('traffic', 'defect-repair', 'إصلاح عيب فني', 1000),
-  yerProduct('traffic', 'car-export', 'تصدير مركبة', 8000),
-  yerProduct('traffic', 'car-import', 'استيراد مركبة', 20000),
+  yerProduct('traffic', 'license-new', 'رخصة قيادة جديدة', 5000),
+  yerProduct('traffic', 'license-renewal', 'تجديد رخصة قيادة', 3000),
+  yerProduct('traffic', 'license-intl', 'رخصة قيادة دولية', 5000),
+  yerProduct('traffic', 'car-registration', 'تسجيل مركبة', 4000),
+  yerProduct('traffic', 'car-renewal', 'تججيل تسجيل مركبة', 2000),
+  yerProduct('traffic', 'fine-payment', 'سداد مخالفة مرورية', 1000),
 ];
 
-// ============================================================
-// 38. Municipal (providerId: 'municipal')
-// ============================================================
 const municipalProducts: ProductItem[] = [
-  yerProduct('municipal', 'building-permit', 'رخصة بناء', 20000),
-  yerProduct('municipal', 'building-permit-renew', 'تجديد رخصة بناء', 10000),
-  yerProduct('municipal', 'demolition-permit', 'رخصة هدم', 15000),
-  yerProduct('municipal', 'land-survey', 'مسح أراضي', 10000),
-  yerProduct('municipal', 'zoning-cert', 'شهادة تقسيم', 5000),
-  yerProduct('municipal', 'property-tax', 'ضريبة عقارية', 5000),
-  yerProduct('municipal', 'commercial-license', 'رخصة تجارية', 15000),
-  yerProduct('municipal', 'commercial-renew', 'تجديد رخصة تجارية', 8000),
-  yerProduct('municipal', 'signboard-permit', 'رخصة لوحة إعلانية', 3000),
-  yerProduct('municipal', 'waste-service', 'رسوم النظافة', 2000),
-  yerProduct('municipal', 'street-occupation', 'رسوم احتلال طريق', 3000),
-  yerProduct('municipal', 'food-license', 'رخصة غذائية', 10000),
-  yerProduct('municipal', 'food-license-renew', 'تجديد رخصة غذائية', 5000),
-  yerProduct('municipal', 'health-cert', 'شهادة صحية', 3000),
-  yerProduct('municipal', 'industrial-license', 'رخصة صناعية', 25000),
-  yerProduct('municipal', 'industrial-renew', 'تجديد رخصة صناعية', 12000),
-  yerProduct('municipal', 'parking-permit', 'تصريح وقوف', 2000),
-  yerProduct('municipal', 'renovation-permit', 'رخصة ترميم', 10000),
-  yerProduct('municipal', 'extension-permit', 'رخصة توسعة', 12000),
-  yerProduct('municipal', 'change-of-use', 'تغيير استخدام', 8000),
+  yerProduct('municipal', 'license-commercial', 'رخصة تجارية', 5000),
+  yerProduct('municipal', 'license-industrial', 'رخصة صناعية', 7000),
+  yerProduct('municipal', 'license-professional', 'رخصة حرفية', 3000),
+  yerProduct('municipal', 'building-permit', 'رخصة بناء', 10000),
+  yerProduct('municipal', 'license-renewal', 'تجديد رخصة', 2000),
 ];
 
 // ============================================================
@@ -1129,15 +1035,19 @@ export const allProducts: ProductItem[] = [
   ...visaVirtualProducts,
   ...mastercardVirtualProducts,
   ...paypalProducts,
+  ...eaFcProducts,
+  ...apexLegendsProducts,
   ...yemenMobileProducts,
   ...yoProducts,
   ...sabafonProducts,
-  ...yTelecomProducts,
+  ...yProviderProducts,
   ...yemenNetProducts,
   ...elecSanaaProducts,
   ...elecAdenProducts,
   ...waterSanaaProducts,
   ...waterAdenProducts,
+  ...yNetInternetProducts,
+  ...sabafonInternetProducts,
   ...civilRegistryProducts,
   ...passportProducts,
   ...trafficProducts,
