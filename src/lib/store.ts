@@ -194,6 +194,8 @@ interface AppState {
   notifications: Notification[];
   setNotifications: (notifs: Notification[]) => void;
   addNotification: (notif: Notification) => void;
+  removeNotification: (id: string) => void;
+  clearNotifications: () => void;
   markNotificationRead: (id: string) => void;
   unreadCount: () => number;
 
@@ -706,6 +708,10 @@ export const useAppStore = create<AppState>()(
       notifications: [],
       setNotifications: (notifications) => set({ notifications }),
       addNotification: (notif) => set((state) => ({ notifications: [notif, ...state.notifications] })),
+      removeNotification: (id) => set((state) => ({
+        notifications: state.notifications.filter(n => n.id !== id)
+      })),
+      clearNotifications: () => set({ notifications: [] }),
       markNotificationRead: (id) => set((state) => ({
         notifications: state.notifications.map(n => n.id === id ? { ...n, isRead: true } : n)
       })),

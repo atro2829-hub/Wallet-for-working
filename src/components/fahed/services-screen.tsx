@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronLeft } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { productIcons } from '@/lib/product-icons';
 import { serviceIcons } from '@/lib/service-icons';
+import { database } from '@/lib/firebase';
+import { ref, onValue } from 'firebase/database';
 
 // Category display order with display names
 const categoryOrder = [
@@ -86,6 +88,34 @@ export default function ServicesScreen() {
     setSelectedCategory,
   } = useAppStore();
 
+  const [visibilitySections, setVisibilitySections] = useState<Record<string, boolean>>({});
+  const [visibilityProviders, setVisibilityProviders] = useState<Record<string, boolean>>({});
+
+  // Firebase visibility settings listener
+  useEffect(() => {
+    const visRef = ref(database, 'adminSettings/visibility');
+    const unsubscribe = onValue(visRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        if (data.sections) setVisibilitySections(data.sections);
+        if (data.providers) setVisibilityProviders(data.providers);
+      }
+    }, (error) => {
+      console.error('Firebase visibility error:', error);
+    });
+
+    // Also listen to legacy sectionVisibility for backward compatibility
+    const legacyRef = ref(database, 'adminSettings/sectionVisibility');
+    const unsubLegacy = onValue(legacyRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setVisibilitySections(prev => ({ ...prev, ...data }));
+      }
+    });
+
+    return () => { unsubscribe(); unsubLegacy(); };
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
@@ -124,8 +154,9 @@ export default function ServicesScreen() {
 
   // Build sections: group providers by category in the specified order
   const sections = categoryOrder
+    .filter(cat => visibilitySections[cat.id] !== false)
     .map(cat => {
-      const catProviders = providers.filter(p => p.categoryId === cat.id && p.isActive);
+      const catProviders = providers.filter(p => p.categoryId === cat.id && p.isActive && visibilityProviders[p.id] !== false);
       return {
         id: cat.id,
         name: cat.name,

@@ -7,6 +7,8 @@ import { ChevronRight, Search, ChevronLeft, ArrowLeft } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { productIcons, getProductIcon } from '@/lib/product-icons';
 import { serviceIcons } from '@/lib/service-icons';
+import { database } from '@/lib/firebase';
+import { ref, onValue } from 'firebase/database';
 
 // ─── Category display names ─────────────────────────────────────────
 const categoryNames: Record<string, string> = {
@@ -235,34 +237,65 @@ export default function CategoryDetailScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [visibilityProviders, setVisibilityProviders] = useState<Record<string, boolean>>({});
 
-  // Reset to subsections view when category changes
+  // Firebase visibility settings listener
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset state when category changes
-    setViewMode('subsections');
-    setSelectedSubSection(null);
-    setSearchQuery('');
-    setSearchOpen(false);
-    if (contentRef.current) contentRef.current.scrollTop = 0;
-  }, [selectedCategory]);
+    const visRef = ref(database, 'adminSettings/visibility');
+    const unsubscribe = onValue(visRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        if (data.providers) {
+          setVisibilityProviders(data.providers);
+        }
+      }
+    }, (error) => {
+      console.error('Firebase visibility error:', error);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  // If no category selected, don't render
-  if (!selectedCategory) return null;
-
-  const categoryId = selectedCategory;
-  const categoryName = categoryNames[categoryId] || categoryId;
-  const subSections = categorySubSections[categoryId] || [];
-
-  // Get providers for this category
-  const categoryProviders = providers.filter(p => p.categoryId === categoryId && p.isActive);
-
-  // Build sub-section data with resolved providers
-  const resolvedSubSections = subSections.map(sub => {
+  // Compute resolved sub-sections before early return (needed for hook)
+  const categoryId = selectedCategory || '';
+  const categoryProviders = providers.filter(p => p.categoryId === categoryId && p.isActive && visibilityProviders[p.id] !== false);
+  const rawSubSections = categorySubSections[categoryId] || [];
+  const resolvedSubSections = rawSubSections.map(sub => {
     const subProviders = sub.providerIds
       .map(pid => categoryProviders.find(p => p.id === pid))
       .filter((p): p is NonNullable<typeof p> => !!p);
     return { ...sub, providers: subProviders };
   }).filter(sub => sub.providers.length > 0);
+
+  // Reset to subsections view when category changes
+  useEffect(() => {
+    const subSections = categorySubSections[selectedCategory || ''] || [];
+    // Auto-skip sub-section selection when there's only one sub-section
+    if (subSections.length === 1) {
+      setSelectedSubSection(subSections[0].id); // eslint-disable-line react-hooks/set-state-in-effect
+      setViewMode('products');
+    } else {
+      setViewMode('subsections');
+      setSelectedSubSection(null);
+    }
+    setSearchQuery('');
+    setSearchOpen(false);
+    if (contentRef.current) contentRef.current.scrollTop = 0;
+  }, [selectedCategory]);
+
+  // If only one resolved sub-section, skip to products view
+  useEffect(() => {
+    if (resolvedSubSections.length === 1 && viewMode === 'subsections') {
+      setSelectedSubSection(resolvedSubSections[0].id); // eslint-disable-line react-hooks/set-state-in-effect
+      setViewMode('products');
+    }
+  }, [resolvedSubSections.length, viewMode]);
+
+  // If no category selected, don't render
+  if (!selectedCategory) return null;
+
+  const categoryName = categoryNames[categoryId] || categoryId;
+
+  // categoryProviders and resolvedSubSections are already computed above (before early return)
 
   // Get the currently selected sub-section
   const currentSubSection = resolvedSubSections.find(s => s.id === selectedSubSection);
@@ -286,8 +319,7 @@ export default function CategoryDetailScreen() {
     const provider = providers.find(p => p.id === providerId);
     if (provider) {
       setSelectedProvider(provider);
-      // Use setTimeout to ensure provider state is committed before opening sheet
-      setTimeout(() => setOrderOpen(true), 200);
+      setOrderOpen(true);
     }
   };
 

@@ -363,10 +363,10 @@ export default function AuthScreen() {
           initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-          className="w-20 h-20 rounded-2xl overflow-hidden mb-4"
-          style={{ boxShadow: '0 8px 24px rgba(230,0,0,0.3)' }}
+          className="w-20 h-20 rounded-2xl overflow-hidden mb-4 flex items-center justify-center"
+          style={{ boxShadow: '0 8px 24px rgba(230,0,0,0.3)', background: isDark ? 'rgba(230,0,0,0.1)' : 'rgba(230,0,0,0.06)' }}
         >
-          <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" />
+          <img src={LOGO_BASE64} alt="الحبيلين" className="w-full h-full object-cover" />
         </motion.div>
         <motion.h1
           initial={{ y: 20, opacity: 0 }}
@@ -375,7 +375,7 @@ export default function AuthScreen() {
           className="text-2xl font-bold"
           style={{ color: isDark ? '#FFF' : '#1a1a1a' }}
         >
-          محفظة الجنوب
+          الحبيلين اونلاين
         </motion.h1>
         <motion.p
           initial={{ y: 20, opacity: 0 }}

@@ -1,5 +1,5 @@
 /**
- * Service Icons for محفظة الجنوب (Southern Wallet)
+ * Service Icons for الحبيلين اونلاين (Alhablayn)
  * 
  * Flat minimalist design:
  * - Black outlines (#1a1a1a) with stroke-width 1.5-2

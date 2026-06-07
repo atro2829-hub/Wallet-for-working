@@ -22,10 +22,14 @@ import {
   ArrowDownUp,
   Plus,
   Minus,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { formatBalance, formatNumber, currencySymbols, currencyNames, currencyBadgeColors, timeAgo, transactionTypeLabels, transactionTypeColors } from '@/lib/utils';
 import { LOGO_BASE64, RED_LOGO_FILTER } from '@/lib/logo';
+import { database } from '@/lib/firebase';
+import { ref, get, onValue } from 'firebase/database';
 
 type FilterTab = 'all' | 'incoming' | 'outgoing' | 'orders' | 'deposit' | 'withdraw';
 
@@ -132,7 +136,7 @@ function getTransactionIcon(type: string, isIncoming: boolean) {
 export default function WalletScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const { user, balanceVisible, toggleBalance, transactions, orders } = useAppStore();
+  const { user, setUser, balanceVisible, toggleBalance, transactions, setTransactions, orders, setOrders, setActiveScreen } = useAppStore();
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
@@ -173,9 +177,55 @@ export default function WalletScreen() {
   const expense = transactions.filter(tx => tx.fromUserId === user?.id).reduce((sum, tx) => sum + tx.amount, 0);
 
   const spendingData = spendingCategories.map(cat => {
-    const amount = orders
-      .filter(o => o.status === 'completed' || o.status === 'pending')
-      .reduce((sum, o) => sum + (o.currency === 'YER' ? o.amount : 0), 0);
+    // Calculate real spending from transactions and orders
+    let amount = 0;
+    const now = new Date();
+
+    if (cat.key === 'recharge') {
+      amount = transactions
+        .filter(tx => tx.type === 'recharge' && tx.fromUserId === user?.id)
+        .filter(tx => {
+          const txDate = new Date(tx.createdAt);
+          return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+        })
+        .reduce((sum, tx) => sum + (tx.currency === 'YER' ? tx.amount : 0), 0);
+    } else if (cat.key === 'internet') {
+      amount = orders
+        .filter(o => (o.status === 'completed' || o.status === 'pending') && o.providerId?.includes('net'))
+        .filter(o => {
+          const oDate = new Date(o.createdAt);
+          return oDate.getMonth() === now.getMonth() && oDate.getFullYear() === now.getFullYear();
+        })
+        .reduce((sum, o) => sum + (o.currency === 'YER' ? o.amount : 0), 0);
+    } else if (cat.key === 'games') {
+      amount = orders
+        .filter(o => (o.status === 'completed' || o.status === 'pending') && ['pubg', 'freefire', 'call-of-duty', 'fortnite', 'valorant', 'roblox', 'minecraft', 'clash-royale', 'clash-of-clans', 'apex-legends', 'ea-fc', 'steam', 'genshin-impact', 'honkai-star', 'league-legends'].includes(o.providerId))
+        .filter(o => {
+          const oDate = new Date(o.createdAt);
+          return oDate.getMonth() === now.getMonth() && oDate.getFullYear() === now.getFullYear();
+        })
+        .reduce((sum, o) => sum + (o.currency === 'YER' ? o.amount : 0), 0);
+    } else if (cat.key === 'cards') {
+      amount = orders
+        .filter(o => (o.status === 'completed' || o.status === 'pending') && ['google-play', 'apple-itunes', 'amazon-gift', 'psn-card', 'xbox-card', 'nintendo-card', 'visa-virtual', 'mastercard-virtual', 'paypal'].includes(o.providerId))
+        .filter(o => {
+          const oDate = new Date(o.createdAt);
+          return oDate.getMonth() === now.getMonth() && oDate.getFullYear() === now.getFullYear();
+        })
+        .reduce((sum, o) => sum + (o.currency === 'YER' ? o.amount : 0), 0);
+    }
+
+    // Fallback: use general order data
+    if (amount === 0) {
+      amount = orders
+        .filter(o => o.status === 'completed' || o.status === 'pending')
+        .filter(o => {
+          const oDate = new Date(o.createdAt);
+          return oDate.getMonth() === now.getMonth() && oDate.getFullYear() === now.getFullYear();
+        })
+        .reduce((sum, o) => sum + (o.currency === 'YER' ? o.amount : 0), 0);
+    }
+
     return { ...cat, amount };
   });
   const maxSpending = Math.max(...spendingData.map(c => c.amount), 1);
@@ -283,14 +333,119 @@ export default function WalletScreen() {
     prevTranslate.current = 0;
   }, []);
 
+  // Load transactions from Firebase
+  const loadFirebaseData = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      // Load transactions
+      const txRef = ref(database, 'transactions');
+      const txSnapshot = await get(txRef);
+      if (txSnapshot.exists()) {
+        const data = txSnapshot.val();
+        const txList = Object.keys(data)
+          .map(key => data[key])
+          .filter((tx: { fromUserId: string; toUserId: string }) => tx.fromUserId === user.id || tx.toUserId === user.id)
+          .sort((a: { createdAt: string }, b: { createdAt: string }) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setTransactions(txList);
+      }
+
+      // Load orders
+      const ordersRef = ref(database, 'orders');
+      const ordersSnapshot = await get(ordersRef);
+      if (ordersSnapshot.exists()) {
+        const data = ordersSnapshot.val();
+        const orderList = Object.keys(data)
+          .map(key => data[key])
+          .filter((o: { userId: string }) => o.userId === user.id)
+          .sort((a: { createdAt: string }, b: { createdAt: string }) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setOrders(orderList);
+      }
+
+      // Refresh user balance
+      const userRef = ref(database, `users/${user.id}`);
+      const userSnapshot = await get(userRef);
+      if (userSnapshot.exists()) {
+        const userData = userSnapshot.val();
+        setUser({
+          ...user,
+          balanceYER: userData.balanceYER || 0,
+          balanceSAR: userData.balanceSAR || 0,
+          balanceUSD: userData.balanceUSD || 0,
+          kycStatus: userData.kycStatus || user.kycStatus,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading Firebase data:', error);
+    }
+  }, [user, setTransactions, setOrders, setUser]);
+
+  // Real-time listener for transactions
+  useEffect(() => {
+    if (!user?.id) return;
+    const txRef = ref(database, 'transactions');
+    const unsubscribe = onValue(txRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const txList = Object.keys(data)
+          .map(key => data[key])
+          .filter((tx: { fromUserId: string; toUserId: string }) => tx.fromUserId === user.id || tx.toUserId === user.id)
+          .sort((a: { createdAt: string }, b: { createdAt: string }) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setTransactions(txList);
+      }
+    });
+    return () => unsubscribe();
+  }, [user?.id, setTransactions]);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await loadFirebaseData();
     setIsRefreshing(false);
   };
 
+  // Pull-to-refresh handlers
+  const [pullStartY, setPullStartY] = useState(0);
+  const [pullDistance, setPullDistance] = useState(0);
+  const PULL_THRESHOLD = 80;
+
+  const handlePullStart = useCallback((e: React.TouchEvent) => {
+    setPullStartY(e.touches[0].clientY);
+  }, []);
+
+  const handlePullMove = useCallback((e: React.TouchEvent) => {
+    if (isRefreshing) return;
+    const diff = e.touches[0].clientY - pullStartY;
+    if (diff > 0) {
+      setPullDistance(Math.min(diff * 0.5, 100));
+    }
+  }, [pullStartY, isRefreshing]);
+
+  const handlePullEnd = useCallback(() => {
+    if (pullDistance >= PULL_THRESHOLD && !isRefreshing) {
+      handleRefresh();
+    }
+    setPullDistance(0);
+  }, [pullDistance, isRefreshing, handleRefresh]);
+
   return (
-    <div className="pb-4">
+    <div
+      className="pb-4"
+      onTouchStart={handlePullStart}
+      onTouchMove={handlePullMove}
+      onTouchEnd={handlePullEnd}
+    >
+      {/* Pull-to-refresh indicator */}
+      {pullDistance > 0 && (
+        <div className="flex items-center justify-center py-2" style={{ height: pullDistance * 0.5 }}>
+          <RefreshCw
+            size={20}
+            strokeWidth={1.5}
+            color="#E60000"
+            className={isRefreshing ? 'animate-spin' : ''}
+            style={{ transform: `rotate(${pullDistance * 3}deg)` }}
+          />
+        </div>
+      )}
+
       {/* Header - Clean Jaib Style */}
       <div className="px-4 pt-4 pb-2">
         <div className="flex items-center justify-between" style={{ height: 50 }}>
@@ -320,6 +475,72 @@ export default function WalletScreen() {
             style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}
           >
             <RefreshCw size={18} strokeWidth={1.5} style={{ color: isDark ? '#999' : '#666' }} className={isRefreshing ? 'animate-spin' : ''} />
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Action Buttons - Deposit, Withdraw & Transfer */}
+      <div className="px-4 mt-2">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveScreen('deposit')}
+            className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl font-bold text-sm text-white transition-all active:scale-[0.98]"
+            style={{
+              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
+            }}
+          >
+            <Download size={15} strokeWidth={1.5} />
+            <span>إيداع</span>
+          </button>
+          <button
+            onClick={() => {
+              if (user?.kycStatus !== 'verified') {
+                useAppStore.getState().addNotification({
+                  id: Date.now().toString(),
+                  title: 'يرجى توثيق حسابك أولاً',
+                  body: 'لا يمكنك السحب إلا بعد توثيق حسابك',
+                  type: 'security',
+                  isRead: false,
+                  createdAt: new Date().toISOString(),
+                });
+                return;
+              }
+              setActiveScreen('deposit');
+            }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl font-bold text-sm transition-all active:scale-[0.98]"
+            style={{
+              background: isDark ? '#1A1A1A' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+              color: '#E60000',
+            }}
+          >
+            <Upload size={15} strokeWidth={1.5} />
+            <span>سحب</span>
+          </button>
+          <button
+            onClick={() => {
+              if (user?.kycStatus !== 'verified') {
+                useAppStore.getState().addNotification({
+                  id: Date.now().toString(),
+                  title: 'يرجى توثيق حسابك أولاً',
+                  body: 'لا يمكنك التحويل إلا بعد توثيق حسابك',
+                  type: 'security',
+                  isRead: false,
+                  createdAt: new Date().toISOString(),
+                });
+                return;
+              }
+              useAppStore.getState().setTransferOpen(true);
+            }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl font-bold text-sm text-white transition-all active:scale-[0.98]"
+            style={{
+              background: 'linear-gradient(135deg, #E60000 0%, #CC0000 100%)',
+              boxShadow: '0 4px 12px rgba(230,0,0,0.3)',
+            }}
+          >
+            <ArrowUpRight size={15} strokeWidth={1.5} />
+            <span>تحويل</span>
           </button>
         </div>
       </div>
@@ -416,11 +637,11 @@ export default function WalletScreen() {
                         }}
                       >
                         {/* White logo on colored card background */}
-                        <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" />
+                        <img src={LOGO_BASE64} alt="الحبيلين" className="w-full h-full object-cover" />
                       </div>
                       <div className="flex flex-col leading-none">
-                        <span className="text-white text-sm font-bold tracking-wide">الجنوب</span>
-                        <span className="text-white/40 text-[9px] font-medium mt-0.5" dir="ltr">Alganob</span>
+                        <span className="text-white text-sm font-bold tracking-wide">الحبيلين</span>
+                        <span className="text-white/40 text-[9px] font-medium mt-0.5" dir="ltr">Alhablayn</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -485,10 +706,11 @@ export default function WalletScreen() {
                 onClick={() => snapToCard(index)}
                 className="rounded-full"
                 animate={{
-                  width: activeCardIndex === index ? 5 : 3,
-                  height: activeCardIndex === index ? 5 : 3,
+                  width: activeCardIndex === index ? 6 : 4,
+                  height: activeCardIndex === index ? 6 : 4,
                   backgroundColor: activeCardIndex === index ? balanceCards[index].accentColor : (isDark ? '#333' : '#D4D4D4'),
                 }}
+                style={{ borderRadius: '50%' }}
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
               />
             ))}

@@ -196,7 +196,13 @@ export default function EditProfileScreen() {
         style={{ color: isDark ? '#AAA' : '#888' }}
       >
         {label}
-        <Lock size={10} strokeWidth={1.5} color={isDark ? '#555' : '#CCC'} />
+        <div title="لا يمكن تعديل هذه البيانات بعد التوثيق" className="relative group">
+          <Lock size={10} strokeWidth={1.5} color={isDark ? '#555' : '#CCC'} />
+          {/* Tooltip on hover */}
+          <div className="absolute bottom-full right-0 mb-1 px-2 py-1 rounded-lg text-[9px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50" style={{ background: isDark ? '#333' : '#333', color: '#FFF' }}>
+            لا يمكن تعديل هذه البيانات بعد التوثيق
+          </div>
+        </div>
       </label>
       <div
         className="flex items-center gap-2 px-4 py-3.5 rounded-2xl"
@@ -211,7 +217,9 @@ export default function EditProfileScreen() {
           className="flex-1 bg-transparent outline-none text-sm"
           style={{ color: isDark ? '#777' : '#AAA' }}
         />
-        <Lock size={14} strokeWidth={1.5} color={isDark ? '#555' : '#CCC'} />
+        <div title="لا يمكن تعديل هذه البيانات بعد التوثيق">
+          <Lock size={14} strokeWidth={1.5} color={isDark ? '#555' : '#CCC'} />
+        </div>
       </div>
     </div>
   );

@@ -11,7 +11,8 @@ import {
   CreditCard, DollarSign, Activity, FileText, Filter, Ban, UserCheck,
   UserX, ChevronLeft, ImagePlus, Package, Zap, Globe, Mail, Hash,
   Key, HardDrive, Cloud, Archive, Copy, Unlock, Link, ExternalLink,
-  BookOpen, Scale, HelpCircle, Phone, ShoppingBag, BadgeCheck, Lock
+  BookOpen, Scale, HelpCircle, Phone, ShoppingBag, BadgeCheck, Lock,
+  Gift, Tag, GripVertical, ArrowUpDown, Percent
 } from 'lucide-react';
 import { useAppStore, type Order, type ServiceProvider, type ProductPackage } from '@/lib/store';
 import { currencySymbols, currencyBadgeColors, formatNumber, generateReference, compressBase64Image, timeAgo } from '@/lib/utils';
@@ -28,7 +29,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-type OwnerTab = 'overview' | 'sections' | 'subsections' | 'sectionVisibility' | 'entertainment' | 'orders' | 'kyc' | 'socialLinks' | 'legalContent' | 'projectConfig' | 'adminMgmt' | 'activityLog' | 'backup' | 'appIcon';
+type OwnerTab = 'overview' | 'sections' | 'subsections' | 'sectionVisibility' | 'entertainment' | 'giftCodes' | 'orders' | 'kyc' | 'socialLinks' | 'legalContent' | 'projectConfig' | 'adminMgmt' | 'activityLog' | 'backup' | 'appIcon';
 
 interface OwnerSection {
   id: string;
@@ -297,13 +298,38 @@ export default function OwnerScreen() {
   const appIconFileRef = useRef<HTMLInputElement>(null);
   const splashIconFileRef = useRef<HTMLInputElement>(null);
 
-  // Section Visibility state
-  const [sectionVisibility, setSectionVisibility] = useState<Record<string, boolean>>({
+  // Visibility Management state (enhanced)
+  const [visibilitySections, setVisibilitySections] = useState<Record<string, boolean>>({
     telecom: true, entertainment: true, cards: true, transfer: true,
     recharge: true, electricity: true, government: true, internet: true,
     crypto: true, 'crypto-invest': true, 'currency-exchange': true,
+    'digital-wallet': true,
   });
-  const [sectionVisibilitySaved, setSectionVisibilitySaved] = useState(false);
+  const [visibilityProviders, setVisibilityProviders] = useState<Record<string, boolean>>({});
+  const [visibilityFeatures, setVisibilityFeatures] = useState<Record<string, boolean>>({
+    transfer: true, exchange: true, investment: true, savings: true,
+    qrPayment: true, requestMoney: true, splitBill: true,
+  });
+  const [visibilitySaved, setVisibilitySaved] = useState(false);
+  const [visibilityTab, setVisibilityTab] = useState<'sections' | 'providers' | 'features'>('sections');
+
+  // Gift Codes state
+  const [giftCodes, setGiftCodes] = useState<any[]>([]);
+  const [showAddGiftCode, setShowAddGiftCode] = useState(false);
+  const [newGiftCode, setNewGiftCode] = useState({ code: '', discount: 0, type: 'percentage' as 'percentage' | 'fixed', currency: 'YER' as 'YER' | 'SAR' | 'USD', maxUses: 100, expiresAt: '' });
+  const [bulkCodeCount, setBulkCodeCount] = useState(1);
+  const [showBulkCodes, setShowBulkCodes] = useState(false);
+  const [giftCodeSearch, setGiftCodeSearch] = useState('');
+
+  // Entertainment management (enhanced)
+  const [showAddOwnerProvider, setShowAddOwnerProvider] = useState(false);
+  const [newOwnerProvider, setNewOwnerProvider] = useState({ name: '', color: '#E60000', categoryId: 'entertainment', inputLabel: '', inputType: 'text' as 'phone' | 'text', inputPrefix: '', icon: '' });
+  const [showAddOwnerPackage, setShowAddOwnerPackage] = useState(false);
+  const [newOwnerPackage, setNewOwnerPackage] = useState({ name: '', price: 0, currency: 'YER' as 'YER' | 'SAR' | 'USD', providerId: '', executionType: 'manual' as 'manual' | 'auto' });
+  const [editingOwnerProduct, setEditingOwnerProduct] = useState<string | null>(null);
+  const [editOwnerProductData, setEditOwnerProductData] = useState({ name: '', price: 0 });
+  const [ownerEntertainmentTab, setOwnerEntertainmentTab] = useState<'providers' | 'products' | 'add'>('providers');
+  const [ownerProvFileRef, setOwnerProvFileRef] = useState<HTMLInputElement | null>(null);
 
   // Social Links state (owner can also manage)
   const [socialLinks, setSocialLinks] = useState({
@@ -514,16 +540,59 @@ export default function OwnerScreen() {
     return () => unsub();
   }, []);
 
-  // Listen to section visibility from Firebase
+  // Listen to visibility settings from Firebase (enhanced)
+  useEffect(() => {
+    const visRef = ref(database, 'adminSettings/visibility');
+    const unsub = onValue(visRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        if (data.sections) {
+          setVisibilitySections(prev => ({ ...prev, ...data.sections }));
+        }
+        if (data.providers) {
+          setVisibilityProviders(prev => ({ ...prev, ...data.providers }));
+        }
+        if (data.features) {
+          setVisibilityFeatures(prev => ({ ...prev, ...data.features }));
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Also listen to legacy sectionVisibility for backward compatibility
   useEffect(() => {
     const visRef = ref(database, 'adminSettings/sectionVisibility');
     const unsub = onValue(visRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
-        setSectionVisibility(prev => ({
-          ...prev,
-          ...data,
+        setVisibilitySections(prev => ({ ...prev, ...data }));
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Listen to gift codes from Firebase
+  useEffect(() => {
+    const codesRef = ref(database, 'promo-codes');
+    const unsub = onValue(codesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const list = Object.entries(data).map(([key, val]: [string, any]) => ({
+          id: key,
+          code: val.code || '',
+          discount: val.discount || 0,
+          type: val.type || 'percentage',
+          currency: val.currency || 'YER',
+          maxUses: val.maxUses || 100,
+          usedCount: val.usedCount || 0,
+          expiresAt: val.expiresAt || '',
+          isActive: val.isActive !== false,
+          createdAt: val.createdAt || '',
         }));
+        setGiftCodes(list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')));
+      } else {
+        setGiftCodes([]);
       }
     });
     return () => unsub();
@@ -910,6 +979,7 @@ export default function OwnerScreen() {
     { id: 'subsections', label: 'فرعية', icon: FolderTree },
     { id: 'sectionVisibility', label: 'الظهور', icon: Eye },
     { id: 'entertainment', label: 'الترفيهية', icon: Gamepad2 },
+    { id: 'giftCodes', label: 'الأكواد', icon: Gift },
     { id: 'orders', label: 'الطلبات', icon: ShoppingBag },
     { id: 'kyc', label: 'التحقق', icon: ShieldCheck },
     { id: 'socialLinks', label: 'التواصل', icon: Link },
@@ -1199,127 +1269,570 @@ export default function OwnerScreen() {
               </motion.div>
             )}
 
-            {/* === SECTION VISIBILITY === */}
+            {/* === VISIBILITY MANAGEMENT (إدارة الظهور) === */}
             {activeTab === 'sectionVisibility' && (
               <motion.div key="sectionVisibility" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
                 <div className="rounded-2xl p-4" style={cardStyle}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Eye size={16} color="#8B5CF6" />
-                    <h3 className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>ظهور الأقسام الرئيسية</h3>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Eye size={18} color="#8B5CF6" />
+                    <h3 className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>إدارة الظهور</h3>
                   </div>
-                  <p className="text-xs mb-4" style={{ color: isDark ? '#888' : '#AAA' }}>تحكم بظهور الأقسام على الشاشة الرئيسية للمستخدمين</p>
-                  <div className="space-y-2">
+                  <p className="text-xs mb-4" style={{ color: isDark ? '#888' : '#AAA' }}>تحكم كامل بظهور الأقسام والمزودين والميزات</p>
+
+                  {/* Sub-tabs for visibility */}
+                  <div className="flex gap-2 mb-4">
                     {[
-                      { key: 'telecom', label: 'الاتصالات', icon: Smartphone, color: '#E60000' },
-                      { key: 'internet', label: 'الإنترنت', icon: Wifi, color: '#3B82F6' },
-                      { key: 'entertainment', label: 'الخدمات الترفيهية', icon: Gamepad2, color: '#F59E0B' },
-                      { key: 'cards', label: 'البطاقات الرقمية', icon: CreditCard, color: '#8B5CF6' },
-                      { key: 'transfer', label: 'التحويل', icon: ArrowLeft, color: '#10B981' },
-                      { key: 'recharge', label: 'الشحن', icon: Zap, color: '#EC4899' },
-                      { key: 'electricity', label: 'الكهرباء والماء', icon: Zap, color: '#F59E0B' },
-                      { key: 'government', label: 'خدمات حكومية', icon: ShieldCheck, color: '#6B7280' },
-                      { key: 'crypto', label: 'الكريبتو', icon: DollarSign, color: '#F7931A' },
-                      { key: 'crypto-invest', label: 'استثمار الكريبتو', icon: Activity, color: '#10B981' },
-                      { key: 'currency-exchange', label: 'تبادل العملات', icon: RefreshCw, color: '#3B82F6' },
-                    ].map((section) => {
-                      const Icon = section.icon;
-                      const isVisible = sectionVisibility[section.key] !== false;
+                      { id: 'sections' as const, label: 'الأقسام', icon: Layers },
+                      { id: 'providers' as const, label: 'المزودين', icon: Package },
+                      { id: 'features' as const, label: 'الميزات', icon: Zap },
+                    ].map((tab) => {
+                      const TabIcon = tab.icon;
+                      const isActive = visibilityTab === tab.id;
                       return (
-                        <div key={section.key} className="flex items-center justify-between p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRight: isVisible ? `3px solid ${section.color}` : '3px solid transparent' }}>
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${section.color}18` }}>
-                              <Icon size={18} color={section.color} />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{section.label}</p>
-                              <p className="text-[10px]" style={{ color: isVisible ? '#10B981' : '#E60000' }}>{isVisible ? 'ظاهر' : 'مخفي'}</p>
-                            </div>
-                          </div>
-                          <button onClick={() => {
-                            const newVis = { ...sectionVisibility, [section.key]: !isVisible };
-                            setSectionVisibility(newVis);
+                        <button key={tab.id} onClick={() => setVisibilityTab(tab.id)}
+                          className="flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                          style={{
+                            background: isActive ? 'rgba(139,92,246,0.2)' : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                            color: isActive ? '#8B5CF6' : isDark ? '#888' : '#AAA',
+                            border: isActive ? '1px solid rgba(139,92,246,0.3)' : '1px solid transparent',
                           }}>
-                            {isVisible ? <ToggleRight size={24} color="#10B981" /> : <ToggleLeft size={24} color={isDark ? '#444' : '#CCC'} />}
-                          </button>
-                        </div>
+                          <TabIcon size={14} />
+                          {tab.label}
+                        </button>
                       );
                     })}
                   </div>
+
+                  {/* Sections Visibility */}
+                  {visibilityTab === 'sections' && (
+                    <div className="space-y-2">
+                      {[
+                        { key: 'telecom', label: 'الاتصالات', icon: Smartphone, color: '#E60000' },
+                        { key: 'internet', label: 'الإنترنت', icon: Wifi, color: '#3B82F6' },
+                        { key: 'entertainment', label: 'الخدمات الترفيهية', icon: Gamepad2, color: '#F59E0B' },
+                        { key: 'cards', label: 'البطاقات الرقمية', icon: CreditCard, color: '#8B5CF6' },
+                        { key: 'transfer', label: 'التحويل', icon: ArrowLeft, color: '#10B981' },
+                        { key: 'recharge', label: 'الشحن', icon: Zap, color: '#EC4899' },
+                        { key: 'electricity', label: 'الكهرباء والماء', icon: Zap, color: '#F59E0B' },
+                        { key: 'government', label: 'خدمات حكومية', icon: ShieldCheck, color: '#6B7280' },
+                        { key: 'digital-wallet', label: 'المحفظة الرقمية', icon: CreditCard, color: '#6366F1' },
+                        { key: 'crypto', label: 'الكريبتو', icon: DollarSign, color: '#F7931A' },
+                        { key: 'crypto-invest', label: 'استثمار الكريبتو', icon: Activity, color: '#10B981' },
+                        { key: 'currency-exchange', label: 'تبادل العملات', icon: RefreshCw, color: '#3B82F6' },
+                      ].map((section) => {
+                        const Icon = section.icon;
+                        const isVisible = visibilitySections[section.key] !== false;
+                        return (
+                          <div key={section.key} className="flex items-center justify-between p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRight: isVisible ? `3px solid ${section.color}` : '3px solid transparent' }}>
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${section.color}18` }}>
+                                <Icon size={18} color={section.color} />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{section.label}</p>
+                                <p className="text-[10px]" style={{ color: isVisible ? '#10B981' : '#E60000' }}>{isVisible ? 'ظاهر' : 'مخفي'}</p>
+                              </div>
+                            </div>
+                            <button onClick={() => {
+                              setVisibilitySections({ ...visibilitySections, [section.key]: !isVisible });
+                            }}>
+                              {isVisible ? <ToggleRight size={24} color="#10B981" /> : <ToggleLeft size={24} color={isDark ? '#444' : '#CCC'} />}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Providers Visibility */}
+                  {visibilityTab === 'providers' && (
+                    <div className="space-y-2 max-h-96 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                      {ownerProviders.length === 0 && (
+                        <div className="flex flex-col items-center py-6">
+                          <Package size={32} strokeWidth={1.5} color={isDark ? '#333' : '#DDD'} />
+                          <p className="text-xs mt-2" style={{ color: isDark ? '#666' : '#AAA' }}>لا يوجد مزودين</p>
+                        </div>
+                      )}
+                      {ownerProviders.map((provider) => {
+                        const isVisible = visibilityProviders[provider.id] !== false;
+                        return (
+                          <div key={provider.id} className="flex items-center justify-between p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRight: isVisible ? `3px solid ${provider.color}` : '3px solid transparent' }}>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${provider.color}18` }}>
+                                {provider.icon && provider.icon.startsWith('data:') ? (
+                                  <img src={provider.icon} alt={provider.name} className="w-5 h-5 rounded object-cover" />
+                                ) : <span className="font-bold text-[10px]" style={{ color: provider.color }}>{provider.name.charAt(0)}</span>}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{provider.name}</p>
+                                <p className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>{provider.categoryId} • {isVisible ? 'ظاهر' : 'مخفي'}</p>
+                              </div>
+                            </div>
+                            <button onClick={() => {
+                              setVisibilityProviders({ ...visibilityProviders, [provider.id]: !isVisible });
+                            }}>
+                              {isVisible ? <ToggleRight size={22} color="#10B981" /> : <ToggleLeft size={22} color={isDark ? '#444' : '#CCC'} />}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Features Visibility */}
+                  {visibilityTab === 'features' && (
+                    <div className="space-y-2">
+                      {[
+                        { key: 'transfer', label: 'تحويل الأموال', icon: ArrowLeft, color: '#10B981' },
+                        { key: 'exchange', label: 'تبديل العملات', icon: RefreshCw, color: '#3B82F6' },
+                        { key: 'investment', label: 'استثمار', icon: Activity, color: '#F7931A' },
+                        { key: 'savings', label: 'التوفير', icon: DollarSign, color: '#8B5CF6' },
+                        { key: 'qrPayment', label: 'دفع QR', icon: CreditCard, color: '#EC4899' },
+                        { key: 'requestMoney', label: 'طلب أموال', icon: DollarSign, color: '#F59E0B' },
+                        { key: 'splitBill', label: 'تقسيم الفاتورة', icon: Package, color: '#6366F1' },
+                      ].map((feature) => {
+                        const Icon = feature.icon;
+                        const isVisible = visibilityFeatures[feature.key] !== false;
+                        return (
+                          <div key={feature.key} className="flex items-center justify-between p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRight: isVisible ? `3px solid ${feature.color}` : '3px solid transparent' }}>
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${feature.color}18` }}>
+                                <Icon size={18} color={feature.color} />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{feature.label}</p>
+                                <p className="text-[10px]" style={{ color: isVisible ? '#10B981' : '#E60000' }}>{isVisible ? 'مفعّل' : 'معطّل'}</p>
+                              </div>
+                            </div>
+                            <button onClick={() => {
+                              setVisibilityFeatures({ ...visibilityFeatures, [feature.key]: !isVisible });
+                            }}>
+                              {isVisible ? <ToggleRight size={24} color="#10B981" /> : <ToggleLeft size={24} color={isDark ? '#444' : '#CCC'} />}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <motion.button whileTap={{ scale: 0.95 }} onClick={() => {
                   try {
-                    set(ref(database, 'adminSettings/sectionVisibility'), sectionVisibility);
-                    setSectionVisibilitySaved(true);
-                    setTimeout(() => setSectionVisibilitySaved(false), 3000);
+                    const visibilityData = {
+                      sections: visibilitySections,
+                      providers: visibilityProviders,
+                      features: visibilityFeatures,
+                    };
+                    set(ref(database, 'adminSettings/visibility'), visibilityData);
+                    // Also save legacy for backward compatibility
+                    set(ref(database, 'adminSettings/sectionVisibility'), visibilitySections);
+                    setVisibilitySaved(true);
+                    setTimeout(() => setVisibilitySaved(false), 3000);
                     const logId = generateReference();
                     set(ref(database, `ownerSettings/activityLog/${logId}`), {
-                      id: logId, type: 'admin', action: 'تم تحديث اعدادات ظهور الأقسام',
+                      id: logId, type: 'admin', action: 'تم تحديث اعدادات الظهور الكاملة',
                       userId: user?.id, userName: user?.name, timestamp: new Date().toISOString(),
                     });
-                  } catch {}
+                  } catch (err) {
+                    console.error('Error saving visibility:', err);
+                  }
                 }} className="w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold text-white"
-                  style={{ background: sectionVisibilitySaved ? '#10B981' : '#8B5CF6' }}>
-                  {sectionVisibilitySaved ? <CheckCircle2 size={18} /> : <Save size={18} />}
-                  <span>{sectionVisibilitySaved ? 'تم الحفظ' : 'حفظ اعدادات الظهور'}</span>
+                  style={{ background: visibilitySaved ? '#10B981' : '#8B5CF6' }}>
+                  {visibilitySaved ? <CheckCircle2 size={18} /> : <Save size={18} />}
+                  <span>{visibilitySaved ? 'تم الحفظ' : 'حفظ اعدادات الظهور'}</span>
                 </motion.button>
               </motion.div>
             )}
 
-            {/* === ENTERTAINMENT PRODUCTS === */}
+            {/* === ENTERTAINMENT PRODUCTS (Enhanced) === */}
             {activeTab === 'entertainment' && (
               <motion.div key="entertainment" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
+                {/* Entertainment sub-tabs */}
+                <div className="flex gap-2">
+                  {[
+                    { id: 'providers' as const, label: 'المزودين', icon: Package },
+                    { id: 'products' as const, label: 'المنتجات', icon: ShoppingBag },
+                    { id: 'add' as const, label: 'إضافة', icon: Plus },
+                  ].map((tab) => {
+                    const TabIcon = tab.icon;
+                    const isActive = ownerEntertainmentTab === tab.id;
+                    return (
+                      <button key={tab.id} onClick={() => setOwnerEntertainmentTab(tab.id)}
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                        style={{
+                          background: isActive ? 'rgba(139,92,246,0.2)' : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                          color: isActive ? '#8B5CF6' : isDark ? '#888' : '#AAA',
+                          border: isActive ? '1px solid rgba(139,92,246,0.3)' : '1px solid transparent',
+                        }}>
+                        <TabIcon size={14} />
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Search */}
                 <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl" style={cardStyle}>
                   <Search size={16} color={isDark ? '#555' : '#AAA'} />
                   <input type="text" placeholder="بحث في المنتجات..." value={ownerProductSearch} onChange={(e) => setOwnerProductSearch(e.target.value)} className="flex-1 bg-transparent outline-none text-sm" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} />
                 </div>
-                {ownerProviders.filter(p => p.categoryId === 'entertainment' || p.categoryId === 'cards').map((provider) => {
-                  const providerProducts = ownerPackages.filter(p => p.providerId === provider.id && (!ownerProductSearch || p.name.toLowerCase().includes(ownerProductSearch.toLowerCase())));
-                  if (providerProducts.length === 0 && !ownerProductSearch) return null;
-                  return (
-                    <div key={provider.id} className="rounded-2xl overflow-hidden" style={cardStyle}>
-                      <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)' }}>
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${provider.color}18` }}>
-                          {provider.icon && provider.icon.startsWith('data:') ? (
-                            <img src={provider.icon} alt={provider.name} className="w-6 h-6 rounded object-cover" />
-                          ) : <span className="font-bold text-xs" style={{ color: provider.color }}>{provider.name.charAt(0)}</span>}
-                        </div>
-                        <span className="text-sm font-bold flex-1" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{provider.name}</span>
-                        <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>{providerProducts.length} منتج</span>
-                        <button onClick={async () => {
-                          try { await update(ref(database, `providers/${provider.id}`), { isActive: !provider.isActive }); } catch {}
-                        }}>
-                          {provider.isActive ? <ToggleRight size={20} color="#10B981" /> : <ToggleLeft size={20} color={isDark ? '#444' : '#CCC'} />}
-                        </button>
-                      </div>
-                      <div className="max-h-60 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-                        {providerProducts.map((product, index) => (
-                          <div key={product.id} className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: index < providerProducts.length - 1 ? (isDark ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(0,0,0,0.04)') : 'none' }}>
-                            <div>
-                              <p className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{product.name}</p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-xs font-bold" style={{ color: '#8B5CF6' }}>{product.price.toLocaleString()} {currencySymbols[product.currency]}</span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: product.executionType === 'manual' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)', color: product.executionType === 'manual' ? '#F59E0B' : '#10B981' }}>
-                                  {product.executionType === 'manual' ? 'يدوي' : 'تلقائي'}
-                                </span>
-                              </div>
+
+                {/* Providers Tab */}
+                {ownerEntertainmentTab === 'providers' && (
+                  <>
+                    {ownerProviders.filter(p => p.categoryId === 'entertainment' || p.categoryId === 'cards').map((provider) => {
+                      const providerProducts = ownerPackages.filter(p => p.providerId === provider.id);
+                      return (
+                        <div key={provider.id} className="rounded-2xl overflow-hidden" style={cardStyle}>
+                          <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)' }}>
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${provider.color}18` }}>
+                              {provider.icon && provider.icon.startsWith('data:') ? (
+                                <img src={provider.icon} alt={provider.name} className="w-6 h-6 rounded object-cover" />
+                              ) : <span className="font-bold text-xs" style={{ color: provider.color }}>{provider.name.charAt(0)}</span>}
                             </div>
+                            <span className="text-sm font-bold flex-1" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{provider.name}</span>
+                            <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>{providerProducts.length} منتج</span>
                             <button onClick={async () => {
-                              try { await update(ref(database, `packages/${product.id}`), { isActive: !product.isActive }); } catch {}
+                              try { await update(ref(database, `providers/${provider.id}`), { isActive: !provider.isActive }); } catch {}
                             }}>
-                              {product.isActive ? <ToggleRight size={20} color="#10B981" /> : <ToggleLeft size={20} color={isDark ? '#444' : '#CCC'} />}
+                              {provider.isActive ? <ToggleRight size={20} color="#10B981" /> : <ToggleLeft size={20} color={isDark ? '#444' : '#CCC'} />}
+                            </button>
+                            <button onClick={async () => {
+                              try { await remove(ref(database, `providers/${provider.id}`)); } catch {}
+                            }} className="mr-1">
+                              <Trash2 size={16} color="#E60000" />
                             </button>
                           </div>
-                        ))}
-                        {providerProducts.length === 0 && ownerProductSearch && (
-                          <p className="text-xs text-center py-3" style={{ color: isDark ? '#555' : '#BBB' }}>لا توجد نتائج</p>
-                        )}
+                        </div>
+                      );
+                    })}
+                    {ownerProviders.filter(p => p.categoryId === 'entertainment' || p.categoryId === 'cards').length === 0 && (
+                      <div className="flex flex-col items-center py-8"><Gamepad2 size={40} strokeWidth={1.5} color={isDark ? '#333' : '#DDD'} /><p className="text-sm mt-2" style={{ color: isDark ? '#666' : '#AAA' }}>لا توجد خدمات ترفيهية</p></div>
+                    )}
+                  </>
+                )}
+
+                {/* Products Tab */}
+                {ownerEntertainmentTab === 'products' && (
+                  <>
+                    {ownerProviders.filter(p => p.categoryId === 'entertainment' || p.categoryId === 'cards').map((provider) => {
+                      const providerProducts = ownerPackages.filter(p => p.providerId === provider.id && (!ownerProductSearch || p.name.toLowerCase().includes(ownerProductSearch.toLowerCase())));
+                      if (providerProducts.length === 0 && !ownerProductSearch) return null;
+                      return (
+                        <div key={provider.id} className="rounded-2xl overflow-hidden" style={cardStyle}>
+                          <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)' }}>
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${provider.color}18` }}>
+                              {provider.icon && provider.icon.startsWith('data:') ? (
+                                <img src={provider.icon} alt={provider.name} className="w-6 h-6 rounded object-cover" />
+                              ) : <span className="font-bold text-xs" style={{ color: provider.color }}>{provider.name.charAt(0)}</span>}
+                            </div>
+                            <span className="text-sm font-bold flex-1" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{provider.name}</span>
+                            <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>{providerProducts.length} منتج</span>
+                            <button onClick={async () => {
+                              try { await update(ref(database, `providers/${provider.id}`), { isActive: !provider.isActive }); } catch {}
+                            }}>
+                              {provider.isActive ? <ToggleRight size={20} color="#10B981" /> : <ToggleLeft size={20} color={isDark ? '#444' : '#CCC'} />}
+                            </button>
+                          </div>
+                          <div className="max-h-60 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                            {providerProducts.map((product, index) => (
+                              <div key={product.id} className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: index < providerProducts.length - 1 ? (isDark ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(0,0,0,0.04)') : 'none' }}>
+                                <div className="flex-1">
+                                  {editingOwnerProduct === product.id ? (
+                                    <div className="flex items-center gap-2">
+                                      <input type="text" value={editOwnerProductData.name} onChange={(e) => setEditOwnerProductData({ ...editOwnerProductData, name: e.target.value })} className="flex-1 px-2 py-1 rounded text-xs outline-none" style={inputStyle} />
+                                      <input type="number" value={editOwnerProductData.price || ''} onChange={(e) => setEditOwnerProductData({ ...editOwnerProductData, price: parseFloat(e.target.value) || 0 })} className="w-20 px-2 py-1 rounded text-xs outline-none" style={inputStyle} dir="ltr" />
+                                      <button onClick={async () => {
+                                        try {
+                                          await update(ref(database, `packages/${product.id}`), { name: editOwnerProductData.name, price: editOwnerProductData.price });
+                                          setEditingOwnerProduct(null);
+                                        } catch {}
+                                      }}><CheckCircle2 size={16} color="#10B981" /></button>
+                                      <button onClick={() => setEditingOwnerProduct(null)}><X size={16} color="#E60000" /></button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <p className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{product.name}</p>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <span className="text-xs font-bold" style={{ color: '#8B5CF6' }}>{product.price.toLocaleString()} {currencySymbols[product.currency]}</span>
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: product.executionType === 'manual' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)', color: product.executionType === 'manual' ? '#F59E0B' : '#10B981' }}>
+                                          {product.executionType === 'manual' ? 'يدوي' : 'تلقائي'}
+                                        </span>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                                {editingOwnerProduct !== product.id && (
+                                  <div className="flex items-center gap-1">
+                                    <button onClick={() => {
+                                      setEditingOwnerProduct(product.id);
+                                      setEditOwnerProductData({ name: product.name, price: product.price });
+                                    }}><Edit3 size={14} color={isDark ? '#888' : '#AAA'} /></button>
+                                    <button onClick={async () => {
+                                      try { await remove(ref(database, `packages/${product.id}`)); } catch {}
+                                    }}><Trash2 size={14} color="#E60000" /></button>
+                                    <button onClick={async () => {
+                                      try { await update(ref(database, `packages/${product.id}`), { isActive: !product.isActive }); } catch {}
+                                    }}>
+                                      {product.isActive ? <ToggleRight size={20} color="#10B981" /> : <ToggleLeft size={20} color={isDark ? '#444' : '#CCC'} />}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            {providerProducts.length === 0 && ownerProductSearch && (
+                              <p className="text-xs text-center py-3" style={{ color: isDark ? '#555' : '#BBB' }}>لا توجد نتائج</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Add Tab */}
+                {ownerEntertainmentTab === 'add' && (
+                  <div className="space-y-3">
+                    {/* Add New Provider */}
+                    <div className="rounded-2xl p-4 space-y-3" style={cardStyle}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Plus size={16} color="#8B5CF6" />
+                        <h3 className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>إضافة مزود جديد</h3>
+                      </div>
+                      <input type="text" placeholder="اسم المزود" value={newOwnerProvider.name} onChange={(e) => setNewOwnerProvider({ ...newOwnerProvider, name: e.target.value })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} />
+                      <div className="flex gap-2">
+                        <input type="color" value={newOwnerProvider.color} onChange={(e) => setNewOwnerProvider({ ...newOwnerProvider, color: e.target.value })} className="w-10 h-10 rounded-lg cursor-pointer" />
+                        <select value={newOwnerProvider.categoryId} onChange={(e) => setNewOwnerProvider({ ...newOwnerProvider, categoryId: e.target.value })} className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
+                          <option value="entertainment">ترفيهية</option>
+                          <option value="cards">بطاقات رقمية</option>
+                        </select>
+                      </div>
+                      <input type="text" placeholder="حقل الإدخال (مثل: Player ID)" value={newOwnerProvider.inputLabel} onChange={(e) => setNewOwnerProvider({ ...newOwnerProvider, inputLabel: e.target.value })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} />
+                      <select value={newOwnerProvider.inputType} onChange={(e) => setNewOwnerProvider({ ...newOwnerProvider, inputType: e.target.value as 'phone' | 'text' })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
+                        <option value="text">نص</option>
+                        <option value="phone">رقم هاتف</option>
+                      </select>
+                      <motion.button whileTap={{ scale: 0.95 }} onClick={async () => {
+                        if (!newOwnerProvider.name) return;
+                        try {
+                          const id = generateReference();
+                          await set(ref(database, `providers/${id}`), {
+                            ...newOwnerProvider,
+                            isActive: true,
+                          });
+                          setNewOwnerProvider({ name: '', color: '#E60000', categoryId: 'entertainment', inputLabel: '', inputType: 'text', inputPrefix: '', icon: '' });
+                          const logId = generateReference();
+                          set(ref(database, `ownerSettings/activityLog/${logId}`), {
+                            id: logId, type: 'admin', action: `تم إضافة مزود جديد: ${newOwnerProvider.name}`,
+                            userId: user?.id, userName: user?.name, timestamp: new Date().toISOString(),
+                          });
+                        } catch {}
+                      }} className="w-full py-3 rounded-xl text-sm font-bold text-white" style={{ background: '#8B5CF6' }}>إضافة المزود</motion.button>
+                    </div>
+
+                    {/* Add New Product */}
+                    <div className="rounded-2xl p-4 space-y-3" style={cardStyle}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Package size={16} color="#8B5CF6" />
+                        <h3 className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>إضافة منتج جديد</h3>
+                      </div>
+                      <select value={newOwnerPackage.providerId} onChange={(e) => setNewOwnerPackage({ ...newOwnerPackage, providerId: e.target.value })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
+                        <option value="">اختر المزود</option>
+                        {ownerProviders.filter(p => p.categoryId === 'entertainment' || p.categoryId === 'cards').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                      <input type="text" placeholder="اسم المنتج" value={newOwnerPackage.name} onChange={(e) => setNewOwnerPackage({ ...newOwnerPackage, name: e.target.value })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} />
+                      <div className="flex gap-2">
+                        <input type="number" placeholder="السعر" value={newOwnerPackage.price || ''} onChange={(e) => setNewOwnerPackage({ ...newOwnerPackage, price: parseFloat(e.target.value) || 0 })} className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} dir="ltr" />
+                        <select value={newOwnerPackage.currency} onChange={(e) => setNewOwnerPackage({ ...newOwnerPackage, currency: e.target.value as 'YER' | 'SAR' | 'USD' })} className="px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
+                          <option value="YER">YER</option><option value="SAR">SAR</option><option value="USD">USD</option>
+                        </select>
+                      </div>
+                      <select value={newOwnerPackage.executionType} onChange={(e) => setNewOwnerPackage({ ...newOwnerPackage, executionType: e.target.value as 'manual' | 'auto' })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
+                        <option value="manual">تنفيذ يدوي</option><option value="auto">تنفيذ تلقائي</option>
+                      </select>
+                      <motion.button whileTap={{ scale: 0.95 }} onClick={async () => {
+                        if (!newOwnerPackage.name || !newOwnerPackage.providerId) return;
+                        try {
+                          const id = generateReference();
+                          await set(ref(database, `packages/${id}`), {
+                            ...newOwnerPackage,
+                            isActive: true,
+                          });
+                          setNewOwnerPackage({ name: '', price: 0, currency: 'YER', providerId: '', executionType: 'manual' });
+                          const logId = generateReference();
+                          set(ref(database, `ownerSettings/activityLog/${logId}`), {
+                            id: logId, type: 'admin', action: `تم إضافة منتج جديد: ${newOwnerPackage.name}`,
+                            userId: user?.id, userName: user?.name, timestamp: new Date().toISOString(),
+                          });
+                        } catch {}
+                      }} className="w-full py-3 rounded-xl text-sm font-bold text-white" style={{ background: '#8B5CF6' }}>إضافة المنتج</motion.button>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* === GIFT CODES === */}
+            {activeTab === 'giftCodes' && (
+              <motion.div key="giftCodes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
+                {/* Gift Code Stats */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-2xl p-3 text-center" style={cardStyle}>
+                    <p className="text-lg font-bold" style={{ color: '#8B5CF6' }}>{giftCodes.length}</p>
+                    <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>إجمالي الأكواد</p>
+                  </div>
+                  <div className="rounded-2xl p-3 text-center" style={cardStyle}>
+                    <p className="text-lg font-bold" style={{ color: '#10B981' }}>{giftCodes.filter(c => c.isActive).length}</p>
+                    <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>نشط</p>
+                  </div>
+                  <div className="rounded-2xl p-3 text-center" style={cardStyle}>
+                    <p className="text-lg font-bold" style={{ color: '#F59E0B' }}>{giftCodes.reduce((sum, c) => sum + (c.usedCount || 0), 0)}</p>
+                    <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>استخدامات</p>
+                  </div>
+                </div>
+
+                {/* Add single code */}
+                <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowAddGiftCode(!showAddGiftCode)}
+                  className="w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 text-sm font-medium"
+                  style={{ background: 'rgba(139,92,246,0.1)', color: '#8B5CF6', border: '1px solid rgba(139,92,246,0.2)' }}>
+                  <Plus size={18} /><span>إضافة كود هدية</span>
+                </motion.button>
+                <AnimatePresence>
+                  {showAddGiftCode && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="rounded-2xl p-4 space-y-3 overflow-hidden" style={cardStyle}>
+                      <input type="text" placeholder="الكود (اتركه فارغاً للتوليد التلقائي)" value={newGiftCode.code} onChange={e => setNewGiftCode({ ...newGiftCode, code: e.target.value.toUpperCase() })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none font-mono" style={inputStyle} dir="ltr" />
+                      <div className="flex gap-2">
+                        <input type="number" placeholder="الخصم" value={newGiftCode.discount || ''} onChange={e => setNewGiftCode({ ...newGiftCode, discount: parseFloat(e.target.value) || 0 })} className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} dir="ltr" />
+                        <select value={newGiftCode.type} onChange={e => setNewGiftCode({ ...newGiftCode, type: e.target.value as 'percentage' | 'fixed' })} className="px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
+                          <option value="percentage">نسبة مئوية</option><option value="fixed">مبلغ ثابت</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-2">
+                        <select value={newGiftCode.currency} onChange={e => setNewGiftCode({ ...newGiftCode, currency: e.target.value as 'YER' | 'SAR' | 'USD' })} className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
+                          <option value="YER">YER</option><option value="SAR">SAR</option><option value="USD">USD</option>
+                        </select>
+                        <input type="number" placeholder="الحد الأقصى" value={newGiftCode.maxUses || ''} onChange={e => setNewGiftCode({ ...newGiftCode, maxUses: parseInt(e.target.value) || 100 })} className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} dir="ltr" />
+                      </div>
+                      <input type="date" value={newGiftCode.expiresAt} onChange={e => setNewGiftCode({ ...newGiftCode, expiresAt: e.target.value })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} />
+                      <motion.button whileTap={{ scale: 0.95 }} onClick={async () => {
+                        if (newGiftCode.discount <= 0) return;
+                        try {
+                          const id = generateReference();
+                          const code = newGiftCode.code || `GIFT${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+                          await set(ref(database, `promo-codes/${id}`), {
+                            ...newGiftCode,
+                            code,
+                            id,
+                            usedCount: 0,
+                            isActive: true,
+                            createdAt: new Date().toISOString(),
+                          });
+                          setNewGiftCode({ code: '', discount: 0, type: 'percentage', currency: 'YER', maxUses: 100, expiresAt: '' });
+                          setShowAddGiftCode(false);
+                          const logId = generateReference();
+                          set(ref(database, `ownerSettings/activityLog/${logId}`), {
+                            id: logId, type: 'admin', action: `تم إضافة كود هدية: ${code}`,
+                            userId: user?.id, userName: user?.name, timestamp: new Date().toISOString(),
+                          });
+                        } catch {}
+                      }} className="w-full py-3 rounded-xl text-sm font-bold text-white" style={{ background: '#8B5CF6' }}>إضافة الكود</motion.button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Bulk code generation */}
+                <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowBulkCodes(!showBulkCodes)}
+                  className="w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 text-sm font-medium"
+                  style={{ background: 'rgba(245,158,11,0.1)', color: '#F59E0B', border: '1px solid rgba(245,158,11,0.2)' }}>
+                  <Hash size={18} /><span>توليد أكواد بالجملة</span>
+                </motion.button>
+                <AnimatePresence>
+                  {showBulkCodes && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="rounded-2xl p-4 space-y-3 overflow-hidden" style={cardStyle}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs" style={{ color: isDark ? '#AAA' : '#888' }}>عدد الأكواد:</span>
+                        <select value={bulkCodeCount} onChange={(e) => setBulkCodeCount(parseInt(e.target.value))} className="px-3 py-2 rounded-xl text-sm outline-none" style={inputStyle}>
+                          {[5, 10, 20, 50, 100].map(n => <option key={n} value={n}>{n} كود</option>)}
+                        </select>
+                      </div>
+                      <div className="flex gap-2">
+                        <input type="number" placeholder="الخصم" value={newGiftCode.discount || ''} onChange={e => setNewGiftCode({ ...newGiftCode, discount: parseFloat(e.target.value) || 0 })} className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} dir="ltr" />
+                        <select value={newGiftCode.type} onChange={e => setNewGiftCode({ ...newGiftCode, type: e.target.value as 'percentage' | 'fixed' })} className="px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
+                          <option value="percentage">نسبة</option><option value="fixed">مبلغ</option>
+                        </select>
+                      </div>
+                      <motion.button whileTap={{ scale: 0.95 }} onClick={async () => {
+                        if (newGiftCode.discount <= 0) return;
+                        try {
+                          for (let i = 0; i < bulkCodeCount; i++) {
+                            const id = generateReference();
+                            const code = `GIFT${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+                            await set(ref(database, `promo-codes/${id}`), {
+                              code,
+                              discount: newGiftCode.discount,
+                              type: newGiftCode.type,
+                              currency: newGiftCode.currency,
+                              maxUses: newGiftCode.maxUses,
+                              usedCount: 0,
+                              isActive: true,
+                              expiresAt: newGiftCode.expiresAt,
+                              createdAt: new Date().toISOString(),
+                            });
+                          }
+                          setShowBulkCodes(false);
+                          const logId = generateReference();
+                          set(ref(database, `ownerSettings/activityLog/${logId}`), {
+                            id: logId, type: 'admin', action: `تم توليد ${bulkCodeCount} كود هدية`,
+                            userId: user?.id, userName: user?.name, timestamp: new Date().toISOString(),
+                          });
+                        } catch {}
+                      }} className="w-full py-3 rounded-xl text-sm font-bold text-white" style={{ background: '#F59E0B' }}>
+                        توليد {bulkCodeCount} كود
+                      </motion.button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Search */}
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl" style={cardStyle}>
+                  <Search size={16} color={isDark ? '#555' : '#AAA'} />
+                  <input type="text" placeholder="بحث بالكود..." value={giftCodeSearch} onChange={(e) => setGiftCodeSearch(e.target.value)} className="flex-1 bg-transparent outline-none text-sm font-mono" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} dir="ltr" />
+                </div>
+
+                {/* Gift codes list */}
+                {giftCodes.filter(c => !giftCodeSearch || c.code.toLowerCase().includes(giftCodeSearch.toLowerCase())).map((c) => (
+                  <div key={c.id} className="rounded-2xl p-4" style={cardStyle}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Gift size={16} color="#8B5CF6" />
+                        <span className="text-sm font-mono font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} dir="ltr">{c.code}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: 'rgba(139,92,246,0.15)', color: '#8B5CF6' }}>
+                          {c.type === 'percentage' ? `${c.discount}%` : `${c.discount} ${currencySymbols[c.currency as keyof typeof currencySymbols] || c.currency}`}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={async () => {
+                          try { await update(ref(database, `promo-codes/${c.id}`), { isActive: !c.isActive }); } catch {}
+                        }}>
+                          {c.isActive ? <ToggleRight size={22} color="#10B981" /> : <ToggleLeft size={22} color={isDark ? '#444' : '#CCC'} />}
+                        </button>
+                        <button onClick={async () => {
+                          try { await remove(ref(database, `promo-codes/${c.id}`)); } catch {}
+                        }}><Trash2 size={16} color="#E60000" /></button>
                       </div>
                     </div>
-                  );
-                })}
-                {ownerProviders.filter(p => p.categoryId === 'entertainment' || p.categoryId === 'cards').length === 0 && (
-                  <div className="flex flex-col items-center py-8"><Gamepad2 size={40} strokeWidth={1.5} color={isDark ? '#333' : '#DDD'} /><p className="text-sm mt-2" style={{ color: isDark ? '#666' : '#AAA' }}>لا توجد خدمات ترفيهية</p></div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>{c.type === 'percentage' ? 'نسبة مئوية' : 'مبلغ ثابت'}</span>
+                      <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>استخدام: {c.usedCount}/{c.maxUses}</span>
+                      {c.expiresAt && <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>ينتهي: {new Date(c.expiresAt).toLocaleDateString('ar-SA')}</span>}
+                    </div>
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
+                      <div className="h-full rounded-full" style={{ width: `${Math.min((c.usedCount / c.maxUses) * 100, 100)}%`, background: '#8B5CF6' }} />
+                    </div>
+                  </div>
+                ))}
+                {giftCodes.length === 0 && (
+                  <div className="flex flex-col items-center py-8"><Gift size={40} strokeWidth={1.5} color={isDark ? '#333' : '#DDD'} /><p className="text-sm mt-2" style={{ color: isDark ? '#666' : '#AAA' }}>لا توجد أكواد هدية</p></div>
                 )}
               </motion.div>
             )}

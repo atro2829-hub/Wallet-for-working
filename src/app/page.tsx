@@ -32,6 +32,7 @@ import RechargeScreen from '@/components/fahed/recharge-screen';
 import SettingsScreen from '@/components/fahed/settings-screen';
 import CategoryDetailScreen from '@/components/fahed/category-detail-screen';
 import LegalScreen from '@/components/fahed/legal-screen';
+import InvestmentScreen from '@/components/fahed/investment-screen';
 import BottomNav from '@/components/fahed/bottom-nav';
 import QuickActionDrawer from '@/components/fahed/quick-action-drawer';
 import TransferModal from '@/components/fahed/transfer-modal';
@@ -209,7 +210,7 @@ function AppContent() {
           className="flex flex-col items-center"
         >
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 overflow-hidden" style={{ background: 'linear-gradient(145deg, #E60000 0%, #8B0000 100%)', boxShadow: '0 8px 24px rgba(230,0,0,0.3)' }}>
-            <span className="text-white text-sm font-bold">الجنوب</span>
+            <span className="text-white text-sm font-bold">الحبيلين</span>
           </div>
           <div className="w-8 h-8 border-2 border-[#E60000]/30 border-t-[#E60000] rounded-full animate-spin" />
         </motion.div>
@@ -242,6 +243,7 @@ function AppContent() {
     settings: SettingsScreen,
     'category-detail': CategoryDetailScreen,
     legal: LegalScreen,
+    investment: InvestmentScreen,
   };
 
   if (activeScreen in overlayScreens) {

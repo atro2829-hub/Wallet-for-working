@@ -60,7 +60,7 @@ export default function RequestMoneyModal() {
     if (!amount) return '';
     const parts = [`طلب منك ${Number(amount).toLocaleString()} ${currencySymbols[currency]}`];
     if (fromWho) parts.push(`من ${fromWho}`);
-    parts.push(`عبر محفظة الجنوب`);
+    parts.push(`عبر الحبيلين اونلاين`);
     if (description) parts.push(`- ${description}`);
     if (user?.userId) parts.push(`رقم الحساب: ${user.userId}`);
     return parts.join(' ');
@@ -92,7 +92,7 @@ export default function RequestMoneyModal() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'طلب أموال - محفظة الجنوب',
+          title: 'طلب أموال - الحبيلين اونلاين',
           text: requestText,
         });
       } catch {

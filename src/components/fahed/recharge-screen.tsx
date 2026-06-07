@@ -296,7 +296,7 @@ export default function RechargeScreen() {
   };
 
   const handleShare = async () => {
-    const text = `إيصال دفع - محفظة الجنوب\nرقم المرجع: ${completedOrderId}\nالشركة: ${selectedCompany?.name}\nالخدمة: ${rechargeMode === 'packages' ? selectedPackage?.name : 'شحن فوري'}\nالمبلغ: ${effectivePrice.toLocaleString()} ${currencySymbols[CURRENCY]}\nرقم الهاتف: ${selectedCompany?.inputPrefix}${customerInput}\nالتاريخ: ${new Date().toLocaleDateString('ar-SA')}`;
+    const text = `إيصال دفع - الحبيلين اونلاين\nرقم المرجع: ${completedOrderId}\nالشركة: ${selectedCompany?.name}\nالخدمة: ${rechargeMode === 'packages' ? selectedPackage?.name : 'شحن فوري'}\nالمبلغ: ${effectivePrice.toLocaleString()} ${currencySymbols[CURRENCY]}\nرقم الهاتف: ${selectedCompany?.inputPrefix}${customerInput}\nالتاريخ: ${new Date().toLocaleDateString('ar-SA')}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: 'إيصال دفع', text });
@@ -931,9 +931,9 @@ export default function RechargeScreen() {
                 {/* Logo centered at top */}
                 <div className="flex flex-col items-center mb-5">
                   <div className="w-12 h-12 rounded-xl overflow-hidden mb-2">
-                    <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" style={{ filter: RED_LOGO_FILTER }} />
+                    <img src={LOGO_BASE64} alt="الحبيلين" className="w-full h-full object-cover" style={{ filter: RED_LOGO_FILTER }} />
                   </div>
-                  <span className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>الجنوب</span>
+                  <span className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>الحبيلين</span>
                 </div>
 
                 {/* Title */}

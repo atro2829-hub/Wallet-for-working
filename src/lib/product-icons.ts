@@ -1,5 +1,5 @@
 /**
- * Product Icons for محفظة الجنوب (Southern Wallet)
+ * Product Icons for الحبيلين اونلاين (Alhablayn)
  *
  * Flat minimalist design matching service-icons.ts style:
  * - White rounded square background (48x48 viewBox, rx=12)

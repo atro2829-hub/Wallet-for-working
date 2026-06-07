@@ -27,6 +27,7 @@ import {
   Gamepad2,
   ShoppingBag,
   Shield,
+  ShieldAlert,
   Wallet,
   ArrowRightLeft,
   Phone,
@@ -34,6 +35,7 @@ import {
   Receipt,
   FileText,
   ChevronRight,
+  X,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { formatBalance, formatNumber, currencySymbols, currencyNames, currencyBadgeColors, timeAgo, transactionTypeLabels, transactionTypeColors } from '@/lib/utils';
@@ -42,6 +44,13 @@ import { serviceIcons } from '@/lib/service-icons';
 import { productIcons } from '@/lib/product-icons';
 import { database } from '@/lib/firebase';
 import { ref, onValue } from 'firebase/database';
+
+// Visibility settings interface
+interface VisibilitySettings {
+  sections: Record<string, boolean>;
+  providers: Record<string, boolean>;
+  features: Record<string, boolean>;
+}
 
 interface BalanceCard {
   currency: 'YER' | 'SAR' | 'USD';
@@ -171,6 +180,52 @@ function CountdownTimer({ targetDate }: { targetDate: Date }) {
   );
 }
 
+// Verification Banner Component for Home Screen
+function VerificationBanner({ isDark }: { isDark: boolean }) {
+  const [dismissed, setDismissed] = useState(false);
+  const { user, setActiveScreen } = useAppStore();
+
+  // Reappears on next app open since dismissed is local state
+  if (dismissed) return null;
+  if (!user || user.kycStatus === 'verified') return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mx-4 mt-2 rounded-2xl overflow-hidden relative"
+      style={{
+        background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+        boxShadow: '0 4px 12px rgba(245,158,11,0.3)',
+      }}
+    >
+      <button
+        onClick={() => setDismissed(true)}
+        className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center"
+        style={{ background: 'rgba(0,0,0,0.15)' }}
+      >
+        <X size={12} color="#FFF" />
+      </button>
+      <div className="p-4 pr-8">
+        <div className="flex items-center gap-2 mb-2">
+          <Shield size={18} color="#FFF" />
+          <span className="text-white text-sm font-bold">تنبيه التوثيق</span>
+        </div>
+        <p className="text-white text-xs leading-relaxed mb-3">
+          لا يمكنك استخدام مميزات التطبيق إلا بعد التوثيق
+        </p>
+        <button
+          onClick={() => setActiveScreen('kyc')}
+          className="px-4 py-2 rounded-xl text-xs font-bold"
+          style={{ background: 'rgba(0,0,0,0.2)', color: '#FFF' }}
+        >
+          توثيق الحساب
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function HomeScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -200,6 +255,11 @@ export default function HomeScreen() {
   const [promoIndex, setPromoIndex] = useState(0);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [bannerIndex, setBannerIndex] = useState(0);
+  const [visibilitySettings, setVisibilitySettings] = useState<VisibilitySettings>({
+    sections: {},
+    providers: {},
+    features: {},
+  });
 
   // Touch/drag tracking
   const isDragging = useRef(false);
@@ -252,6 +312,37 @@ export default function HomeScreen() {
     });
 
     return () => unsubscribe();
+  }, []);
+
+  // Firebase visibility settings listener
+  useEffect(() => {
+    const visRef = ref(database, 'adminSettings/visibility');
+    const unsubscribe = onValue(visRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setVisibilitySettings({
+          sections: data.sections || {},
+          providers: data.providers || {},
+          features: data.features || {},
+        });
+      }
+    }, (error) => {
+      console.error('Firebase visibility error:', error);
+    });
+
+    // Also listen to legacy sectionVisibility for backward compatibility
+    const legacyRef = ref(database, 'adminSettings/sectionVisibility');
+    const unsubLegacy = onValue(legacyRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setVisibilitySettings(prev => ({
+          ...prev,
+          sections: { ...prev.sections, ...data },
+        }));
+      }
+    });
+
+    return () => { unsubscribe(); unsubLegacy(); };
   }, []);
 
   // Banner auto-rotation
@@ -407,6 +498,23 @@ export default function HomeScreen() {
   }, []);
 
   const handleServiceClick = (serviceId: string) => {
+    const isVerified = user?.kycStatus === 'verified';
+
+    // Block certain actions for unverified users
+    const blockedActions = ['transfer', 'currency-exchange'];
+    if (blockedActions.includes(serviceId) && !isVerified) {
+      useAppStore.getState().addNotification({
+        id: Date.now().toString(),
+        title: 'يرجى توثيق حسابك أولاً',
+        body: 'لا يمكنك استخدام هذه الخدمة إلا بعد توثيق حسابك',
+        type: 'security',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+      });
+      setActiveScreen('kyc');
+      return;
+    }
+
     switch (serviceId) {
       case 'transfer':
         setTransferOpen(true);
@@ -418,9 +526,11 @@ export default function HomeScreen() {
         useAppStore.getState().setActiveTab('wallet');
         break;
       case 'crypto':
-      case 'crypto-invest':
         useAppStore.getState().setSelectedCategory(serviceId);
         useAppStore.getState().setActiveScreen('category-detail');
+        break;
+      case 'crypto-invest':
+        useAppStore.getState().setActiveScreen('investment');
         break;
       case 'currency-exchange':
         setActiveScreen('exchange');
@@ -464,16 +574,16 @@ export default function HomeScreen() {
           {/* Right side - Logo + Greeting */}
           <div className="flex items-center gap-3">
             <div
-              className="w-10 h-10 rounded-xl overflow-hidden"
-              style={{ boxShadow: '0 2px 8px rgba(230,0,0,0.15)' }}
+              className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center"
+              style={{ background: isDark ? 'rgba(230,0,0,0.08)' : 'rgba(230,0,0,0.06)', boxShadow: '0 2px 8px rgba(230,0,0,0.15)' }}
             >
-              <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" style={{ filter: RED_LOGO_FILTER }} />
+              <img src={LOGO_BASE64} alt="الحبيلين" className="w-full h-full object-cover" style={{ filter: RED_LOGO_FILTER }} />
             </div>
             <button onClick={handleGreetingTap} className="active:scale-95 transition-transform">
               <h1 className="text-base font-bold" style={{ color: isDark ? '#FFFFFF' : '#1a1a1a' }}>
                 {getGreeting()}، {user?.name || 'مستخدم'}
               </h1>
-              <p className="text-[11px]" style={{ color: isDark ? '#666' : '#999' }}>محفظة الجنوب</p>
+              <p className="text-[11px]" style={{ color: isDark ? '#666' : '#999' }}>الحبيلين اونلاين</p>
             </button>
           </div>
 
@@ -504,6 +614,16 @@ export default function HomeScreen() {
           </div>
         </div>
       </motion.div>
+
+      {/* ========================================
+          VERIFICATION GATE BANNER
+          Shows when user is NOT verified
+          ======================================== */}
+      <AnimatePresence>
+        {user && user.kycStatus !== 'verified' && (
+          <VerificationBanner isDark={isDark} />
+        )}
+      </AnimatePresence>
 
       {/* ========================================
           BALANCE CARD CAROUSEL - Jaib Style
@@ -597,11 +717,11 @@ export default function HomeScreen() {
                         }}
                       >
                         {/* White logo on colored card background */}
-                        <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" />
+                        <img src={LOGO_BASE64} alt="الحبيلين" className="w-full h-full object-cover" />
                       </div>
                       <div className="flex flex-col leading-none">
-                        <span className="text-white text-sm font-bold tracking-wide">الجنوب</span>
-                        <span className="text-white/40 text-[9px] font-medium mt-0.5" dir="ltr">Alganob</span>
+                        <span className="text-white text-sm font-bold tracking-wide">الحبيلين</span>
+                        <span className="text-white/40 text-[9px] font-medium mt-0.5" dir="ltr">Alhablayn</span>
                       </div>
                     </div>
                     {/* Eye toggle + Wifi */}
@@ -654,8 +774,9 @@ export default function HomeScreen() {
                 className="rounded-full transition-all duration-300 cursor-pointer"
                 onClick={() => snapToCard(index)}
                 style={{
-                  width: activeCardIndex === index ? 5 : 3,
-                  height: activeCardIndex === index ? 5 : 3,
+                  width: activeCardIndex === index ? '6px' : '4px',
+                  height: activeCardIndex === index ? '6px' : '4px',
+                  borderRadius: '50%',
                   background: activeCardIndex === index ? balanceCards[index].accentColor : (isDark ? '#333' : '#D4D4D4'),
                 }}
               />
@@ -737,7 +858,7 @@ export default function HomeScreen() {
                     key={i}
                     onClick={(e) => { e.stopPropagation(); setBannerIndex(i); }}
                     className="rounded-full transition-all duration-300"
-                    style={{ width: i === bannerIndex ? 5 : 3, height: i === bannerIndex ? 5 : 3, background: i === bannerIndex ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)' }}
+                    style={{ width: i === bannerIndex ? '6px' : '4px', height: i === bannerIndex ? '6px' : '4px', borderRadius: '50%', background: i === bannerIndex ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)' }}
                   />
                 ))}
               </div>
@@ -790,7 +911,7 @@ export default function HomeScreen() {
 
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1">
               {promoItems.map((_, i) => (
-                <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === promoIndex ? 5 : 3, height: i === promoIndex ? 5 : 3, background: i === promoIndex ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)' }} />
+                <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === promoIndex ? '6px' : '4px', height: i === promoIndex ? '6px' : '4px', borderRadius: '50%', background: i === promoIndex ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)' }} />
               ))}
             </div>
           </div>
@@ -820,7 +941,7 @@ export default function HomeScreen() {
         </div>
 
         <div className="grid grid-cols-3 gap-3">
-          {homeServices.map((service, index) => {
+          {homeServices.filter(service => visibilitySettings.sections[service.id] !== false).map((service, index) => {
             const iconSrc = productIcons[service.iconKey] || serviceIcons[service.iconKey];
             return (
               <motion.button

@@ -29,10 +29,13 @@ import {
   Heart,
   LayoutDashboard,
   Crown,
+  Globe,
+  ExternalLink,
+  Mail,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { database } from '@/lib/firebase';
-import { ref, get } from 'firebase/database';
+import { ref, get, onValue } from 'firebase/database';
 import { LOGO_BASE64 } from '@/lib/logo';
 
 interface SectionItem {
@@ -102,6 +105,34 @@ export default function AccountScreen() {
     'fingerprint': true,
     'face-id': false,
   });
+
+  // Social links from Firebase
+  const [socialLinks, setSocialLinks] = useState<{
+    whatsapp: string; facebook: string; twitter: string; instagram: string;
+    telegram: string; youtube: string; supportEmail: string; contactAdmin: string;
+    contactAdminMessage: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const linksRef = ref(database, 'adminSettings/socialLinks');
+    const unsubscribe = onValue(linksRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setSocialLinks({
+          whatsapp: data.whatsapp || '',
+          facebook: data.facebook || '',
+          twitter: data.twitter || '',
+          instagram: data.instagram || '',
+          telegram: data.telegram || '',
+          youtube: data.youtube || '',
+          supportEmail: data.supportEmail || '',
+          contactAdmin: data.contactAdmin || '',
+          contactAdminMessage: data.contactAdminMessage || '',
+        });
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Check admin/owner role directly from Firebase
   useEffect(() => {
@@ -417,6 +448,137 @@ export default function AccountScreen() {
             </div>
             <ChevronLeft size={18} strokeWidth={1.5} color="#E60000" />
           </button>
+        </motion.div>
+      )}
+
+      {/* Social Links Section */}
+      {socialLinks && (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+          className="px-4 mt-3"
+        >
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{
+              background: isDark ? '#1A1A1A' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}`,
+            }}
+          >
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(230,0,0,0.1)' }}
+              >
+                <Globe size={18} strokeWidth={1.5} color="#E60000" />
+              </div>
+              <span className="flex-1 text-right text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
+                تواصل معنا
+              </span>
+            </div>
+            <div
+              className="flex items-center justify-center gap-3 px-4 py-4"
+              style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}` }}
+            >
+              {socialLinks.whatsapp && (
+                <a
+                  href={`https://wa.me/${socialLinks.whatsapp.replace(/[^0-9]/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-11 h-11 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(37,211,102,0.12)' }}
+                >
+                  <Phone size={20} strokeWidth={1.5} color="#25D366" />
+                </a>
+              )}
+              {socialLinks.facebook && (
+                <a
+                  href={socialLinks.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-11 h-11 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(24,119,242,0.12)' }}
+                >
+                  <Globe size={20} strokeWidth={1.5} color="#1877F2" />
+                </a>
+              )}
+              {socialLinks.twitter && (
+                <a
+                  href={socialLinks.twitter}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-11 h-11 rounded-xl flex items-center justify-center"
+                  style={{ background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }}
+                >
+                  <Globe size={20} strokeWidth={1.5} color={isDark ? '#FFF' : '#1a1a1a'} />
+                </a>
+              )}
+              {socialLinks.instagram && (
+                <a
+                  href={socialLinks.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-11 h-11 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(225,48,108,0.12)' }}
+                >
+                  <Globe size={20} strokeWidth={1.5} color="#E1306C" />
+                </a>
+              )}
+              {socialLinks.telegram && (
+                <a
+                  href={socialLinks.telegram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-11 h-11 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(0,136,204,0.12)' }}
+                >
+                  <MessageCircle size={20} strokeWidth={1.5} color="#0088CC" />
+                </a>
+              )}
+              {socialLinks.youtube && (
+                <a
+                  href={socialLinks.youtube}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-11 h-11 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(255,0,0,0.12)' }}
+                >
+                  <Globe size={20} strokeWidth={1.5} color="#FF0000" />
+                </a>
+              )}
+              {socialLinks.supportEmail && (
+                <a
+                  href={`mailto:${socialLinks.supportEmail}`}
+                  className="w-11 h-11 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(230,0,0,0.12)' }}
+                >
+                  <Mail size={20} strokeWidth={1.5} color="#E60000" />
+                </a>
+              )}
+              {socialLinks.contactAdmin && (
+                <a
+                  href={socialLinks.contactAdmin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-11 h-11 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(139,92,246,0.12)' }}
+                >
+                  <ExternalLink size={20} strokeWidth={1.5} color="#8B5CF6" />
+                </a>
+              )}
+            </div>
+            {socialLinks.contactAdminMessage && (
+              <div
+                className="px-4 pb-3"
+                style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}` }}
+              >
+                <p className="text-xs text-center pt-3 leading-relaxed" style={{ color: isDark ? '#AAA' : '#666' }}>
+                  {socialLinks.contactAdminMessage}
+                </p>
+              </div>
+            )}
+          </div>
         </motion.div>
       )}
 

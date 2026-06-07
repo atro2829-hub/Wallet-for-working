@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -68,6 +68,18 @@ export default function TransferModal() {
   const isDark = theme === 'dark';
   const { isTransferOpen, setTransferOpen, user, setActiveScreen } = useAppStore();
   const { showToast } = useToast();
+
+  // Check if user is verified - block transfer if not
+  const isVerified = user?.kycStatus === 'verified';
+
+  // Show verification block if user is not verified
+  useEffect(() => {
+    if (isTransferOpen && !isVerified) {
+      setTransferOpen(false);
+      showToast('error', 'يرجى توثيق حسابك أولاً', 'لا يمكنك التحويل إلا بعد توثيق حسابك');
+      setActiveScreen('kyc');
+    }
+  }, [isTransferOpen, isVerified, setTransferOpen, showToast, setActiveScreen]);
 
   const [transferMode, setTransferMode] = useState<TransferMode>('userId');
   const [toUserId, setToUserId] = useState('');

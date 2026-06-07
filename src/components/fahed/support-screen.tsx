@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, MessageSquare, Search, ChevronDown, ChevronUp, Plus,
   Send, ImagePlus, X, Clock, CheckCircle2, AlertCircle, HelpCircle,
-  Headphones, Paperclip, Tag
+  Headphones, Paperclip, Tag, Phone, Globe, ExternalLink
 } from 'lucide-react';
 import { useAppStore, type SupportTicket } from '@/lib/store';
 import { timeAgo, generateReference, compressBase64Image, faqItems } from '@/lib/utils';
@@ -45,6 +45,26 @@ export default function SupportScreen() {
   const [view, setView] = useState<SupportView>('main');
   const [faqSearch, setFaqSearch] = useState('');
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+
+  // Social links from Firebase
+  const [socialLinks, setSocialLinks] = useState<{
+    whatsapp: string; contactAdmin: string; contactAdminMessage: string;
+  }>({ whatsapp: '', contactAdmin: '', contactAdminMessage: '' });
+
+  useEffect(() => {
+    const linksRef = ref(database, 'adminSettings/socialLinks');
+    const unsubscribe = onValue(linksRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setSocialLinks({
+          whatsapp: data.whatsapp || '',
+          contactAdmin: data.contactAdmin || '',
+          contactAdminMessage: data.contactAdminMessage || '',
+        });
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Tickets
   const [tickets, setTickets] = useState<FirebaseTicket[]>([]);
@@ -235,6 +255,49 @@ export default function SupportScreen() {
                   <MessageSquare size={16} />
                   <span>لم تجد إجابة؟ أنشئ تذكرة دعم</span>
                 </motion.button>
+
+                {/* Contact Admin Section */}
+                {(socialLinks.whatsapp || socialLinks.contactAdmin || socialLinks.contactAdminMessage) && (
+                  <div className="rounded-2xl p-4 mt-3" style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.85)', backdropFilter: 'blur(20px)', border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)' }}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.12)' }}>
+                        <Headphones size={16} color="#8B5CF6" />
+                      </div>
+                      <h3 className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>تواصل مع الأدمن</h3>
+                    </div>
+                    {socialLinks.contactAdminMessage && (
+                      <p className="text-xs leading-relaxed mb-3" style={{ color: isDark ? '#AAA' : '#666' }}>
+                        {socialLinks.contactAdminMessage}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      {socialLinks.whatsapp && (
+                        <a
+                          href={`https://wa.me/${socialLinks.whatsapp.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold text-white"
+                          style={{ background: '#25D366' }}
+                        >
+                          <Phone size={16} />
+                          <span>واتساب</span>
+                        </a>
+                      )}
+                      {socialLinks.contactAdmin && (
+                        <a
+                          href={socialLinks.contactAdmin}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold"
+                          style={{ background: 'rgba(139,92,246,0.1)', color: '#8B5CF6' }}
+                        >
+                          <ExternalLink size={16} />
+                          <span>تواصل مباشر</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
 

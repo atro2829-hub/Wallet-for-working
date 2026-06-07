@@ -21,7 +21,7 @@ import { ref, set, get, update, remove, push, onValue } from 'firebase/database'
 import { database } from '@/lib/firebase';
 import { LOGO_BASE64 } from '@/lib/logo';
 
-type AdminTab = 'overview' | 'orders' | 'users' | 'deposit' | 'withdraw' | 'kyc' | 'banks' | 'exchangeRates' | 'instantRecharge' | 'entertainment' | 'providers' | 'codes' | 'banners' | 'socialLinks' | 'legalContent' | 'settings';
+type AdminTab = 'overview' | 'orders' | 'users' | 'deposit' | 'withdraw' | 'kyc' | 'banks' | 'exchangeRates' | 'instantRecharge' | 'entertainment' | 'providers' | 'codes' | 'giftCodes' | 'banners' | 'socialLinks' | 'legalContent' | 'settings';
 
 interface FirebaseUser {
   id: string;
@@ -109,6 +109,19 @@ interface AdminSubSection {
   icon: string;
   isActive: boolean;
   order: number;
+}
+
+interface GiftCodeData {
+  id: string;
+  code: string;
+  amount: number;
+  currency: 'YER' | 'SAR' | 'USD';
+  maxUses: number;
+  usedCount: number;
+  expiresAt: string;
+  isActive: boolean;
+  createdAt: string;
+  createdById: string;
 }
 
 interface AdminExchangeRates {
@@ -231,9 +244,15 @@ export default function AdminScreen() {
   // Social Links
   const [socialLinks, setSocialLinks] = useState({
     whatsapp: '', facebook: '', twitter: '', instagram: '',
-    telegram: '', youtube: '', contactAdmin: '',
+    telegram: '', youtube: '', supportEmail: '', contactAdmin: '',
+    contactAdminMessage: '',
   });
   const [socialLinksSaved, setSocialLinksSaved] = useState(false);
+
+  // Gift Codes
+  const [giftCodes, setGiftCodes] = useState<GiftCodeData[]>([]);
+  const [showAddGiftCode, setShowAddGiftCode] = useState(false);
+  const [newGiftCode, setNewGiftCode] = useState({ amount: 0, currency: 'YER' as 'YER' | 'SAR' | 'USD', maxUses: 1, expiresAt: '' });
 
   // Legal Content
   const [legalContent, setLegalContent] = useState({
@@ -444,7 +463,9 @@ export default function AdminScreen() {
           instagram: data.instagram || '',
           telegram: data.telegram || '',
           youtube: data.youtube || '',
+          supportEmail: data.supportEmail || '',
           contactAdmin: data.contactAdmin || '',
+          contactAdminMessage: data.contactAdminMessage || '',
         }));
       }
     });
@@ -468,6 +489,21 @@ export default function AdminScreen() {
     return () => unsubscribe();
   }, []);
 
+  // Listen to gift codes from Firebase
+  useEffect(() => {
+    const giftRef = ref(database, 'giftCodes');
+    const unsubscribe = onValue(giftRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const codesList = Object.values(data) as GiftCodeData[];
+        setGiftCodes(codesList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      } else {
+        setGiftCodes([]);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const allOrders = [...firebaseOrders, ...orders].filter(
     (order, index, self) => index === self.findIndex(o => o.id === order.id)
   );
@@ -476,7 +512,7 @@ export default function AdminScreen() {
     if (orderFilter !== 'all' && o.status !== orderFilter) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      return o.userName?.toLowerCase().includes(q) || o.customerInput?.includes(q) || o.providerName?.includes(q) || o.packageName?.includes(q);
+      return o.userName?.toLowerCase().includes(q) || o.customerInput?.includes(q) || o.providerName?.includes(q) || o.packageName?.includes(q) || o.id?.toLowerCase().includes(q) || o.userPhone?.includes(q);
     }
     return true;
   });
@@ -843,6 +879,49 @@ export default function AdminScreen() {
     } catch {}
   };
 
+  // Gift code handler
+  const generateGiftCodeString = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const length = 8 + Math.floor(Math.random() * 5); // 8-12 characters
+    let code = '';
+    for (let i = 0; i < length; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  };
+
+  const handleAddGiftCode = async () => {
+    if (newGiftCode.amount <= 0) return;
+    const id = 'gc-' + Date.now();
+    const code = generateGiftCodeString();
+    const giftCode: GiftCodeData = {
+      id, code, amount: newGiftCode.amount, currency: newGiftCode.currency,
+      maxUses: newGiftCode.maxUses, usedCount: 0,
+      expiresAt: newGiftCode.expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      isActive: true, createdAt: new Date().toISOString(), createdById: user?.id || 'admin',
+    };
+    try {
+      await set(ref(database, `giftCodes/${id}`), giftCode);
+      setNewGiftCode({ amount: 0, currency: 'YER', maxUses: 1, expiresAt: '' });
+      setShowAddGiftCode(false);
+      addAuditEntry(`تم إنشاء كود هدية ${code} بقيمة ${giftCode.amount} ${currencySymbols[giftCode.currency]}`);
+    } catch {}
+  };
+
+  const handleToggleGiftCode = async (gc: GiftCodeData) => {
+    try {
+      await update(ref(database, `giftCodes/${gc.id}`), { isActive: !gc.isActive });
+      addAuditEntry(`تم ${gc.isActive ? 'تعطيل' : 'تفعيل'} كود الهدية ${gc.code}`);
+    } catch {}
+  };
+
+  const handleDeleteGiftCode = async (gc: GiftCodeData) => {
+    try {
+      await remove(ref(database, `giftCodes/${gc.id}`));
+      addAuditEntry(`تم حذف كود الهدية ${gc.code}`);
+    } catch {}
+  };
+
   // Legal content handler
   const handleSaveLegalContent = () => {
     try {
@@ -879,7 +958,7 @@ export default function AdminScreen() {
 
   const tabs: { id: AdminTab; label: string; icon: typeof BarChart3; badge?: number }[] = [
     { id: 'overview', label: 'نظرة عامة', icon: BarChart3 },
-    { id: 'orders', label: 'الطلبات', icon: ShoppingBag, badge: pendingOrders.length },
+    { id: 'orders', label: 'طلبات الشحن', icon: ShoppingBag, badge: pendingOrders.length },
     { id: 'users', label: 'المستخدمون', icon: Users, badge: firebaseUsers.length },
     { id: 'deposit', label: 'الإيداع', icon: ArrowDownCircle, badge: depositRequests.filter(d => d.status === 'pending').length },
     { id: 'withdraw', label: 'السحب', icon: ArrowUpCircle, badge: withdrawRequests.filter(w => w.status === 'pending').length },
@@ -887,9 +966,10 @@ export default function AdminScreen() {
     { id: 'banks', label: 'البنوك', icon: Building2 },
     { id: 'exchangeRates', label: 'أسعار الصرف', icon: RefreshCw },
     { id: 'instantRecharge', label: 'الشحن الفوري', icon: Smartphone },
-    { id: 'entertainment', label: 'الترفيهية', icon: Gamepad2 },
+    { id: 'entertainment', label: 'المنتجات الترفيهية', icon: Gamepad2 },
     { id: 'providers', label: 'المزودون', icon: Server },
-    { id: 'codes', label: 'الأكواد', icon: Tag },
+    { id: 'codes', label: 'أكواد الخصم', icon: Tag },
+    { id: 'giftCodes', label: 'أكواد الهدايا', icon: Gift },
     { id: 'banners', label: 'البانرات', icon: ImagePlus },
     { id: 'socialLinks', label: 'روابط التواصل', icon: Link },
     { id: 'legalContent', label: 'المحتوى', icon: BookOpen },
@@ -946,7 +1026,7 @@ export default function AdminScreen() {
             </motion.button>
             <div className="flex-1">
               <h1 className="text-white text-lg font-bold">لوحة التحكم</h1>
-              <p className="text-white/40 text-[10px]">إدارة محفظة الجنوب - {activeTabInfo?.label}</p>
+              <p className="text-white/40 text-[10px]">إدارة الحبيلين اونلاين - {activeTabInfo?.label}</p>
             </div>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center glow-red" style={{ background: 'rgba(230,0,0,0.2)' }}>
               <ShieldCheck size={20} strokeWidth={1.5} color="#E60000" />
@@ -1059,12 +1139,21 @@ export default function AdminScreen() {
               </motion.div>
             )}
 
-            {/* === ORDERS === */}
+            {/* === CHARGING & PRODUCT REQUESTS === */}
             {activeTab === 'orders' && (
               <motion.div key="orders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
+                <div className="flex items-center gap-2 px-1 mb-1">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(230,0,0,0.1)' }}>
+                    <ShoppingBag size={16} color="#E60000" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>طلبات الشحن والمنتجات</h3>
+                    <p className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>{allOrders.length} طلب إجمالي • {pendingOrders.length} قيد الانتظار</p>
+                  </div>
+                </div>
                 <div className="flex items-center gap-2 px-4 py-3 rounded-2xl" style={cardStyle}>
                   <Search size={18} strokeWidth={1.5} color={isDark ? '#555' : '#AAA'} />
-                  <input type="text" placeholder="ابحث بالاسم، الرقم، الخدمة..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="flex-1 bg-transparent outline-none text-sm" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} />
+                  <input type="text" placeholder="ابحث بالاسم، الرقم، الخدمة، رقم الطلب..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="flex-1 bg-transparent outline-none text-sm" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} />
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {(['all', 'pending', 'completed', 'cancelled'] as const).map((filter) => (
@@ -1111,7 +1200,9 @@ export default function AdminScreen() {
                         <div className="flex items-center gap-4 mb-3 p-2.5 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
                           <div><p className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>العميل</p><p className="text-xs font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{order.userName}</p></div>
                           <div className="w-px h-6" style={{ background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
-                          <div><p className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>الرقم/المعرف</p><p className="text-xs font-medium" dir="ltr" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{order.customerInput}</p></div>
+                          <div><p className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>الهاتف</p><p className="text-xs font-medium" dir="ltr" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{order.userPhone || order.customerInput}</p></div>
+                          <div className="w-px h-6" style={{ background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
+                          <div><p className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>المبلغ</p><p className="text-xs font-bold" style={{ color: '#E60000' }}>{order.amount.toLocaleString()} {currencySymbols[order.currency]}</p></div>
                           <div className="w-px h-6" style={{ background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
                           <div><p className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>النوع</p>
                             <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: order.executionType === 'manual' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)', color: order.executionType === 'manual' ? '#F59E0B' : '#10B981' }}>
@@ -1723,6 +1814,15 @@ export default function AdminScreen() {
             {/* === ENTERTAINMENT SERVICES === */}
             {activeTab === 'entertainment' && (
               <motion.div key="entertainment" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
+                <div className="flex items-center gap-2 px-1 mb-1">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.1)' }}>
+                    <Gamepad2 size={16} color="#8B5CF6" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>المنتجات الترفيهية</h3>
+                    <p className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>إدارة الألعاب والبطاقات الرقمية والاشتراكات</p>
+                  </div>
+                </div>
                 <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowAddProduct(!showAddProduct)}
                   className="w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 text-sm font-medium"
                   style={{ background: 'rgba(230,0,0,0.1)', color: '#E60000', border: '1px solid rgba(230,0,0,0.2)', backdropFilter: 'blur(20px)' }}>
@@ -2031,6 +2131,112 @@ export default function AdminScreen() {
               </motion.div>
             )}
 
+            {/* === GIFT CODES === */}
+            {activeTab === 'giftCodes' && (
+              <motion.div key="giftCodes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
+                <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowAddGiftCode(!showAddGiftCode)}
+                  className="w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 text-sm font-medium"
+                  style={{ background: 'rgba(230,0,0,0.1)', color: '#E60000', border: '1px solid rgba(230,0,0,0.2)', backdropFilter: 'blur(20px)' }}>
+                  <Plus size={18} strokeWidth={1.5} /><span>إنشاء كود هدية جديد</span>
+                </motion.button>
+                <AnimatePresence>
+                  {showAddGiftCode && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="rounded-2xl p-4 space-y-3 overflow-hidden" style={cardStyle}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Gift size={16} color="#E60000" />
+                        <h3 className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>إنشاء كود هدية</h3>
+                      </div>
+                      <div className="flex gap-2">
+                        <input type="number" placeholder="قيمة الهدية" value={newGiftCode.amount || ''} onChange={(e) => setNewGiftCode({ ...newGiftCode, amount: parseFloat(e.target.value) || 0 })} className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} dir="ltr" />
+                        <select value={newGiftCode.currency} onChange={(e) => setNewGiftCode({ ...newGiftCode, currency: e.target.value as 'YER' | 'SAR' | 'USD' })} className="px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
+                          <option value="YER">YER</option><option value="SAR">SAR</option><option value="USD">USD</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <label className="text-[10px] font-medium block mb-1" style={{ color: isDark ? '#AAA' : '#888' }}>الحد الأقصى للاستخدام</label>
+                          <input type="number" placeholder="الحد الأقصى" value={newGiftCode.maxUses || ''} onChange={(e) => setNewGiftCode({ ...newGiftCode, maxUses: parseInt(e.target.value) || 1 })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} dir="ltr" />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-[10px] font-medium block mb-1" style={{ color: isDark ? '#AAA' : '#888' }}>تاريخ الانتهاء</label>
+                          <input type="date" value={newGiftCode.expiresAt} onChange={(e) => setNewGiftCode({ ...newGiftCode, expiresAt: e.target.value })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} />
+                        </div>
+                      </div>
+                      <motion.button whileTap={{ scale: 0.95 }} onClick={handleAddGiftCode} className="w-full py-3 rounded-xl text-sm font-bold text-white" style={{ background: '#E60000' }}>إنشاء الكود</motion.button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Gift codes stats */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-2xl p-3 text-center" style={cardStyle}>
+                    <p className="text-lg font-bold" style={{ color: '#E60000' }}>{giftCodes.length}</p>
+                    <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>إجمالي الأكواد</p>
+                  </div>
+                  <div className="rounded-2xl p-3 text-center" style={cardStyle}>
+                    <p className="text-lg font-bold" style={{ color: '#10B981' }}>{giftCodes.filter(gc => gc.isActive).length}</p>
+                    <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>نشطة</p>
+                  </div>
+                  <div className="rounded-2xl p-3 text-center" style={cardStyle}>
+                    <p className="text-lg font-bold" style={{ color: '#F59E0B' }}>{giftCodes.filter(gc => gc.usedCount > 0).length}</p>
+                    <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>مستخدمة</p>
+                  </div>
+                </div>
+
+                {giftCodes.map((gc) => {
+                  const isExpired = gc.expiresAt && new Date(gc.expiresAt) < new Date();
+                  const isFullyUsed = gc.usedCount >= gc.maxUses;
+                  return (
+                    <div key={gc.id} className="rounded-2xl overflow-hidden" style={{
+                      ...cardStyle,
+                      border: isExpired ? '1px solid rgba(245,158,11,0.3)' : isFullyUsed ? '1px solid rgba(230,0,0,0.2)' : cardStyle.border,
+                    }}>
+                      <div className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.12)' }}>
+                              <Gift size={18} color="#8B5CF6" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-mono font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} dir="ltr">{gc.code}</p>
+                              <p className="text-xs font-bold" style={{ color: '#E60000' }}>{gc.amount.toLocaleString()} {currencySymbols[gc.currency]}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => { navigator.clipboard?.writeText(gc.code); }}>
+                              <Copy size={14} color={isDark ? '#888' : '#AAA'} />
+                            </button>
+                            <button onClick={() => handleToggleGiftCode(gc)}>
+                              {gc.isActive ? <ToggleRight size={22} color="#10B981" /> : <ToggleLeft size={22} color={isDark ? '#444' : '#CCC'} />}
+                            </button>
+                            <button onClick={() => handleDeleteGiftCode(gc)}>
+                              <Trash2 size={14} color="#E60000" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 mt-2">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{
+                            background: isExpired ? 'rgba(245,158,11,0.15)' : isFullyUsed ? 'rgba(230,0,0,0.15)' : gc.isActive ? 'rgba(16,185,129,0.15)' : 'rgba(102,102,102,0.15)',
+                            color: isExpired ? '#F59E0B' : isFullyUsed ? '#E60000' : gc.isActive ? '#10B981' : '#666',
+                          }}>
+                            {isExpired ? 'منتهي الصلاحية' : isFullyUsed ? 'تم الاستخدام بالكامل' : gc.isActive ? 'نشط' : 'معطل'}
+                          </span>
+                          <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>استخدام: {gc.usedCount}/{gc.maxUses}</span>
+                          {gc.expiresAt && <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>ينتهي: {new Date(gc.expiresAt).toLocaleDateString('ar-SA')}</span>}
+                        </div>
+                        <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
+                          <div className="h-full rounded-full transition-all" style={{ width: `${Math.min((gc.usedCount / gc.maxUses) * 100, 100)}%`, background: gc.usedCount >= gc.maxUses ? '#E60000' : '#8B5CF6' }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {giftCodes.length === 0 && (
+                  <div className="flex flex-col items-center py-8"><Gift size={40} strokeWidth={1.5} color={isDark ? '#333' : '#DDD'} /><p className="text-sm mt-2" style={{ color: isDark ? '#666' : '#AAA' }}>لا توجد أكواد هدايا</p><p className="text-xs mt-1" style={{ color: isDark ? '#555' : '#BBB' }}>أنشئ كود هدية جديد ليستفيد المستخدمون</p></div>
+                )}
+              </motion.div>
+            )}
+
             {/* === BANNERS === */}
             {activeTab === 'banners' && (
               <motion.div key="banners" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
@@ -2162,7 +2368,8 @@ export default function AdminScreen() {
                     { key: 'instagram' as const, label: 'انستغرام', placeholder: 'رابط حساب انستغرام', icon: Globe },
                     { key: 'telegram' as const, label: 'تيليغرام', placeholder: 'رابط قناة أو مجموعة تيليغرام', icon: Globe },
                     { key: 'youtube' as const, label: 'يوتيوب', placeholder: 'رابط قناة يوتيوب', icon: Globe },
-                    { key: 'contactAdmin' as const, label: 'تواصل مع الادمن', placeholder: 'رابط زر تواصل مع الادمن', icon: ExternalLink },
+                    { key: 'supportEmail' as const, label: 'البريد الإلكتروني للدعم', placeholder: 'بريد الدعم الفني (مثال: support@example.com)', icon: Mail },
+                    { key: 'contactAdmin' as const, label: 'رابط تواصل مع الادمن', placeholder: 'رابط زر تواصل مع الادمن', icon: ExternalLink },
                   ].map((field) => {
                     const Icon = field.icon;
                     return (
@@ -2179,6 +2386,23 @@ export default function AdminScreen() {
                   })}
                 </div>
 
+                {/* Contact Admin Message */}
+                <div className="rounded-2xl p-4 space-y-3" style={cardStyle}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <MessageSquare size={16} color="#E60000" />
+                    <h3 className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>رسالة تواصل مع الأدمن</h3>
+                  </div>
+                  <p className="text-xs mb-2" style={{ color: isDark ? '#888' : '#AAA' }}>رسالة تظهر للمستخدمين في صفحة الدعم عند الضغط على تواصل مع الأدمن</p>
+                  <textarea
+                    placeholder="اكتب رسالة تواصل مع الأدمن هنا..."
+                    value={socialLinks.contactAdminMessage}
+                    onChange={(e) => setSocialLinks({ ...socialLinks, contactAdminMessage: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
+                    style={inputStyle}
+                  />
+                </div>
+
                 {/* Preview */}
                 <div className="rounded-2xl p-4" style={cardStyle}>
                   <div className="flex items-center gap-2 mb-3">
@@ -2191,7 +2415,8 @@ export default function AdminScreen() {
                       const labels: Record<string, string> = {
                         whatsapp: 'واتساب', facebook: 'فيسبوك', twitter: 'تويتر',
                         instagram: 'انستغرام', telegram: 'تيليغرام', youtube: 'يوتيوب',
-                        contactAdmin: 'تواصل مع الادمن',
+                        supportEmail: 'البريد الإلكتروني', contactAdmin: 'تواصل مع الادمن',
+                        contactAdminMessage: 'رسالة الأدمن',
                       };
                       return (
                         <div key={key} className="flex items-center justify-between p-2.5 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>

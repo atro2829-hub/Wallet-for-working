@@ -162,14 +162,15 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
             className="absolute flex flex-col items-center"
           >
             <div
-              className="w-20 h-20 rounded-2xl overflow-hidden mb-4"
+              className="w-20 h-20 rounded-2xl overflow-hidden mb-4 flex items-center justify-center"
               style={{
                 boxShadow: '0 8px 24px rgba(230,0,0,0.3)',
+                background: 'rgba(255,255,255,0.15)',
               }}
             >
-              <img src={LOGO_BASE64} alt="محفظة الجنوب" className="w-full h-full object-cover" />
+              <img src={LOGO_BASE64} alt="الحبيلين اونلاين" className="w-full h-full object-cover" />
             </div>
-            <h1 className="text-2xl font-bold" style={{ color: '#FFFFFF' }}>محفظة الجنوب</h1>
+            <h1 className="text-2xl font-bold" style={{ color: '#FFFFFF' }}>الحبيلين اونلاين</h1>
             <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.7)' }}>محفظتك الرقمية الموثوقة</p>
           </motion.div>
 

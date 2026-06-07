@@ -80,7 +80,7 @@ export default function PromoScreen() {
             </motion.button>
             <div className="flex-1">
               <h1 className="text-white text-xl font-bold">أكواد الخصم</h1>
-              <p className="text-white/40 text-xs">وفر أكثر مع محفظة الجنوب</p>
+              <p className="text-white/40 text-xs">وفر أكثر مع الحبيلين اونلاين</p>
             </div>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(230,0,0,0.2)' }}>
               <Tag size={20} strokeWidth={1.5} color="#E60000" />
