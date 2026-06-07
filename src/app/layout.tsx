@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from "@/components/fahed/theme-provider";
 
 export const metadata: Metadata = {
   title: "الحبيلين اونلاين - محفظتك الرقمية",
@@ -44,17 +45,30 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="format-detection" content="telephone=yes" />
         <meta name="msapplication-tap-highlight" content="no" />
+        {/* Inline script to prevent dark mode flash */}
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            try {
+              const theme = localStorage.getItem('fahed-theme');
+              if (theme === '"dark"' || theme === 'dark') {
+                document.documentElement.classList.add('dark');
+                document.documentElement.style.backgroundColor = '#0F0F0F';
+              }
+            } catch(e) {}
+          `,
+        }} />
       </head>
       <body
-        className="antialiased font-sans"
+        className="antialiased font-sans bg-[#F5F5F5] dark:bg-[#0F0F0F]"
         style={{
           fontFamily: "'Segoe UI', Tahoma, 'Noto Sans Arabic', 'Arial', sans-serif",
-          background: '#F5F5F5',
           overscrollBehavior: 'none',
           WebkitTapHighlightColor: 'transparent',
         }}
       >
-        {children}
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
         <Toaster />
       </body>
     </html>

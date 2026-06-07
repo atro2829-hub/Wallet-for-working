@@ -3,14 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAppStore } from '@/lib/store';
-import { ThemeProvider } from '@/components/fahed/theme-provider';
-import { ToastProvider } from '@/components/fahed/toast-provider';
+import { ToastProvider, useToast } from '@/components/fahed/toast-provider';
 import { useTheme } from 'next-themes';
-import { ShieldAlert, X, ShieldCheck } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, database } from '@/lib/firebase';
 import { ref, get, update } from 'firebase/database';
 import { generateUserId } from '@/lib/utils';
+import { ErrorBoundary } from '@/components/fahed/error-boundary';
 
 import AuthScreen from '@/components/fahed/auth-screen';
 import HomeScreen from '@/components/fahed/home-screen';
@@ -48,114 +47,73 @@ import { useFirebaseSync } from '@/lib/use-firebase-sync';
 
 type AppPhase = 'splash' | 'pin' | 'main';
 
-// Verification banner component - shows when user is not verified
-function VerificationBanner({ isDark }: { isDark: boolean }) {
-  const [dismissed, setDismissed] = useState(false);
-  const { user, setActiveScreen } = useAppStore();
-
-  if (dismissed) return null;
-  if (!user || user.kycStatus === 'verified') return null;
-
-  const statusConfig: Record<string, { label: string; color: string; bgColor: string; borderColor: string }> = {
-    pending: { label: 'لم يتم التوثيق', color: '#F59E0B', bgColor: 'rgba(245,158,11,0.1)', borderColor: 'rgba(245,158,11,0.2)' },
-    submitted: { label: 'قيد المراجعة', color: '#3B82F6', bgColor: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.2)' },
-    rejected: { label: 'مرفوض', color: '#E60000', bgColor: 'rgba(230,0,0,0.1)', borderColor: 'rgba(230,0,0,0.2)' },
-  };
-
-  const config = statusConfig[user.kycStatus] || statusConfig.pending;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="mx-4 mb-3 rounded-2xl p-4 relative"
-      style={{
-        background: config.bgColor,
-        border: `1px solid ${config.borderColor}`,
-      }}
-    >
-      <button
-        onClick={() => setDismissed(true)}
-        className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center"
-        style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}
-      >
-        <X size={12} strokeWidth={1.5} color={isDark ? '#888' : '#AAA'} />
-      </button>
-
-      <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${config.color}15` }}>
-          <ShieldAlert size={18} strokeWidth={1.5} color={config.color} />
-        </div>
-        <div className="flex-1 pr-4">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold" style={{ color: config.color }}>{config.label}</span>
-          </div>
-          <p className="text-xs leading-relaxed" style={{ color: isDark ? '#AAA' : '#666' }}>
-            لا يمكنك استخدام مميزات التطبيق الا بعد التوثيق
-          </p>
-          {user.kycStatus === 'pending' && (
-            <button
-              onClick={() => setActiveScreen('kyc')}
-              className="mt-2 px-4 py-1.5 rounded-lg text-xs font-bold text-white"
-              style={{ background: config.color }}
-            >
-              توثيق الحساب
-            </button>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-// Verification status indicator for the home screen header
-function VerificationStatusBadge() {
-  const { user, setActiveScreen } = useAppStore();
-  if (!user) return null;
-
-  const statusMap: Record<string, { label: string; color: string }> = {
-    verified: { label: 'موثق', color: '#10B981' },
-    pending: { label: 'غير موثق', color: '#F59E0B' },
-    submitted: { label: 'قيد المراجعة', color: '#3B82F6' },
-    rejected: { label: 'مرفوض', color: '#E60000' },
-  };
-
-  const config = statusMap[user.kycStatus] || statusMap.pending;
-
-  return (
-    <button
-      onClick={() => setActiveScreen('kyc')}
-      className="flex items-center gap-1 px-2 py-1 rounded-lg active:scale-95 transition-transform"
-      style={{ background: `${config.color}12` }}
-    >
-      {user.kycStatus === 'verified' ? (
-        <ShieldCheck size={12} strokeWidth={1.5} color={config.color} />
-      ) : (
-        <ShieldAlert size={12} strokeWidth={1.5} color={config.color} />
-      )}
-      <span className="text-[10px] font-bold" style={{ color: config.color }}>{config.label}</span>
-    </button>
-  );
-}
-
 function AppContent() {
   const { user, isAuthenticated, activeTab, activeScreen, setActiveScreen, theme: storeTheme, pinCode, selectedCategory } = useAppStore();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { setTheme } = useTheme();
+  const { showToast } = useToast();
   const mountedRef = useRef(false);
   const [showUI, setShowUI] = useState(false);
   const [phase, setPhase] = useState<AppPhase>('splash');
   const [authLoading, setAuthLoading] = useState(true);
   const [splashDone, setSplashDone] = useState(false);
+  const authInitializedRef = useRef(false);
+  const kycToastShownRef = useRef(false);
 
   // Sync user data from Firebase (real-time + on focus + on mount)
   useFirebaseSync();
 
+  // Show KYC verification toast as a floating notification
+  useEffect(() => {
+    if (!user || !isAuthenticated) {
+      kycToastShownRef.current = false;
+      return;
+    }
+    if (user.kycStatus === 'verified') {
+      kycToastShownRef.current = false;
+      return;
+    }
+    // Only show once per login session
+    if (kycToastShownRef.current) return;
+    kycToastShownRef.current = true;
+
+    const statusMessages: Record<string, { title: string; message: string; type: 'warning' | 'info' | 'error' }> = {
+      pending: {
+        title: 'حسابك غير موثق',
+        message: 'لاستخدام جميع مميزات التطبيق، يرجى توثيق حسابك الآن',
+        type: 'warning',
+      },
+      submitted: {
+        title: 'طلب التوثيق قيد المراجعة',
+        message: 'سيتم إشعارك بعد مراجعة طلب التوثيق',
+        type: 'info',
+      },
+      rejected: {
+        title: 'تم رفض طلب التوثيق',
+        message: 'يرجى إعادة تقديم طلب التوثيق مع البيانات الصحيحة',
+        type: 'error',
+      },
+    };
+
+    const config = statusMessages[user.kycStatus] || statusMessages.pending;
+
+    // Delay the toast so it doesn't appear during transition
+    const timer = setTimeout(() => {
+      showToast(config.type, config.title, config.message);
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [user?.kycStatus, isAuthenticated, showToast]);
+
   // Listen to Firebase Auth state changes and sync with Zustand store
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      // Mark that auth has been initialized at least once
+      if (!authInitializedRef.current) {
+        authInitializedRef.current = true;
+      }
+
       if (firebaseUser) {
         // User is signed in via Firebase Auth
         // Check if Zustand store already has this user synced
@@ -221,9 +179,12 @@ function AppContent() {
           }
         } catch (error) {
           console.error('Error fetching user data on auth state change:', error);
+          // Don't logout on fetch error - the user might just have a network issue
         }
       } else {
-        // User is signed out - clear store
+        // User is signed out from Firebase Auth
+        // Only clear store if auth was already initialized (not during initial load)
+        // This prevents premature logout when Firebase Auth is still initializing
         const currentState = useAppStore.getState();
         if (currentState.isAuthenticated || currentState.user) {
           useAppStore.getState().logout();
@@ -451,11 +412,6 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       <main className="flex-1 overflow-y-auto pb-24">
-        {/* Verification banner at top of home screen */}
-        <AnimatePresence>
-          {activeTab === 'home' && <VerificationBanner isDark={isDark} />}
-        </AnimatePresence>
-
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -480,10 +436,10 @@ function AppContent() {
 
 export default function Home() {
   return (
-    <ThemeProvider>
+    <ErrorBoundary>
       <ToastProvider>
         <AppContent />
       </ToastProvider>
-    </ThemeProvider>
+    </ErrorBoundary>
   );
 }

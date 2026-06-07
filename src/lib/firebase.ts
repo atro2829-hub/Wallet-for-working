@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, initializeAuth, browserLocalPersistence, indexedDBLocalPersistence } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 import { getStorage } from 'firebase/storage';
 
@@ -14,7 +14,24 @@ const firebaseConfig = {
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-export const auth = getAuth(app);
+
+// Initialize auth with explicit persistence for Capacitor/Android WebView
+let auth;
+try {
+  if (getApps().length === 0) {
+    // First initialization - use indexedDB persistence for better Capacitor support
+    auth = initializeAuth(app, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+    });
+  } else {
+    auth = getAuth(app);
+  }
+} catch (error) {
+  // If initializeAuth fails (e.g., already initialized), fall back to getAuth
+  auth = getAuth(app);
+}
+
+export { auth };
 export const database = getDatabase(app);
 export const storage = getStorage(app);
 export default app;

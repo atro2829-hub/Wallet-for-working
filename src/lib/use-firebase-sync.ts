@@ -12,22 +12,48 @@ import { useAppStore } from '@/lib/store';
  * - Real-time: Listens for balance changes and new transactions via onValue
  * - On window focus: Refreshes user data and transactions
  * - On reconnect: Refreshes user data and transactions
+ * 
+ * FIXED: Uses queries for transactions instead of downloading the entire table.
+ * FIXED: Uses refs for callbacks to prevent infinite re-render loops.
  */
 export function useFirebaseSync() {
-  const { user, isAuthenticated, setUser, setTransactions, setNotifications, addNotification } = useAppStore();
+  const user = useAppStore((s) => s.user);
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+  const setUser = useAppStore((s) => s.setUser);
+  const setTransactions = useAppStore((s) => s.setTransactions);
+  const setNotifications = useAppStore((s) => s.setNotifications);
+
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const txUnsubscribeRef = useRef<(() => void) | null>(null);
   const notifUnsubscribeRef = useRef<(() => void) | null>(null);
   const isRefreshing = useRef(false);
 
+  // Use refs for stable references in callbacks
+  const userIdRef = useRef(user?.id);
+  const isAuthenticatedRef = useRef(isAuthenticated);
+  const setUserRef = useRef(setUser);
+  const setTransactionsRef = useRef(setTransactions);
+  const setNotificationsRef = useRef(setNotifications);
+
+  // Keep refs in sync with latest values
+  useEffect(() => {
+    userIdRef.current = user?.id;
+    isAuthenticatedRef.current = isAuthenticated;
+    setUserRef.current = setUser;
+    setTransactionsRef.current = setTransactions;
+    setNotificationsRef.current = setNotifications;
+  });
+
   // Fetch fresh user data from Firebase and update store
   const refreshUser = useCallback(async () => {
-    if (!user?.id || !isAuthenticated) return;
+    const currentUserId = userIdRef.current;
+    const currentIsAuth = isAuthenticatedRef.current;
+    if (!currentUserId || !currentIsAuth) return;
     if (isRefreshing.current) return;
     
     isRefreshing.current = true;
     try {
-      const userRef = ref(database, `users/${user.id}`);
+      const userRef = ref(database, `users/${currentUserId}`);
       const snapshot = await get(userRef);
       
       if (snapshot.exists()) {
@@ -35,51 +61,55 @@ export function useFirebaseSync() {
         const currentUser = useAppStore.getState().user;
         
         // Only update if data actually changed (avoid unnecessary re-renders)
-        if (currentUser && (
-          currentUser.balanceYER !== (data.balanceYER || 0) ||
-          currentUser.balanceSAR !== (data.balanceSAR || 0) ||
-          currentUser.balanceUSD !== (data.balanceUSD || 0) ||
-          currentUser.name !== (data.name || '') ||
-          currentUser.firstName !== (data.firstName || '') ||
-          currentUser.secondName !== (data.secondName || '') ||
-          currentUser.thirdName !== (data.thirdName || '') ||
-          currentUser.familyName !== (data.familyName || '') ||
-          currentUser.nationalId !== (data.nationalId || '') ||
-          currentUser.kycStatus !== (data.kycStatus || 'pending') ||
-          currentUser.isBlocked !== (data.isBlocked || false) ||
-          currentUser.phone !== (data.phone || '') ||
-          currentUser.avatar !== (data.avatar || '') ||
-          currentUser.cardType !== (data.cardType || '') ||
-          currentUser.cardNumber !== (data.cardNumber || '') ||
-          currentUser.governorate !== (data.governorate || '') ||
-          currentUser.role !== (data.role || 'user') ||
-          currentUser.theme !== (data.theme || 'light')
-        )) {
+        if (currentUser) {
           const fullName = [data.firstName, data.secondName, data.thirdName, data.familyName].filter((n: string) => n && n.trim()).join(' ') || data.name || '';
-          setUser({
-            id: user.id,
-            email: data.email || currentUser.email,
-            phone: data.phone || '',
-            name: fullName,
-            firstName: data.firstName || '',
-            secondName: data.secondName || '',
-            thirdName: data.thirdName || '',
-            familyName: data.familyName || '',
-            nationalId: data.nationalId || '',
-            avatar: data.avatar || '',
-            role: data.role || 'user',
-            userId: data.userId || '',
-            kycStatus: data.kycStatus || 'pending',
-            isBlocked: data.isBlocked || false,
-            balanceYER: data.balanceYER || 0,
-            balanceSAR: data.balanceSAR || 0,
-            balanceUSD: data.balanceUSD || 0,
-            cardType: data.cardType || '',
-            cardNumber: data.cardNumber || '',
-            cardIssuedAt: data.cardIssuedAt || '',
-            governorate: data.governorate || '',
-            theme: data.theme || 'light',
-          });
+          const hasChanges = (
+            currentUser.balanceYER !== (data.balanceYER || 0) ||
+            currentUser.balanceSAR !== (data.balanceSAR || 0) ||
+            currentUser.balanceUSD !== (data.balanceUSD || 0) ||
+            currentUser.name !== fullName ||
+            currentUser.firstName !== (data.firstName || '') ||
+            currentUser.secondName !== (data.secondName || '') ||
+            currentUser.thirdName !== (data.thirdName || '') ||
+            currentUser.familyName !== (data.familyName || '') ||
+            currentUser.nationalId !== (data.nationalId || '') ||
+            currentUser.kycStatus !== (data.kycStatus || 'pending') ||
+            currentUser.isBlocked !== (data.isBlocked || false) ||
+            currentUser.phone !== (data.phone || '') ||
+            currentUser.avatar !== (data.avatar || '') ||
+            currentUser.cardType !== (data.cardType || '') ||
+            currentUser.cardNumber !== (data.cardNumber || '') ||
+            currentUser.governorate !== (data.governorate || '') ||
+            currentUser.role !== (data.role || 'user') ||
+            currentUser.theme !== (data.theme || 'light')
+          );
+
+          if (hasChanges) {
+            setUserRef.current({
+              id: currentUser.id,
+              email: data.email || currentUser.email,
+              phone: data.phone || '',
+              name: fullName,
+              firstName: data.firstName || '',
+              secondName: data.secondName || '',
+              thirdName: data.thirdName || '',
+              familyName: data.familyName || '',
+              nationalId: data.nationalId || '',
+              avatar: data.avatar || '',
+              role: data.role || 'user',
+              userId: data.userId || '',
+              kycStatus: data.kycStatus || 'pending',
+              isBlocked: data.isBlocked || false,
+              balanceYER: data.balanceYER || 0,
+              balanceSAR: data.balanceSAR || 0,
+              balanceUSD: data.balanceUSD || 0,
+              cardType: data.cardType || '',
+              cardNumber: data.cardNumber || '',
+              cardIssuedAt: data.cardIssuedAt || '',
+              governorate: data.governorate || '',
+              theme: data.theme || 'light',
+            });
+          }
         }
       }
 
@@ -90,49 +120,104 @@ export function useFirebaseSync() {
     } finally {
       isRefreshing.current = false;
     }
-  }, [user?.id, isAuthenticated, setUser]);
+  }, []); // Empty deps - uses refs internally
 
-  // Fetch transactions from Firebase
+  // Fetch transactions from Firebase - ONLY for the current user
   const refreshTransactions = useCallback(async () => {
-    if (!user?.id || !isAuthenticated) return;
+    const currentUserId = userIdRef.current;
+    const currentIsAuth = isAuthenticatedRef.current;
+    if (!currentUserId || !currentIsAuth) return;
     
     try {
-      const txRef = ref(database, 'transactions');
-      const snapshot = await get(txRef);
-      
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const userTx = Object.values(data).filter((tx: any) => 
-          tx.fromUserId === user.id || tx.toUserId === user.id
-        ) as any[];
-        
-        const transactions = userTx
-          .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .map((tx: any) => ({
-            id: tx.id,
-            fromUserId: tx.fromUserId || '',
-            toUserId: tx.toUserId || '',
-            amount: tx.amount || 0,
-            currency: tx.currency || 'YER',
-            type: tx.type || 'order',
-            status: tx.status || 'completed',
-            description: tx.description || '',
-            createdAt: tx.createdAt || new Date().toISOString(),
-          }));
+      // Use query to only fetch transactions involving the current user
+      // Try querying by fromUserId first
+      const sentTxRef = query(
+        ref(database, 'transactions'),
+        orderByChild('fromUserId'),
+        equalTo(currentUserId),
+        limitToLast(100)
+      );
+      const sentSnapshot = await get(sentTxRef);
 
-        setTransactions(transactions);
+      // Also query by toUserId
+      const receivedTxRef = query(
+        ref(database, 'transactions'),
+        orderByChild('toUserId'),
+        equalTo(currentUserId),
+        limitToLast(100)
+      );
+      const receivedSnapshot = await get(receivedTxRef);
+
+      const allTxMap = new Map<string, any>();
+
+      // Process sent transactions
+      if (sentSnapshot.exists()) {
+        const data = sentSnapshot.val();
+        Object.entries(data).forEach(([key, tx]: [string, any]) => {
+          allTxMap.set(key, tx);
+        });
       }
+
+      // Process received transactions
+      if (receivedSnapshot.exists()) {
+        const data = receivedSnapshot.val();
+        Object.entries(data).forEach(([key, tx]: [string, any]) => {
+          allTxMap.set(key, tx);
+        });
+      }
+
+      const transactions = Array.from(allTxMap.values())
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .map((tx: any) => ({
+          id: tx.id || '',
+          fromUserId: tx.fromUserId || '',
+          toUserId: tx.toUserId || '',
+          amount: tx.amount || 0,
+          currency: tx.currency || 'YER',
+          type: tx.type || 'order',
+          status: tx.status || 'completed',
+          description: tx.description || '',
+          createdAt: tx.createdAt || new Date().toISOString(),
+        }));
+
+      setTransactionsRef.current(transactions);
     } catch (error) {
       console.error('Firebase transactions sync error:', error);
+      // Fallback: try fetching all transactions but only if queries fail
+      try {
+        const txRef = ref(database, 'transactions');
+        const snapshot = await get(txRef);
+        if (snapshot.exists()) {
+          const currentUserId = userIdRef.current;
+          const data = snapshot.val();
+          const userTx = Object.values(data).filter((tx: any) => 
+            tx.fromUserId === currentUserId || tx.toUserId === currentUserId
+          ) as any[];
+          
+          const transactions = userTx
+            .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .map((tx: any) => ({
+              id: tx.id, fromUserId: tx.fromUserId || '', toUserId: tx.toUserId || '',
+              amount: tx.amount || 0, currency: tx.currency || 'YER', type: tx.type || 'order',
+              status: tx.status || 'completed', description: tx.description || '',
+              createdAt: tx.createdAt || new Date().toISOString(),
+            }));
+          setTransactionsRef.current(transactions);
+        }
+      } catch (fallbackError) {
+        console.error('Firebase transactions fallback sync error:', fallbackError);
+      }
     }
-  }, [user?.id, isAuthenticated, setTransactions]);
+  }, []); // Empty deps - uses refs internally
 
   // Fetch notifications from Firebase
   const refreshNotifications = useCallback(async () => {
-    if (!user?.id || !isAuthenticated) return;
+    const currentUserId = userIdRef.current;
+    const currentIsAuth = isAuthenticatedRef.current;
+    if (!currentUserId || !currentIsAuth) return;
 
     try {
-      const notifRef = ref(database, `notifications/${user.id}`);
+      const notifRef = ref(database, `notifications/${currentUserId}`);
       const snapshot = await get(notifRef);
 
       if (snapshot.exists()) {
@@ -148,16 +233,17 @@ export function useFirebaseSync() {
             createdAt: n.createdAt || new Date().toISOString(),
           }));
 
-        setNotifications(notifications);
+        setNotificationsRef.current(notifications);
       } else {
-        setNotifications([]);
+        setNotificationsRef.current([]);
       }
     } catch (error) {
       console.error('Firebase notifications sync error:', error);
     }
-  }, [user?.id, isAuthenticated, setNotifications]);
+  }, []); // Empty deps - uses refs internally
 
   // Set up real-time listener for user data
+  // This effect only depends on user?.id and isAuthenticated
   useEffect(() => {
     if (!user?.id || !isAuthenticated) {
       // Clean up listener when not authenticated
@@ -186,7 +272,7 @@ export function useFirebaseSync() {
         
         if (currentUser) {
           const fullName = [data.firstName, data.secondName, data.thirdName, data.familyName].filter((n: string) => n && n.trim()).join(' ') || data.name || '';
-          setUser({
+          setUserRef.current({
             id: currentUser.id,
             email: data.email || currentUser.email,
             phone: data.phone || '',
@@ -218,22 +304,48 @@ export function useFirebaseSync() {
 
     unsubscribeRef.current = unsubscribe;
 
-    // Real-time listener for transactions
-    const txRef = ref(database, 'transactions');
-    const txUnsubscribe = onValue(txRef, (snapshot) => {
-      if (snapshot.exists() && user?.id) {
+    // Real-time listener for transactions - use queries instead of downloading all
+    const sentTxRef = query(
+      ref(database, 'transactions'),
+      orderByChild('fromUserId'),
+      equalTo(user.id),
+      limitToLast(50)
+    );
+
+    const txUnsubscribe = onValue(sentTxRef, (snapshot) => {
+      const currentUserId = useAppStore.getState().user?.id;
+      if (!currentUserId) return;
+
+      const allTxMap = new Map<string, any>();
+
+      if (snapshot.exists()) {
         const data = snapshot.val();
-        const userId = useAppStore.getState().user?.id;
-        if (!userId) return;
-        
-        const userTx = Object.values(data).filter((tx: any) => 
-          tx.fromUserId === userId || tx.toUserId === userId
-        ) as any[];
-        
-        const transactions = userTx
+        Object.entries(data).forEach(([key, tx]: [string, any]) => {
+          allTxMap.set(key, tx);
+        });
+      }
+
+      // We also need to fetch received transactions
+      // But to avoid a double listener, we do a one-time fetch for received
+      const receivedTxRef = query(
+        ref(database, 'transactions'),
+        orderByChild('toUserId'),
+        equalTo(currentUserId),
+        limitToLast(50)
+      );
+      
+      get(receivedTxRef).then((receivedSnapshot) => {
+        if (receivedSnapshot.exists()) {
+          const data = receivedSnapshot.val();
+          Object.entries(data).forEach(([key, tx]: [string, any]) => {
+            allTxMap.set(key, tx);
+          });
+        }
+
+        const transactions = Array.from(allTxMap.values())
           .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .map((tx: any) => ({
-            id: tx.id,
+            id: tx.id || '',
             fromUserId: tx.fromUserId || '',
             toUserId: tx.toUserId || '',
             amount: tx.amount || 0,
@@ -244,8 +356,10 @@ export function useFirebaseSync() {
             createdAt: tx.createdAt || new Date().toISOString(),
           }));
 
-        setTransactions(transactions);
-      }
+        setTransactionsRef.current(transactions);
+      }).catch((error) => {
+        console.error('Firebase received transactions onValue error:', error);
+      });
     }, (error) => {
       console.error('Firebase transactions onValue error:', error);
     });
@@ -268,9 +382,9 @@ export function useFirebaseSync() {
             createdAt: n.createdAt || new Date().toISOString(),
           }));
 
-        setNotifications(notifications);
+        setNotificationsRef.current(notifications);
       } else {
-        setNotifications([]);
+        setNotificationsRef.current([]);
       }
     }, (error) => {
       console.error('Firebase notifications onValue error:', error);
@@ -286,7 +400,7 @@ export function useFirebaseSync() {
       notifUnsubscribe();
       notifUnsubscribeRef.current = null;
     };
-  }, [user?.id, isAuthenticated, setUser, setTransactions, setNotifications]);
+  }, [user?.id, isAuthenticated]); // Only depend on user?.id and isAuthenticated
 
   // Refresh on mount
   useEffect(() => {
@@ -294,12 +408,12 @@ export function useFirebaseSync() {
       refreshUser();
       refreshNotifications();
     }
-  }, [isAuthenticated, user?.id, refreshUser, refreshNotifications]);
+  }, [isAuthenticated, user?.id]); // Only depend on stable values
 
   // Refresh on window focus (user returns to the app)
   useEffect(() => {
     const handleFocus = () => {
-      if (isAuthenticated && user?.id) {
+      if (isAuthenticatedRef.current && userIdRef.current) {
         refreshUser();
         refreshNotifications();
       }
@@ -309,7 +423,7 @@ export function useFirebaseSync() {
     
     // Also handle visibility change (mobile browsers)
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && isAuthenticated && user?.id) {
+      if (document.visibilityState === 'visible' && isAuthenticatedRef.current && userIdRef.current) {
         refreshUser();
         refreshNotifications();
       }
@@ -319,7 +433,7 @@ export function useFirebaseSync() {
 
     // Handle online/offline
     const handleOnline = () => {
-      if (isAuthenticated && user?.id) {
+      if (isAuthenticatedRef.current && userIdRef.current) {
         refreshUser();
         refreshNotifications();
       }
@@ -332,7 +446,7 @@ export function useFirebaseSync() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('online', handleOnline);
     };
-  }, [isAuthenticated, user?.id, refreshUser, refreshNotifications]);
+  }, []); // Empty deps - uses refs internally
 
   return { refreshUser };
 }

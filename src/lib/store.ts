@@ -983,14 +983,11 @@ export const useAppStore = create<AppState>()(
         isAuthenticated: state.isAuthenticated,
         theme: state.theme,
         balanceVisible: state.balanceVisible,
-        providers: state.providers,
-        packages: state.packages,
-        orders: state.orders,
-        categories: state.categories,
         pinCode: state.pinCode,
         favorites: state.favorites,
         recentServices: state.recentServices,
         savingsGoals: state.savingsGoals,
+        exchangeRates: state.exchangeRates,
       }),
     }
   )
