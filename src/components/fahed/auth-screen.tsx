@@ -69,12 +69,16 @@ export default function AuthScreen() {
       const snapshot = await get(userRef);
       if (snapshot.exists()) {
         const userData = snapshot.val();
-        // Auto-assign admin role for admin emails
+        // Determine effective role: owner > admin > user
         const isAdminEmail = loginEmail.toLowerCase().includes('admin');
-        const effectiveRole = userData.role === 'admin' || isAdminEmail ? 'admin' : (userData.role || 'user');
-        // Update role in Firebase if it should be admin but isn't
-        if (isAdminEmail && userData.role !== 'admin') {
-          await update(ref(database, `users/${uid}`), { role: 'admin' });
+        let effectiveRole: 'user' | 'admin' | 'owner' = userData.role || 'user';
+        if (effectiveRole === 'owner') {
+          // Owner role is set in Firebase, keep it
+        } else if (effectiveRole === 'admin' || isAdminEmail) {
+          effectiveRole = 'admin';
+          if (isAdminEmail && userData.role !== 'admin') {
+            await update(ref(database, `users/${uid}`), { role: 'admin' });
+          }
         }
         setUser({
           id: uid, email: userData.email || loginEmail, phone: userData.phone || '',

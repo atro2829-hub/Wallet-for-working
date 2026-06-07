@@ -28,6 +28,7 @@ import {
   Cloud,
   Heart,
   LayoutDashboard,
+  Crown,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { database } from '@/lib/firebase';
@@ -93,7 +94,8 @@ export default function AccountScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { user, setActiveScreen, logout, balanceVisible, toggleBalance, setUser } = useAppStore();
-  const [isAdmin, setIsAdmin] = useState(user?.role === 'admin');
+  const [isAdmin, setIsAdmin] = useState(user?.role === 'admin' || user?.role === 'owner');
+  const [isOwner, setIsOwner] = useState(user?.role === 'owner');
   const [expandedSections, setExpandedSections] = useState<string[]>(['account', 'privacy']);
   const [toggleStates, setToggleStates] = useState<Record<string, boolean>>({
     'auto-login': true,
@@ -101,26 +103,33 @@ export default function AccountScreen() {
     'face-id': false,
   });
 
-  // Check admin role directly from Firebase
+  // Check admin/owner role directly from Firebase
   useEffect(() => {
-    const checkAdmin = async () => {
+    const checkRole = async () => {
       if (!user?.id) return;
       try {
         const userRef = ref(database, `users/${user.id}`);
         const snapshot = await get(userRef);
         if (snapshot.exists()) {
           const data = snapshot.val();
-          const adminRole = data.role === 'admin' || (data.email && data.email.toLowerCase().includes('admin'));
-          setIsAdmin(adminRole);
-          if (adminRole && user.role !== 'admin') {
-            setUser({ ...user, role: 'admin' });
+          const isAdminEmail = data.email && data.email.toLowerCase().includes('admin');
+          let effectiveRole = data.role || 'user';
+          if (effectiveRole === 'owner') {
+            // Owner role from Firebase
+          } else if (effectiveRole === 'admin' || isAdminEmail) {
+            effectiveRole = 'admin';
+          }
+          setIsAdmin(effectiveRole === 'admin' || effectiveRole === 'owner');
+          setIsOwner(effectiveRole === 'owner');
+          if (effectiveRole !== user.role) {
+            setUser({ ...user, role: effectiveRole as 'user' | 'admin' | 'owner' });
           }
         }
       } catch (e) {
-        console.error('Admin check error:', e);
+        console.error('Role check error:', e);
       }
     };
-    checkAdmin();
+    checkRole();
   }, [user?.id, user?.role]);
 
   const toggleSection = (sectionId: string) => {
@@ -334,6 +343,44 @@ export default function AccountScreen() {
           </motion.div>
         );
       })}
+
+      {/* Owner Panel Button - Only visible for owner users */}
+      {isOwner && (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="px-4 mt-3"
+        >
+          <button
+            onClick={() => setActiveScreen('owner')}
+            className="w-full flex items-center gap-3 p-4 rounded-2xl"
+            style={{
+              background: 'linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(109,40,217,0.12) 100%)',
+              border: '1px solid rgba(139,92,246,0.25)',
+            }}
+          >
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+              style={{
+                background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+                boxShadow: '0 4px 12px rgba(139,92,246,0.3)',
+              }}
+            >
+              <Crown size={20} strokeWidth={1.5} color="#FFF" />
+            </div>
+            <div className="flex-1 text-right">
+              <p className="text-sm font-bold" style={{ color: '#8B5CF6' }}>
+                لوحة تحكم المالك
+              </p>
+              <p className="text-[11px] mt-0.5" style={{ color: isDark ? '#888' : '#AAA' }}>
+                تحكم كامل بالتطبيق والاعدادات
+              </p>
+            </div>
+            <ChevronLeft size={18} strokeWidth={1.5} color="#8B5CF6" />
+          </button>
+        </motion.div>
+      )}
 
       {/* Admin Panel Button - Only visible for admin users */}
       {isAdmin && (

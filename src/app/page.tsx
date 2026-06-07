@@ -14,6 +14,7 @@ import WalletScreen from '@/components/fahed/wallet-screen';
 import AccountScreen from '@/components/fahed/account-screen';
 import KycScreen from '@/components/fahed/kyc-screen';
 import AdminScreen from '@/components/fahed/admin-screen';
+import OwnerScreen from '@/components/fahed/owner-screen';
 import NotificationsScreen from '@/components/fahed/notifications-screen';
 import OrdersScreen from '@/components/fahed/orders-screen';
 import DepositScreen from '@/components/fahed/deposit-screen';
@@ -130,6 +131,7 @@ function AppContent() {
     notifications: NotificationsScreen,
     kyc: KycScreen,
     admin: AdminScreen,
+    owner: OwnerScreen,
     orders: OrdersScreen,
     deposit: DepositScreen,
     savings: SavingsScreen,

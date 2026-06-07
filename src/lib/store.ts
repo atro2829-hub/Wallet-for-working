@@ -7,7 +7,7 @@ interface User {
   phone: string;
   name: string;
   avatar: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'owner';
   userId: string;
   kycStatus: 'pending' | 'submitted' | 'verified' | 'rejected';
   isBlocked: boolean;

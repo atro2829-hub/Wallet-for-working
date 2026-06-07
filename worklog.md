@@ -1,65 +1,95 @@
+# Worklog - Owner Panel + Admin Panel Restructure
+
+## Date: 2026-06-07
+
+### Task Summary
+Created a comprehensive Owner Panel and restructured the Admin Panel for the "محفظة الجنوب" (Southern Wallet) Yemeni digital wallet app.
+
+### Files Modified
+
+1. **NEW: `/home/z/my-project/src/components/fahed/owner-screen.tsx`**
+   - Created complete Owner Panel with 7 tabs
+   - Purple/violet theme (#8B5CF6) matching the design spec
+   - Right sidebar navigation (same pattern as admin-screen)
+   - RTL Arabic layout with dark/light theme support
+
+2. **MODIFIED: `/home/z/my-project/src/app/page.tsx`**
+   - Added `import OwnerScreen` 
+   - Added `owner: OwnerScreen` to the `overlayScreens` mapping
+   - This allows `setActiveScreen('owner')` to navigate to the owner panel
+
+3. **MODIFIED: `/home/z/my-project/src/components/fahed/admin-screen.tsx`**
+   - Replaced single 'products' tab with two new tabs:
+     - **instantRecharge** (مزودو الشحن الفوري) - shows telecom/internet providers
+     - **entertainment** (الخدمات الترفيهية) - shows entertainment/cards providers
+   - Added `AdminSubSection` interface for subsection management
+   - Added Firebase listeners for `adminSettings/instantRechargeSubsections/` and `adminSettings/entertainmentSubsections/`
+   - Added state variables for subsection CRUD operations
+   - Both new tabs support:
+     - Sub-section creation with icon upload (base64)
+     - Sub-section toggle (show/hide) and delete
+     - Product management per provider within each category
+     - Add product forms filtered by category type
+
+### Owner Panel Features (7 Tabs)
+
+1. **نظرة عامة (Overview)** - App stats: total users, revenue by currency (YER/SAR/USD), active providers, system health indicators
+2. **إدارة الأقسام (Section Management)** - Drag-to-reorder sections using @dnd-kit, icon upload, visibility toggle, name editing
+3. **الأقسام الفرعية (Sub-sections)** - Parent section selector, CRUD for sub-sections with icon upload
+4. **إعدادات المشروع (Project Config)** - Firebase config fields, Supabase config (optional), Package Name, App Name
+5. **إدارة الأدمن (Admin Management)** - List admins, promote/demote users, block/unblock, add admin by email
+6. **سجل النشاط (Activity Log)** - Filter by type (user/admin/system), timestamped entries
+7. **النسخ الاحتياطي (Backup)** - Export Firebase data as JSON, import backup from JSON, backup history
+
+### Key Technical Details
+
+- Used `@dnd-kit/core` and `@dnd-kit/sortable` for drag-to-reorder in sections management
+- Extracted `SortableSectionItem` and `SubSectionItem` into separate components to avoid React hooks-in-callback lint errors
+- All icons use base64 encoding via FileReader API
+- Firebase Realtime Database integration for all CRUD operations
+- Owner panel uses `ownerSettings/` Firebase path
+- Admin panel subsections use `adminSettings/instantRechargeSubsections/` and `adminSettings/entertainmentSubsections/`
+
+### Style Consistency
+
+- Owner panel: Purple/violet theme (#8B5CF6) for buttons, indicators, badges
+- Admin panel: Red theme (#E60000) maintained
+- Card styles: `background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.85)'`
+- Input styles: `background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'`
+- No emojis used anywhere
+- All images/icons are Base64 encoded strings
+- RTL Arabic layout throughout
+
 ---
-Task ID: 1
-Agent: Main Agent
-Task: Redesign app to Jaib-style UI with precise measurements
 
-Work Log:
-- Read and analyzed all current component files
-- Redesigned home-screen.tsx with Jaib-style layout (clean header, carousel with side padding, 3-col grid, etc.)
-- Redesigned bottom-nav.tsx (68px height, 56x56px dark FAB, white bg)
-- Redesigned splash-screen.tsx (SVG stroke-drawing animation)
-- Updated globals.css (new animations)
-- Updated wallet-screen.tsx, services-screen.tsx, account-screen.tsx to match new design
-- Build passes successfully
+## Additional Changes by Main Agent
 
-Stage Summary:
-- All screens redesigned to Jaib-style clean UI
-- Key measurements: 78% card width, 32px side padding, 12px gap, 20px border-radius, 68px nav height, 56x56px FAB
-- App name "محفظة الجنوب" preserved throughout
----
-Task ID: 1
-Agent: Main Agent
-Task: Restructure services screen, add products, icons, banner management, update exchange rates
+### Date: 2026-06-08
 
-Work Log:
-- Renamed "ألعاب أونلاين" to "خدمات ترفيهية" in home screen services
-- Created /src/lib/products-data.ts with 773 products across 38 providers with real market prices
-- Created /src/lib/product-icons.ts with 47 SVG icons for all providers and categories
-- Restructured services-screen.tsx with Jaib-style layout (4-column icon grids, section headers with "الكل" button, expand/collapse)
-- Added Banner interface and Firebase banner carousel to home screen
-- Added banner management section (CRUD) to admin-screen.tsx
-- Created /src/app/api/seed-banners/route.ts and seeded 4 default banners
-- Updated exchange rates: 1 USD = 1550 YER, 1 SAR = 410 YER in store.ts and admin-screen.tsx
-- Updated order-bottom-sheet.tsx to include products from products-data.ts
-- All TypeScript errors resolved for modified files
+### Changes Made:
 
-Stage Summary:
-- 773 products with real USD/YER prices across 38 providers
-- 47 custom SVG icons for all service categories
-- Jaib-style services screen with category sections and icon grids
-- Banner management in admin panel with Firebase CRUD
-- Exchange rates updated to market prices (1 USD = 1550 YER, 1 SAR = 410 YER)
----
-Task ID: 1
-Agent: Main Agent
-Task: Delete jaib_app_design_analysis.docx and implement sub-section navigation with real product images
+1. **Modified: `/home/z/my-project/src/lib/store.ts`**
+   - Changed User role type from `'user' | 'admin'` to `'user' | 'admin' | 'owner'`
 
-Work Log:
-- Confirmed jaib_app_design_analysis.docx was already deleted
-- Verified Next.js build compiles successfully
-- Redesigned category-detail-screen.tsx with two-level navigation:
-  - Level 1: Sub-sections grid (shows when entering a category)
-  - Level 2: Products list (shows when clicking a sub-section)
-- Updated PRODUCT_IMAGES with real CDN URLs from Codashop, SEAGM, Jollymax, and Eneba
-- Added sub-section metadata (description, color, iconKey) for better visual display
-- Back button intelligently navigates: products → sub-sections → home
-- Added animated transitions between sub-sections and products views
-- Sub-section cards show: icon, name, description, provider count badge
-- Products view includes quick-switch tabs between sub-sections
+2. **Modified: `/home/z/my-project/src/components/fahed/auth-screen.tsx`**
+   - Updated login handler to properly detect and preserve `role === 'owner'` from Firebase
+   - Owner role takes priority over admin email detection
+   - Role hierarchy: owner > admin > user
 
-Stage Summary:
-- File deleted: jaib_app_design_analysis.docx (already deleted)
-- Modified: src/components/fahed/category-detail-screen.tsx
-- Two-level navigation pattern implemented as requested
-- Real product images from verified CDN sources (20 from Codashop, 4 from SEAGM, 2 from Jollymax, 1 from Eneba)
-- Build passes successfully
+3. **Modified: `/home/z/my-project/src/components/fahed/account-screen.tsx`**
+   - Added `isOwner` state to track owner role
+   - Updated Firebase role check to detect owner role
+   - Added "لوحة تحكم المالك" (Owner Panel) button with purple theme and Crown icon
+   - Owner button navigates to `setActiveScreen('owner')`
+   - Admin button still visible for both admin and owner roles
+
+4. **Modified: `/home/z/my-project/src/components/fahed/recharge-screen.tsx`**
+   - Fixed back button bug: Changed `setActiveTab('services')` to `setActiveScreen('')`
+   - This properly closes the overlay screen instead of just changing tabs
+   - Fixed all 3 occurrences of this bug
+
+### Summary:
+- Owner role now properly detected throughout the app
+- Owner panel button visible in account screen when `role === 'owner'`
+- Back button in recharge screen now works correctly
+- Build compiles without errors

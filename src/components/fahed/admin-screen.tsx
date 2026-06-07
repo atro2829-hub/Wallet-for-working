@@ -21,7 +21,7 @@ import { ref, set, get, update, remove, push, onValue } from 'firebase/database'
 import { database } from '@/lib/firebase';
 import { LOGO_BASE64 } from '@/lib/logo';
 
-type AdminTab = 'overview' | 'orders' | 'users' | 'deposit' | 'withdraw' | 'kyc' | 'banks' | 'exchangeRates' | 'products' | 'providers' | 'codes' | 'banners' | 'settings';
+type AdminTab = 'overview' | 'orders' | 'users' | 'deposit' | 'withdraw' | 'kyc' | 'banks' | 'exchangeRates' | 'instantRecharge' | 'entertainment' | 'providers' | 'codes' | 'banners' | 'settings';
 
 interface FirebaseUser {
   id: string;
@@ -99,6 +99,16 @@ interface Banner {
   order: number;
   link?: string;
   createdAt: string;
+}
+
+interface AdminSubSection {
+  id: string;
+  providerId: string;
+  parentId: string;
+  name: string;
+  icon: string;
+  isActive: boolean;
+  order: number;
 }
 
 interface AdminExchangeRates {
@@ -203,6 +213,20 @@ export default function AdminScreen() {
   // Exchange Rates (admin section)
   const [adminExchangeRates, setAdminExchangeRates] = useState<AdminExchangeRates>(defaultAdminExchangeRates);
   const [ratesSaved, setRatesSaved] = useState(false);
+
+  // Instant Recharge Subsections
+  const [instantSubsections, setInstantSubsections] = useState<AdminSubSection[]>([]);
+  const [showAddInstantSub, setShowAddInstantSub] = useState<string | null>(null);
+  const [newInstantSub, setNewInstantSub] = useState({ name: '', icon: '' });
+  const instantSubFileRef = useRef<HTMLInputElement>(null);
+  const [selectedInstantSub, setSelectedInstantSub] = useState<string | null>(null);
+
+  // Entertainment Subsections
+  const [entertainmentSubs, setEntertainmentSubs] = useState<AdminSubSection[]>([]);
+  const [showAddEntertainSub, setShowAddEntertainSub] = useState<string | null>(null);
+  const [newEntertainSub, setNewEntertainSub] = useState({ name: '', icon: '' });
+  const entertainSubFileRef = useRef<HTMLInputElement>(null);
+  const [selectedEntertainSub, setSelectedEntertainSub] = useState<string | null>(null);
 
   const addAuditEntry = useCallback((action: string) => {
     setAuditLog(prev => [{ action, time: new Date().toISOString() }, ...prev].slice(0, 20));
@@ -342,6 +366,52 @@ export default function AdminScreen() {
         setBanners(bannersList.sort((a, b) => a.order - b.order));
       } else {
         setBanners([]);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Listen to instant recharge subsections from Firebase
+  useEffect(() => {
+    const subRef = ref(database, 'adminSettings/instantRechargeSubsections');
+    const unsubscribe = onValue(subRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const list = Object.entries(data).map(([key, val]: [string, any]) => ({
+          id: key,
+          providerId: val.providerId || '',
+          parentId: val.providerId || '',
+          name: val.name || '',
+          icon: val.icon || '',
+          isActive: val.isActive !== false,
+          order: val.order || 0,
+        }));
+        setInstantSubsections(list.sort((a, b) => a.order - b.order));
+      } else {
+        setInstantSubsections([]);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Listen to entertainment subsections from Firebase
+  useEffect(() => {
+    const subRef = ref(database, 'adminSettings/entertainmentSubsections');
+    const unsubscribe = onValue(subRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const list = Object.entries(data).map(([key, val]: [string, any]) => ({
+          id: key,
+          providerId: val.parentId || '',
+          parentId: val.parentId || '',
+          name: val.name || '',
+          icon: val.icon || '',
+          isActive: val.isActive !== false,
+          order: val.order || 0,
+        }));
+        setEntertainmentSubs(list.sort((a, b) => a.order - b.order));
+      } else {
+        setEntertainmentSubs([]);
       }
     });
     return () => unsubscribe();
@@ -745,7 +815,8 @@ export default function AdminScreen() {
     { id: 'kyc', label: 'التحقق', icon: ShieldCheck, badge: kycUsers.length },
     { id: 'banks', label: 'البنوك', icon: Building2 },
     { id: 'exchangeRates', label: 'أسعار الصرف', icon: RefreshCw },
-    { id: 'products', label: 'المنتجات', icon: Package },
+    { id: 'instantRecharge', label: 'الشحن الفوري', icon: Smartphone },
+    { id: 'entertainment', label: 'الترفيهية', icon: Gamepad2 },
     { id: 'providers', label: 'المزودون', icon: Server },
     { id: 'codes', label: 'الأكواد', icon: Tag },
     { id: 'banners', label: 'البانرات', icon: ImagePlus },
@@ -1389,9 +1460,9 @@ export default function AdminScreen() {
               </motion.div>
             )}
 
-            {/* === PRODUCTS === */}
-            {activeTab === 'products' && (
-              <motion.div key="products" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
+            {/* === INSTANT RECHARGE === */}
+            {activeTab === 'instantRecharge' && (
+              <motion.div key="instantRecharge" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
                 <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowAddProduct(!showAddProduct)}
                   className="w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 text-sm font-medium"
                   style={{ background: 'rgba(230,0,0,0.1)', color: '#E60000', border: '1px solid rgba(230,0,0,0.2)', backdropFilter: 'blur(20px)' }}>
@@ -1402,7 +1473,7 @@ export default function AdminScreen() {
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="rounded-2xl p-4 space-y-3 overflow-hidden" style={cardStyle}>
                       <select value={newProduct.providerId} onChange={(e) => setNewProduct({ ...newProduct, providerId: e.target.value })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
                         <option value="">اختر المزود</option>
-                        {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        {providers.filter(p => p.categoryId === 'telecom' || p.categoryId === 'internet').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
                       <input type="text" placeholder="اسم المنتج" value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} />
                       <div className="flex gap-2">
@@ -1422,9 +1493,9 @@ export default function AdminScreen() {
                   <Search size={16} color={isDark ? '#555' : '#AAA'} />
                   <input type="text" placeholder="بحث في المنتجات..." value={productSearch} onChange={(e) => setProductSearch(e.target.value)} className="flex-1 bg-transparent outline-none text-sm" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} />
                 </div>
-                {providers.map((provider) => {
+                {providers.filter(p => p.categoryId === 'telecom' || p.categoryId === 'internet').map((provider) => {
                   const providerProducts = packages.filter(p => p.providerId === provider.id && (!productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase())));
-                  if (providerProducts.length === 0) return null;
+                  const providerSubs = instantSubsections.filter(s => s.providerId === provider.id);
                   return (
                     <div key={provider.id} className="rounded-2xl overflow-hidden" style={cardStyle}>
                       <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)' }}>
@@ -1433,11 +1504,109 @@ export default function AdminScreen() {
                             <img src={provider.icon} alt={provider.name} className="w-6 h-6 rounded object-cover" />
                           ) : <span className="font-bold text-xs" style={{ color: provider.color }}>{provider.name.charAt(0)}</span>}
                         </div>
-                        <span className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{provider.name}</span>
-                        <span className="text-[10px] mr-auto" style={{ color: isDark ? '#666' : '#AAA' }}>{providerProducts.length} منتج</span>
+                        <span className="text-sm font-bold flex-1" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{provider.name}</span>
+                        <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>{providerProducts.length} منتج</span>
+                        <button onClick={() => setShowAddInstantSub(showAddInstantSub === provider.id ? null : provider.id)} className="px-2 py-1 rounded-lg text-[10px] font-medium" style={{ background: 'rgba(139,92,246,0.1)', color: '#8B5CF6' }}>
+                          <Plus size={12} />
+                        </button>
                       </div>
-                      {providerProducts.map((product, index) => (
-                        <div key={product.id} className="flex items-center justify-between px-4 py-3" style={{ borderBottom: index < providerProducts.length - 1 ? (isDark ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(0,0,0,0.04)') : 'none' }}>
+
+                      {/* Add sub-section form */}
+                      <AnimatePresence>
+                        {showAddInstantSub === provider.id && (
+                          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-4 py-3 space-y-2 overflow-hidden" style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(0,0,0,0.04)' }}>
+                            <div className="flex items-center gap-2">
+                              <input type="text" placeholder="اسم القسم الفرعي" value={newInstantSub.name} onChange={(e) => setNewInstantSub({ ...newInstantSub, name: e.target.value })} className="flex-1 px-3 py-2 rounded-xl text-xs outline-none" style={inputStyle} />
+                              <input type="file" id={`instant-icon-${provider.id}`} accept="image/*" className="hidden" onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onloadend = () => setNewInstantSub({ ...newInstantSub, icon: reader.result as string });
+                                reader.readAsDataURL(file);
+                              }} />
+                              <button onClick={() => document.getElementById(`instant-icon-${provider.id}`)?.click()} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.1)' }}>
+                                <ImagePlus size={12} color="#8B5CF6" />
+                              </button>
+                              <motion.button whileTap={{ scale: 0.95 }} onClick={async () => {
+                                if (!newInstantSub.name) return;
+                                const subId = 'isub-' + Date.now();
+                                const existingSubs = instantSubsections.filter(s => s.providerId === provider.id);
+                                const sub: AdminSubSection = { id: subId, providerId: provider.id, parentId: provider.id, name: newInstantSub.name, icon: newInstantSub.icon, isActive: true, order: existingSubs.length };
+                                try { await set(ref(database, `adminSettings/instantRechargeSubsections/${subId}`), sub); } catch {}
+                                setNewInstantSub({ name: '', icon: '' });
+                                setShowAddInstantSub(null);
+                                addAuditEntry(`تم إضافة قسم فرعي ${sub.name} لمزود ${provider.name}`);
+                              }} className="px-3 py-2 rounded-xl text-xs font-bold text-white" style={{ background: '#8B5CF6' }}>إضافة</motion.button>
+                            </div>
+                            {newInstantSub.icon && <img src={newInstantSub.icon} alt="icon" className="w-6 h-6 rounded object-cover" />}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Sub-sections */}
+                      {providerSubs.map((sub) => {
+                        const subProducts = packages.filter(p => p.providerId === provider.id && (p as any).subSectionId === sub.id);
+                        const isSubSelected = selectedInstantSub === sub.id;
+                        return (
+                          <div key={sub.id}>
+                            <div className="flex items-center justify-between px-4 py-2" style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.03)' : '1px solid rgba(0,0,0,0.03)', background: isSubSelected ? (isDark ? 'rgba(139,92,246,0.05)' : 'rgba(139,92,246,0.03)') : 'transparent' }}>
+                              <button onClick={() => setSelectedInstantSub(isSubSelected ? null : sub.id)} className="flex items-center gap-2 flex-1">
+                                {sub.icon && sub.icon.startsWith('data:') ? (
+                                  <img src={sub.icon} alt={sub.name} className="w-5 h-5 rounded object-cover" />
+                                ) : (
+                                  <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.1)' }}>
+                                    <Layers size={10} color="#8B5CF6" />
+                                  </div>
+                                )}
+                                <span className="text-xs font-medium" style={{ color: isDark ? '#CCC' : '#555' }}>{sub.name}</span>
+                                <span className="text-[9px]" style={{ color: isDark ? '#555' : '#BBB' }}>({subProducts.length})</span>
+                              </button>
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => { try { update(ref(database, `adminSettings/instantRechargeSubsections/${sub.id}`), { isActive: !sub.isActive }); } catch {} }}>
+                                  {sub.isActive ? <ToggleRight size={16} color="#10B981" /> : <ToggleLeft size={16} color={isDark ? '#444' : '#CCC'} />}
+                                </button>
+                                <button onClick={() => { try { remove(ref(database, `adminSettings/instantRechargeSubsections/${sub.id}`)); } catch {} }}>
+                                  <Trash2 size={10} color="#E60000" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Sub-section products */}
+                            {isSubSelected && (
+                              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="px-4 py-2" style={{ background: isDark ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.02)' }}>
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-[10px] font-medium" style={{ color: isDark ? '#888' : '#AAA' }}>منتجات: {sub.name}</span>
+                                  <button onClick={() => {
+                                    setNewProduct({ ...newProduct, providerId: provider.id });
+                                    setShowAddProduct(true);
+                                  }} className="px-2 py-1 rounded text-[9px] font-medium" style={{ background: 'rgba(230,0,0,0.1)', color: '#E60000' }}>
+                                    <Plus size={10} /> منتج
+                                  </button>
+                                </div>
+                                {subProducts.map((product) => (
+                                  <div key={product.id} className="flex items-center justify-between py-1.5" style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.02)' : '1px solid rgba(0,0,0,0.02)' }}>
+                                    <div>
+                                      <p className="text-[11px] font-medium" style={{ color: isDark ? '#DDD' : '#444' }}>{product.name}</p>
+                                      <span className="text-[10px] font-bold" style={{ color: '#E60000' }}>{product.price.toLocaleString()} {currencySymbols[product.currency]}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <button onClick={() => handleToggleProduct(product.id)}>
+                                        {product.isActive ? <ToggleRight size={16} color="#10B981" /> : <ToggleLeft size={16} color={isDark ? '#444' : '#CCC'} />}
+                                      </button>
+                                      <button onClick={() => handleDeleteProduct(product.id)}><Trash2 size={10} color="#E60000" /></button>
+                                    </div>
+                                  </div>
+                                ))}
+                                {subProducts.length === 0 && <p className="text-[10px] text-center py-2" style={{ color: isDark ? '#555' : '#BBB' }}>لا توجد منتجات</p>}
+                              </motion.div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Direct provider products (no subsection) */}
+                      {providerProducts.filter(p => !(p as any).subSectionId).map((product, index) => (
+                        <div key={product.id} className="flex items-center justify-between px-4 py-3" style={{ borderBottom: index < providerProducts.filter(p => !(p as any).subSectionId).length - 1 ? (isDark ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(0,0,0,0.04)') : 'none' }}>
                           <div>
                             {editingProduct === product.id ? (
                               <div className="flex items-center gap-2">
@@ -1472,8 +1641,190 @@ export default function AdminScreen() {
                     </div>
                   );
                 })}
-                {packages.length === 0 && (
-                  <div className="flex flex-col items-center py-8"><Package size={40} strokeWidth={1.5} color={isDark ? '#333' : '#DDD'} /><p className="text-sm mt-2" style={{ color: isDark ? '#666' : '#AAA' }}>لا توجد منتجات</p></div>
+                {providers.filter(p => p.categoryId === 'telecom' || p.categoryId === 'internet').length === 0 && (
+                  <div className="flex flex-col items-center py-8"><Smartphone size={40} strokeWidth={1.5} color={isDark ? '#333' : '#DDD'} /><p className="text-sm mt-2" style={{ color: isDark ? '#666' : '#AAA' }}>لا توجد مزودات شحن فوري</p></div>
+                )}
+              </motion.div>
+            )}
+
+            {/* === ENTERTAINMENT SERVICES === */}
+            {activeTab === 'entertainment' && (
+              <motion.div key="entertainment" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
+                <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowAddProduct(!showAddProduct)}
+                  className="w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 text-sm font-medium"
+                  style={{ background: 'rgba(230,0,0,0.1)', color: '#E60000', border: '1px solid rgba(230,0,0,0.2)', backdropFilter: 'blur(20px)' }}>
+                  <Plus size={18} strokeWidth={1.5} /><span>إضافة منتج جديد</span>
+                </motion.button>
+                <AnimatePresence>
+                  {showAddProduct && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="rounded-2xl p-4 space-y-3 overflow-hidden" style={cardStyle}>
+                      <select value={newProduct.providerId} onChange={(e) => setNewProduct({ ...newProduct, providerId: e.target.value })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
+                        <option value="">اختر المزود</option>
+                        {providers.filter(p => p.categoryId === 'entertainment' || p.categoryId === 'cards').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                      <input type="text" placeholder="اسم المنتج" value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} />
+                      <div className="flex gap-2">
+                        <input type="number" placeholder="السعر" value={newProduct.price || ''} onChange={(e) => setNewProduct({ ...newProduct, price: parseFloat(e.target.value) || 0 })} className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} dir="ltr" />
+                        <select value={newProduct.currency} onChange={(e) => setNewProduct({ ...newProduct, currency: e.target.value as 'YER' | 'SAR' | 'USD' })} className="px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
+                          <option value="YER">YER</option><option value="SAR">SAR</option><option value="USD">USD</option>
+                        </select>
+                      </div>
+                      <select value={newProduct.executionType} onChange={(e) => setNewProduct({ ...newProduct, executionType: e.target.value as 'manual' | 'auto' })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
+                        <option value="manual">تنفيذ يدوي</option><option value="auto">تنفيذ تلقائي</option>
+                      </select>
+                      <motion.button whileTap={{ scale: 0.95 }} onClick={handleAddProduct} className="w-full py-3 rounded-xl text-sm font-bold text-white" style={{ background: '#E60000' }}>إضافة المنتج</motion.button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl" style={cardStyle}>
+                  <Search size={16} color={isDark ? '#555' : '#AAA'} />
+                  <input type="text" placeholder="بحث في المنتجات..." value={productSearch} onChange={(e) => setProductSearch(e.target.value)} className="flex-1 bg-transparent outline-none text-sm" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} />
+                </div>
+
+                {/* Entertainment Sub-sections: ألعاب, بطاقات رقمية, اشتراكات */}
+                {['games', 'cards', 'subscriptions'].map((subType) => {
+                  const subTypeLabel = subType === 'games' ? 'ألعاب' : subType === 'cards' ? 'بطاقات رقمية' : 'اشتراكات';
+                  const subProviders = providers.filter(p => {
+                    if (subType === 'games') return p.categoryId === 'entertainment';
+                    if (subType === 'cards') return p.categoryId === 'cards';
+                    return false;
+                  });
+                  const subsForType = entertainmentSubs.filter(s => s.parentId === subType);
+                  const subTypeProducts = packages.filter(p => subProviders.some(sp => sp.id === p.providerId) && (!productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase())));
+
+                  if (subProviders.length === 0 && subsForType.length === 0) return null;
+
+                  return (
+                    <div key={subType} className="rounded-2xl overflow-hidden" style={cardStyle}>
+                      <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)' }}>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: subType === 'games' ? 'rgba(245,158,11,0.12)' : subType === 'cards' ? 'rgba(59,130,246,0.12)' : 'rgba(16,185,129,0.12)' }}>
+                          {subType === 'games' ? <Gamepad2 size={16} color="#F59E0B" /> : subType === 'cards' ? <CreditCard size={16} color="#3B82F6" /> : <Wifi size={16} color="#10B981" />}
+                        </div>
+                        <span className="text-sm font-bold flex-1" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{subTypeLabel}</span>
+                        <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>{subTypeProducts.length} منتج</span>
+                        <button onClick={() => setShowAddEntertainSub(showAddEntertainSub === subType ? null : subType)} className="px-2 py-1 rounded-lg text-[10px] font-medium" style={{ background: 'rgba(139,92,246,0.1)', color: '#8B5CF6' }}>
+                          <Plus size={12} />
+                        </button>
+                      </div>
+
+                      {/* Add sub-section form */}
+                      <AnimatePresence>
+                        {showAddEntertainSub === subType && (
+                          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-4 py-3 space-y-2 overflow-hidden" style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(0,0,0,0.04)' }}>
+                            <div className="flex items-center gap-2">
+                              <input type="text" placeholder="اسم القسم الفرعي" value={newEntertainSub.name} onChange={(e) => setNewEntertainSub({ ...newEntertainSub, name: e.target.value })} className="flex-1 px-3 py-2 rounded-xl text-xs outline-none" style={inputStyle} />
+                              <input type="file" id={`entertain-icon-${subType}`} accept="image/*" className="hidden" onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onloadend = () => setNewEntertainSub({ ...newEntertainSub, icon: reader.result as string });
+                                reader.readAsDataURL(file);
+                              }} />
+                              <button onClick={() => document.getElementById(`entertain-icon-${subType}`)?.click()} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.1)' }}>
+                                <ImagePlus size={12} color="#8B5CF6" />
+                              </button>
+                              <motion.button whileTap={{ scale: 0.95 }} onClick={async () => {
+                                if (!newEntertainSub.name) return;
+                                const subId = 'esub-' + Date.now();
+                                const existingSubs = entertainmentSubs.filter(s => s.parentId === subType);
+                                const sub: AdminSubSection = { id: subId, providerId: subType, parentId: subType, name: newEntertainSub.name, icon: newEntertainSub.icon, isActive: true, order: existingSubs.length };
+                                try { await set(ref(database, `adminSettings/entertainmentSubsections/${subId}`), sub); } catch {}
+                                setNewEntertainSub({ name: '', icon: '' });
+                                setShowAddEntertainSub(null);
+                                addAuditEntry(`تم إضافة قسم فرعي ترفيهي ${sub.name}`);
+                              }} className="px-3 py-2 rounded-xl text-xs font-bold text-white" style={{ background: '#8B5CF6' }}>إضافة</motion.button>
+                            </div>
+                            {newEntertainSub.icon && <img src={newEntertainSub.icon} alt="icon" className="w-6 h-6 rounded object-cover" />}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Sub-sections under this type */}
+                      {subsForType.map((sub) => {
+                        const isSubSelected = selectedEntertainSub === sub.id;
+                        return (
+                          <div key={sub.id}>
+                            <div className="flex items-center justify-between px-4 py-2" style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.03)' : '1px solid rgba(0,0,0,0.03)', background: isSubSelected ? (isDark ? 'rgba(139,92,246,0.05)' : 'rgba(139,92,246,0.03)') : 'transparent' }}>
+                              <button onClick={() => setSelectedEntertainSub(isSubSelected ? null : sub.id)} className="flex items-center gap-2 flex-1">
+                                {sub.icon && sub.icon.startsWith('data:') ? (
+                                  <img src={sub.icon} alt={sub.name} className="w-5 h-5 rounded object-cover" />
+                                ) : (
+                                  <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.1)' }}>
+                                    <Layers size={10} color="#8B5CF6" />
+                                  </div>
+                                )}
+                                <span className="text-xs font-medium" style={{ color: isDark ? '#CCC' : '#555' }}>{sub.name}</span>
+                              </button>
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => { try { update(ref(database, `adminSettings/entertainmentSubsections/${sub.id}`), { isActive: !sub.isActive }); } catch {} }}>
+                                  {sub.isActive ? <ToggleRight size={16} color="#10B981" /> : <ToggleLeft size={16} color={isDark ? '#444' : '#CCC'} />}
+                                </button>
+                                <button onClick={() => { try { remove(ref(database, `adminSettings/entertainmentSubsections/${sub.id}`)); } catch {} }}>
+                                  <Trash2 size={10} color="#E60000" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Providers and their products under this type */}
+                      {subProviders.map((provider) => {
+                        const providerProducts = packages.filter(p => p.providerId === provider.id && (!productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase())));
+                        if (providerProducts.length === 0) return null;
+                        return (
+                          <div key={provider.id}>
+                            <div className="px-4 py-2 flex items-center gap-2" style={{ background: isDark ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.02)' }}>
+                              <div className="w-6 h-6 rounded flex items-center justify-center" style={{ background: `${provider.color}18` }}>
+                                {provider.icon && provider.icon.startsWith('data:') ? (
+                                  <img src={provider.icon} alt={provider.name} className="w-4 h-4 rounded object-cover" />
+                                ) : <span className="font-bold text-[9px]" style={{ color: provider.color }}>{provider.name.charAt(0)}</span>}
+                              </div>
+                              <span className="text-xs font-medium" style={{ color: isDark ? '#DDD' : '#444' }}>{provider.name}</span>
+                              <span className="text-[9px] mr-auto" style={{ color: isDark ? '#555' : '#BBB' }}>{providerProducts.length}</span>
+                            </div>
+                            {providerProducts.map((product, index) => (
+                              <div key={product.id} className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: index < providerProducts.length - 1 ? (isDark ? '1px solid rgba(255,255,255,0.03)' : '1px solid rgba(0,0,0,0.03)') : 'none' }}>
+                                <div>
+                                  {editingProduct === product.id ? (
+                                    <div className="flex items-center gap-2">
+                                      <input type="text" value={editProductData.name} onChange={e => setEditProductData({ ...editProductData, name: e.target.value })} className="px-2 py-1 rounded text-xs outline-none w-28" style={inputStyle} />
+                                      <input type="number" value={editProductData.price} onChange={e => setEditProductData({ ...editProductData, price: parseFloat(e.target.value) || 0 })} className="px-2 py-1 rounded text-xs outline-none w-16" style={inputStyle} dir="ltr" />
+                                      <button onClick={() => { updatePackage(product.id, { name: editProductData.name, price: editProductData.price }); try { update(ref(database, `packages/${product.id}`), { name: editProductData.name, price: editProductData.price }); } catch {} setEditingProduct(null); }}><Save size={14} color="#10B981" /></button>
+                                      <button onClick={() => setEditingProduct(null)}><X size={14} color="#E60000" /></button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <p className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{product.name}</p>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <span className="text-xs font-bold" style={{ color: '#E60000' }}>{product.price.toLocaleString()} {currencySymbols[product.currency]}</span>
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: product.executionType === 'manual' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)', color: product.executionType === 'manual' ? '#F59E0B' : '#10B981' }}>
+                                          {product.executionType === 'manual' ? 'يدوي' : 'تلقائي'}
+                                        </span>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                                {editingProduct !== product.id && (
+                                  <div className="flex items-center gap-3">
+                                    <button onClick={() => { setEditingProduct(product.id); setEditProductData({ name: product.name, price: product.price }); }}><Edit3 size={12} color={isDark ? '#888' : '#AAA'} /></button>
+                                    <button onClick={() => handleToggleProduct(product.id)}>
+                                      {product.isActive ? <ToggleRight size={22} color="#10B981" /> : <ToggleLeft size={22} color={isDark ? '#444' : '#CCC'} />}
+                                    </button>
+                                    <button onClick={() => handleDeleteProduct(product.id)}><Trash2 size={14} color="#E60000" /></button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+
+                {providers.filter(p => p.categoryId === 'entertainment' || p.categoryId === 'cards').length === 0 && (
+                  <div className="flex flex-col items-center py-8"><Gamepad2 size={40} strokeWidth={1.5} color={isDark ? '#333' : '#DDD'} /><p className="text-sm mt-2" style={{ color: isDark ? '#666' : '#AAA' }}>لا توجد خدمات ترفيهية</p></div>
                 )}
               </motion.div>
             )}
