@@ -34,6 +34,8 @@ type GenerateType = 'receive' | 'request';
 interface ParsedQRData {
   type: 'RECEIVE' | 'REQUEST';
   userId: string;
+  name?: string;
+  phone?: string;
   amount?: number;
   currency?: 'YER' | 'SAR' | 'USD';
 }
@@ -86,20 +88,32 @@ export default function QRScreen() {
 
     if (type !== 'RECEIVE' && type !== 'REQUEST') return null;
 
+    let name: string | undefined;
+    let phone: string | undefined;
     let amount: number | undefined;
     let currency: 'YER' | 'SAR' | 'USD' | undefined;
 
-    // Format: FAHED:RECEIVE:userId:AMT:amount:currency
-    // or: FAHED:REQUEST:userId:AMT:amount:currency
-    if (parts.length >= 6 && parts[3] === 'AMT') {
-      amount = parseFloat(parts[4]);
-      const cur = parts[5];
-      if (['YER', 'SAR', 'USD'].includes(cur)) {
-        currency = cur as 'YER' | 'SAR' | 'USD';
+    // Format: FAHED:RECEIVE:userId:NAME:encodedName:PHONE:phone:AMT:amount:currency
+    // or: FAHED:REQUEST:userId:NAME:encodedName:PHONE:phone:AMT:amount:currency
+    // Also supports legacy format: FAHED:RECEIVE:userId:AMT:amount:currency
+    for (let i = 3; i < parts.length; i++) {
+      if (parts[i] === 'NAME' && parts[i + 1]) {
+        name = decodeURIComponent(parts[i + 1]);
+        i++;
+      } else if (parts[i] === 'PHONE' && parts[i + 1]) {
+        phone = parts[i + 1];
+        i++;
+      } else if (parts[i] === 'AMT' && parts[i + 1] && parts[i + 2]) {
+        amount = parseFloat(parts[i + 1]);
+        const cur = parts[i + 2];
+        if (['YER', 'SAR', 'USD'].includes(cur)) {
+          currency = cur as 'YER' | 'SAR' | 'USD';
+        }
+        i += 2;
       }
     }
 
-    return { type, userId, amount, currency };
+    return { type, userId, name, phone, amount, currency };
   };
 
   // Look up user from Firebase
@@ -303,11 +317,13 @@ export default function QRScreen() {
 
   const qrData = (() => {
     if (!user) return '';
+    const encodedName = encodeURIComponent(user.name || '');
+    const phone = user.phone || '';
     switch (generateType) {
       case 'receive':
-        return `FAHED:RECEIVE:${user.userId}${amount ? `:AMT:${amount}:${currency}` : ''}`;
+        return `FAHED:RECEIVE:${user.userId}:NAME:${encodedName}:PHONE:${phone}${amount ? `:AMT:${amount}:${currency}` : ''}`;
       case 'request':
-        return `FAHED:REQUEST:${user.userId}:AMT:${amount || '0'}:${currency}`;
+        return `FAHED:REQUEST:${user.userId}:NAME:${encodedName}:PHONE:${phone}:AMT:${amount || '0'}:${currency}`;
       default:
         return '';
     }

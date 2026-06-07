@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
 
 interface User {
   id: string;
@@ -691,7 +693,10 @@ export const useAppStore = create<AppState>()(
       user: null,
       isAuthenticated: false,
       setUser: (user) => set({ user, isAuthenticated: !!user }),
-      logout: () => set({ user: null, isAuthenticated: false, activeTab: 'home' }),
+      logout: () => {
+        signOut(auth).catch(() => {});
+        set({ user: null, isAuthenticated: false, activeTab: 'home', pinCode: '', isPinLocked: false });
+      },
 
       // Theme
       theme: 'light',
@@ -907,8 +912,14 @@ export const useAppStore = create<AppState>()(
           });
 
           // Add balance to user
-          const balanceField = `balance${giftData.currency}` as keyof typeof currentUser;
-          const newBalance = ((currentUser[balanceField] as number) || 0) + giftData.amount;
+          const currencyToField: Record<string, 'balanceYER' | 'balanceSAR' | 'balanceUSD'> = {
+            YER: 'balanceYER',
+            SAR: 'balanceSAR',
+            USD: 'balanceUSD',
+          };
+          const balanceField = currencyToField[giftData.currency] || 'balanceYER';
+          const currentBalance = (currentUser[balanceField] as number) || 0;
+          const newBalance = currentBalance + giftData.amount;
 
           const updatedUser = {
             ...currentUser,

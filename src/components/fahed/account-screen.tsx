@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   QrCode,
   Download,
@@ -122,6 +123,11 @@ export default function AccountScreen() {
     'dark-mode': isDark,
     'notifications-toggle': true,
   });
+
+  // Keep dark-mode toggle in sync with actual theme
+  useEffect(() => {
+    setToggleStates(prev => ({ ...prev, 'dark-mode': isDark }));
+  }, [isDark]);
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [showQRCard, setShowQRCard] = useState(false);
   const [lastLoginTime, setLastLoginTime] = useState<string>('');
@@ -438,38 +444,90 @@ export default function AccountScreen() {
               className="overflow-hidden"
             >
               <div
-                className="mt-2 rounded-2xl p-5 flex flex-col items-center"
+                className="mt-2 rounded-2xl overflow-hidden"
                 style={{
-                  background: isDark ? '#1A1A1A' : '#FFFFFF',
-                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}`,
+                  background: 'linear-gradient(135deg, #8B0000 0%, #E60000 50%, #B91C1C 100%)',
+                  boxShadow: '0 8px 32px rgba(230,0,0,0.25)',
                 }}
               >
-                {/* QR Code placeholder - a styled box representing QR */}
-                <div
-                  className="w-40 h-40 rounded-2xl flex items-center justify-center mb-3"
-                  style={{
-                    background: '#FFFFFF',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  <div className="flex flex-col items-center">
-                    <QrCode size={64} strokeWidth={1} color="#1a1a1a" />
-                    <img src={LOGO_BASE64} alt="" className="w-8 h-8 mt-1 rounded" />
+                {/* Card Header with branding */}
+                <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: 'rgba(255,255,255,0.2)' }}>
+                      <img src={LOGO_BASE64} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <span className="text-white text-xs font-bold block">الحبيلين اونلاين</span>
+                      <span className="text-white/60 text-[9px]">Al-Habaylain Online</span>
+                    </div>
+                  </div>
+                  <div className="px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                    <span className="text-white text-[9px] font-bold">بطاقة عميل</span>
                   </div>
                 </div>
-                <p className="text-sm font-bold mb-1" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>
-                  {user?.name || 'مستخدم'}
-                </p>
-                <p className="text-xs font-mono" style={{ color: '#E60000' }} dir="ltr">
-                  {user?.userId || '------'}
-                </p>
-                <button
-                  onClick={() => setActiveScreen('qr')}
-                  className="mt-3 px-4 py-2 rounded-xl text-xs font-bold"
-                  style={{ background: 'rgba(230,0,0,0.1)', color: '#E60000' }}
-                >
-                  عرض رمز QR الكامل
-                </button>
+
+                {/* User Info */}
+                <div className="px-5 py-3">
+                  <p className="text-white text-lg font-bold truncate">
+                    {user?.name || 'مستخدم'}
+                  </p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className="flex items-center gap-1.5">
+                      <CreditCard size={12} color="rgba(255,255,255,0.7)" />
+                      <span className="text-white/80 text-xs font-mono" dir="ltr">
+                        {user?.userId || '------'}
+                      </span>
+                    </div>
+                    {user?.phone && (
+                      <div className="flex items-center gap-1.5">
+                        <Phone size={12} color="rgba(255,255,255,0.7)" />
+                        <span className="text-white/80 text-xs font-mono" dir="ltr">
+                          {user.phone}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* QR Code Section */}
+                <div className="px-5 pb-4 flex items-center gap-4">
+                  <div
+                    className="w-28 h-28 rounded-xl flex items-center justify-center shrink-0 p-2"
+                    style={{ background: '#FFFFFF' }}
+                  >
+                    <QRCodeSVG
+                      value={`FAHED:RECEIVE:${user?.userId || ''}:NAME:${encodeURIComponent(user?.name || '')}:PHONE:${user?.phone || ''}`}
+                      size={96}
+                      level="M"
+                      bgColor="#FFFFFF"
+                      fgColor="#1a1a1a"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white/70 text-[10px] mb-1">امسح الرمز للتحويل</p>
+                    <p className="text-white/50 text-[9px] leading-relaxed">
+                      يمكن لأي مستخدم مسح هذا الرمز لتحويل الأموال إلى حسابك مباشرة
+                    </p>
+                    <button
+                      onClick={() => setActiveScreen('qr')}
+                      className="mt-2 px-3 py-1.5 rounded-lg text-[10px] font-bold text-[#E60000]"
+                      style={{ background: 'rgba(255,255,255,0.9)' }}
+                    >
+                      عرض رمز QR الكامل
+                    </button>
+                  </div>
+                </div>
+
+                {/* Card Footer */}
+                <div className="px-5 pb-3 flex items-center justify-between">
+                  <span className="text-white/40 text-[8px]">v0.4.6.5</span>
+                  {user?.kycStatus === 'verified' && (
+                    <div className="flex items-center gap-1">
+                      <BadgeCheck size={10} color="rgba(255,255,255,0.7)" />
+                      <span className="text-white/70 text-[9px] font-bold">حساب موثق</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </motion.div>
           )}

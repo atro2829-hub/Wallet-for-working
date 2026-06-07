@@ -7,6 +7,10 @@ import { ThemeProvider } from '@/components/fahed/theme-provider';
 import { ToastProvider } from '@/components/fahed/toast-provider';
 import { useTheme } from 'next-themes';
 import { ShieldAlert, X, ShieldCheck } from 'lucide-react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, database } from '@/lib/firebase';
+import { ref, get, update } from 'firebase/database';
+import { generateUserId } from '@/lib/utils';
 
 import AuthScreen from '@/components/fahed/auth-screen';
 import HomeScreen from '@/components/fahed/home-screen';
@@ -143,9 +147,93 @@ function AppContent() {
   const mountedRef = useRef(false);
   const [showUI, setShowUI] = useState(false);
   const [phase, setPhase] = useState<AppPhase>('splash');
+  const [authLoading, setAuthLoading] = useState(true);
+  const [splashDone, setSplashDone] = useState(false);
 
   // Sync user data from Firebase (real-time + on focus + on mount)
   useFirebaseSync();
+
+  // Listen to Firebase Auth state changes and sync with Zustand store
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in via Firebase Auth
+        // Check if Zustand store already has this user synced
+        const currentUser = useAppStore.getState().user;
+        if (currentUser && currentUser.id === firebaseUser.uid) {
+          // Already synced, just mark auth as loaded
+          setAuthLoading(false);
+          return;
+        }
+
+        // Fetch user data from Firebase and set in store
+        try {
+          const userRef = ref(database, `users/${firebaseUser.uid}`);
+          const snapshot = await get(userRef);
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            const fullName = [data.firstName, data.secondName, data.thirdName, data.familyName].filter((n: string) => n && n.trim()).join(' ') || data.name || '';
+            const isAdminEmail = (data.email || firebaseUser.email || '').toLowerCase().includes('admin');
+            let effectiveRole: 'user' | 'admin' | 'owner' = data.role || 'user';
+            if (effectiveRole !== 'owner' && (effectiveRole === 'admin' || isAdminEmail)) {
+              effectiveRole = 'admin';
+            }
+            useAppStore.getState().setUser({
+              id: firebaseUser.uid,
+              email: data.email || firebaseUser.email || '',
+              phone: data.phone || '',
+              name: fullName,
+              firstName: data.firstName || '',
+              secondName: data.secondName || '',
+              thirdName: data.thirdName || '',
+              familyName: data.familyName || '',
+              nationalId: data.nationalId || '',
+              avatar: data.avatar || '',
+              role: effectiveRole,
+              userId: data.userId || '',
+              kycStatus: data.kycStatus || 'pending',
+              isBlocked: data.isBlocked || false,
+              balanceYER: data.balanceYER || 0,
+              balanceSAR: data.balanceSAR || 0,
+              balanceUSD: data.balanceUSD || 0,
+              cardType: data.cardType || '',
+              cardNumber: data.cardNumber || '',
+              cardIssuedAt: data.cardIssuedAt || '',
+              governorate: data.governorate || '',
+              theme: data.theme || 'light',
+            });
+          } else {
+            // Firebase auth user exists but no DB record - create one
+            const newUserId = generateUserId();
+            const email = firebaseUser.email || '';
+            const isAdminEmail = email.toLowerCase().includes('admin');
+            const newUserData = {
+              email, phone: '', name: '', firstName: '', secondName: '', thirdName: '', familyName: '',
+              nationalId: '', avatar: '', role: isAdminEmail ? 'admin' : 'user', userId: newUserId,
+              kycStatus: 'pending', isBlocked: false, balanceYER: 0, balanceSAR: 0, balanceUSD: 0,
+              cardType: '', cardNumber: '', cardIssuedAt: '', governorate: '', theme: 'light',
+            };
+            await update(ref(database), {
+              [`users/${firebaseUser.uid}`]: newUserData,
+              [`userIds/${newUserId}`]: firebaseUser.uid,
+            });
+            useAppStore.getState().setUser({ id: firebaseUser.uid, ...newUserData });
+          }
+        } catch (error) {
+          console.error('Error fetching user data on auth state change:', error);
+        }
+      } else {
+        // User is signed out - clear store
+        const currentState = useAppStore.getState();
+        if (currentState.isAuthenticated || currentState.user) {
+          useAppStore.getState().logout();
+        }
+      }
+      setAuthLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -233,22 +321,53 @@ function AppContent() {
   }, [isAuthenticated]);
 
   const handleSplashComplete = () => {
-    if (isAuthenticated && pinCode) {
-      setPhase('pin');
-    } else {
-      setPhase('main');
-    }
+    setSplashDone(true);
+    // Phase transition will happen in the useEffect below
   };
 
   const handlePinUnlock = () => {
     setPhase('main');
   };
 
+  // Transition phase after both splash is done and auth is resolved
+  useEffect(() => {
+    if (splashDone && !authLoading) {
+      if (isAuthenticated && pinCode) {
+        setPhase('pin');
+      } else {
+        setPhase('main');
+      }
+    }
+  }, [splashDone, authLoading, isAuthenticated, pinCode]);
+
   useEffect(() => {
     if (phase === 'main' && !isAuthenticated) {
       // User logged out, stay on main (which shows auth screen)
     }
   }, [isAuthenticated, phase]);
+
+  // Show auth loading screen while Firebase Auth is initializing
+  if (authLoading && !splashDone) {
+    return <SplashScreen onComplete={handleSplashComplete} />;
+  }
+
+  // Show loading spinner while auth is resolving after splash
+  if (authLoading && splashDone) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: isDark ? '#0F0F0F' : '#F5F5F5' }}>
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="flex flex-col items-center"
+        >
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 overflow-hidden" style={{ background: 'linear-gradient(145deg, #E60000 0%, #8B0000 100%)', boxShadow: '0 8px 24px rgba(230,0,0,0.3)' }}>
+            <span className="text-white text-sm font-bold">الحبيلين</span>
+          </div>
+          <div className="w-8 h-8 border-2 border-[#E60000]/30 border-t-[#E60000] rounded-full animate-spin" />
+        </motion.div>
+      </div>
+    );
+  }
 
   // Splash screen phase
   if (phase === 'splash') {
