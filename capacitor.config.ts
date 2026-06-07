@@ -10,12 +10,12 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchAutoHide: false,
-      backgroundColor: '#E60000',
+      backgroundColor: '#0A1A3A',
       showSpinner: false,
     }
   },
   android: {
-    backgroundColor: '#E60000',
+    backgroundColor: '#0A1A3A',
     allowMixedContent: true,
   }
 };
