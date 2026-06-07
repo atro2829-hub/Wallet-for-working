@@ -169,6 +169,8 @@ interface AppState {
   setActiveTab: (tab: 'home' | 'services' | 'wallet' | 'account') => void;
   activeScreen: string;
   setActiveScreen: (screen: string) => void;
+  previousScreen: string;
+  setPreviousScreen: (screen: string) => void;
 
   // Balance visibility
   balanceVisible: boolean;
@@ -631,7 +633,9 @@ export const useAppStore = create<AppState>()(
       activeTab: 'home',
       setActiveTab: (activeTab) => set({ activeTab }),
       activeScreen: 'main',
-      setActiveScreen: (activeScreen) => set({ activeScreen }),
+      setActiveScreen: (activeScreen) => set((state) => ({ previousScreen: state.activeScreen, activeScreen })),
+      previousScreen: '',
+      setPreviousScreen: (previousScreen) => set({ previousScreen }),
 
       // Balance
       balanceVisible: true,

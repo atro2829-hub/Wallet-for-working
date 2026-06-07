@@ -151,7 +151,7 @@ function AppContent() {
   if (activeScreen in overlayScreens) {
     const OverlayComponent = overlayScreens[activeScreen];
     return (
-      <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative">
+      <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <OverlayComponent key={activeScreen === 'category-detail' ? `category-detail-${useAppStore.getState().selectedCategory}` : activeScreen} />
       </div>
     );
@@ -168,7 +168,7 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative">
+    <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F0F0F] max-w-md mx-auto relative" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       <main className="flex-1 overflow-y-auto pb-24">
         <AnimatePresence mode="wait">
           <motion.div

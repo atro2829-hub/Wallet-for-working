@@ -195,9 +195,9 @@ html, body {
   .grid-cols-4 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
 }
 
-/* Touch-friendly button sizes for mobile */
+/* Touch-friendly button sizes for mobile - 44px Apple HIG standard */
 button {
-  min-height: 36px;
+  min-height: 44px;
 }
 
 /* Prevent text selection on interactive elements */

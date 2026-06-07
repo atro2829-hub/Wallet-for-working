@@ -283,7 +283,8 @@ export default function CategoryDetailScreen() {
       if (contentRef.current) contentRef.current.scrollTop = 0;
     } else {
       setSelectedCategory(null);
-      setActiveScreen('main');
+      const prev = useAppStore.getState().previousScreen;
+      useAppStore.getState().setActiveScreen(prev || '');
     }
   };
 

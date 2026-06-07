@@ -93,3 +93,76 @@ Created a comprehensive Owner Panel and restructured the Admin Panel for the "م
 - Owner panel button visible in account screen when `role === 'owner'`
 - Back button in recharge screen now works correctly
 - Build compiles without errors
+
+---
+
+## Task 1 - Bug Fixes and Responsive Improvements
+
+### Date: 2026-03-05
+
+### Agent: task-1-agent
+
+### Changes Made:
+
+#### 1. CRITICAL: Fix Back Button Bug - previousScreen tracking
+
+**Problem**: All overlay screen back buttons used `setActiveScreen('')` which always navigated to the home screen, ignoring the actual previous screen. For example, navigating from Services -> Category Detail -> Recharge, pressing back on Recharge would go to Home instead of Category Detail.
+
+**Solution**: Added `previousScreen` state field to the Zustand store that automatically tracks the last screen before navigating.
+
+**Files Modified**:
+
+1. **`/home/z/my-project/src/lib/store.ts`**
+   - Added `previousScreen: string` to `AppState` interface
+   - Added `setPreviousScreen: (screen: string) => void` action to interface
+   - Modified `setActiveScreen` to automatically save the current `activeScreen` as `previousScreen` before changing:
+     ```ts
+     setActiveScreen: (activeScreen) => set((state) => ({ previousScreen: state.activeScreen, activeScreen })),
+     ```
+   - Added initial state: `previousScreen: ''`
+   - Added setter: `setPreviousScreen: (previousScreen) => set({ previousScreen })`
+
+2. **`/home/z/my-project/src/components/fahed/recharge-screen.tsx`**
+   - Updated 3 occurrences of `setActiveScreen('')` to use `previousScreen`:
+     - Header back button (line ~346)
+     - Success screen "حسناً" button (line ~861)
+     - Receipt modal "حسناً" button (line ~1083)
+   - New pattern:
+     ```tsx
+     onClick={() => {
+       const prev = useAppStore.getState().previousScreen;
+       useAppStore.getState().setActiveScreen(prev || '');
+     }}
+     ```
+
+3. **`/home/z/my-project/src/components/fahed/category-detail-screen.tsx`**
+   - Updated `handleBack()` function: when going back from the top level (not from subsection to subsection), uses `previousScreen` instead of hardcoded `'main'`
+   - Changed from `setActiveScreen('main')` to `setActiveScreen(prev || '')`
+
+4. **`/home/z/my-project/src/components/fahed/charging-companies-screen.tsx`**
+   - Updated back button from `setActiveTab('services')` to use `previousScreen`
+   - Changed from `useAppStore.getState().setActiveTab('services')` to `useAppStore.getState().setActiveScreen(prev || '')`
+
+#### 2. Verified Owner Role Works Correctly
+
+- `auth-screen.tsx`: Owner role properly detected from Firebase with priority over admin email detection
+- `account-screen.tsx`: Both `isOwner` and `isAdmin` states correctly set; owner sees both Owner Panel and Admin Panel buttons
+- `owner-screen.tsx`: Full functionality exists with 7 tabs
+- `page.tsx`: Owner screen properly mapped in overlay screens
+
+#### 3. Responsive Design Improvements
+
+1. **`/home/z/my-project/src/app/layout.tsx`**
+   - Added `viewportFit: "cover"` to viewport config for proper notch/safe-area support on iOS
+
+2. **`/home/z/my-project/src/app/page.tsx`**
+   - Added `paddingTop: 'env(safe-area-inset-top, 0px)'` to both the overlay screen container and the main app container for notched phone support
+
+3. **`/home/z/my-project/src/app/globals.css`**
+   - Button min-height already set to 44px (Apple HIG standard)
+   - Safe-area support already present with `.safe-bottom` class
+   - Responsive grid adjustments already in place for small screens
+   - iOS zoom prevention already in place with 16px font-size on inputs
+
+### Build Status
+- Build compiles successfully with no errors

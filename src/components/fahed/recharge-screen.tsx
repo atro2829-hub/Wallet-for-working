@@ -343,7 +343,10 @@ export default function RechargeScreen() {
       >
         <div className="flex items-center gap-3">
           <button
-            onClick={() => useAppStore.getState().setActiveScreen('')}
+            onClick={() => {
+              const prev = useAppStore.getState().previousScreen;
+              useAppStore.getState().setActiveScreen(prev || '');
+            }}
             className="w-10 h-10 rounded-xl flex items-center justify-center active:scale-95 transition-transform"
             style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}
           >
@@ -858,7 +861,10 @@ export default function RechargeScreen() {
 
               <div className="flex gap-2 w-full">
                 <button
-                  onClick={() => useAppStore.getState().setActiveScreen('')}
+                  onClick={() => {
+                    const prev = useAppStore.getState().previousScreen;
+                    useAppStore.getState().setActiveScreen(prev || '');
+                  }}
                   className="flex-1 py-3.5 rounded-2xl font-bold text-white text-sm"
                   style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
                 >
@@ -1080,7 +1086,10 @@ export default function RechargeScreen() {
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => useAppStore.getState().setActiveScreen('')}
+                  onClick={() => {
+                    const prev = useAppStore.getState().previousScreen;
+                    useAppStore.getState().setActiveScreen(prev || '');
+                  }}
                   className="flex-1 py-3.5 rounded-2xl font-bold text-white text-sm"
                   style={{ background: 'linear-gradient(135deg, #E60000 0%, #B30000 100%)' }}
                 >

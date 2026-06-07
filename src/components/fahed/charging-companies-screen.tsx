@@ -43,7 +43,10 @@ export default function ChargingCompaniesScreen() {
       >
         <div className="flex items-center gap-3">
           <button
-            onClick={() => useAppStore.getState().setActiveTab('services')}
+            onClick={() => {
+              const prev = useAppStore.getState().previousScreen;
+              useAppStore.getState().setActiveScreen(prev || '');
+            }}
             className="w-10 h-10 rounded-xl flex items-center justify-center"
             style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}
           >
