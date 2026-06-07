@@ -1,0 +1,94 @@
+name: Build Android APK & AAB
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js static export
+        run: npx next build
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Generate debug keystore
+        run: |
+          keytool -genkeypair \
+            -alias debug \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -keystore android/app/debug.keystore \
+            -storepass android123 \
+            -keypass android123 \
+            -dname "CN=Debug, OU=Debug, O=FahedNet, L=Aden, ST=Aden, C=YE"
+
+      - name: Create signing config for debug build
+        run: |
+          cat >> android/app/build.gradle << 'EOF'
+
+          android.signingConfigs.debug {
+              storeFile file('debug.keystore')
+              storePassword 'android123'
+              keyAlias 'debug'
+              keyPassword 'android123'
+          }
+          android.buildTypes.debug.signingConfig android.signingConfigs.debug
+          android.buildTypes.release.signingConfig android.signingConfigs.debug
+          EOF
+
+      - name: Build Debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Build Release AAB
+        working-directory: android
+        run: ./gradlew bundleRelease
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Upload Release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+          if-no-files-found: ignore
