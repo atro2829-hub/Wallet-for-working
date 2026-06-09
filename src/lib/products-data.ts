@@ -1,4 +1,4 @@
-// الحبيلين اونلاين - Alhablayn Products Data
+// محفظة الجنوب - South Wallet Products Data
 // Comprehensive product catalog for all service providers
 
 export interface ProductItem {

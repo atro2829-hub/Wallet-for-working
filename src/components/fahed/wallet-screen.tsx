@@ -637,11 +637,11 @@ export default function WalletScreen() {
                         }}
                       >
                         {/* White logo on colored card background */}
-                        <img src={LOGO_BASE64} alt="الحبيلين" className="w-full h-full object-cover" />
+                        <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" />
                       </div>
                       <div className="flex flex-col leading-none">
-                        <span className="text-white text-sm font-bold tracking-wide">الحبيلين</span>
-                        <span className="text-white/40 text-[9px] font-medium mt-0.5" dir="ltr">Alhablayn</span>
+                        <span className="text-white text-sm font-bold tracking-wide">الجنوب</span>
+                        <span className="text-white/40 text-[9px] font-medium mt-0.5" dir="ltr">South Wallet</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

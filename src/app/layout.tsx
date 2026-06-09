@@ -4,8 +4,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/fahed/theme-provider";
 
 export const metadata: Metadata = {
-  title: "الحبيلين اونلاين - محفظتك الرقمية",
-  description: "الحبيلين اونلاين - الدفع والتحويل وإدارة الأموال لليمنيين",
+  title: "محفظة الجنوب - محفظتك الرقمية",
+  description: "محفظة الجنوب - الدفع والتحويل وإدارة الأموال لليمنيين",
   manifest: "/manifest.json",
   icons: {
     icon: "/logo.svg",
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "الحبيلين اونلاين",
+    title: "محفظة الجنوب",
   },
 };
 
@@ -45,21 +45,22 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="format-detection" content="telephone=yes" />
         <meta name="msapplication-tap-highlight" content="no" />
-        {/* Inline script to prevent dark mode flash */}
+        {/* Inline script to prevent dark mode flash - reads from next-themes storage key */}
         <script dangerouslySetInnerHTML={{
           __html: `
             try {
-              const theme = localStorage.getItem('fahed-theme');
-              if (theme === '"dark"' || theme === 'dark') {
+              var theme = localStorage.getItem('south-wallet-theme');
+              if (theme === 'dark') {
                 document.documentElement.classList.add('dark');
                 document.documentElement.style.backgroundColor = '#0F0F0F';
+                document.body && (document.body.style.backgroundColor = '#0F0F0F');
               }
             } catch(e) {}
           `,
         }} />
       </head>
       <body
-        className="antialiased font-sans bg-[#F5F5F5] dark:bg-[#0F0F0F]"
+        className="antialiased font-sans bg-[#F5F5F5] dark:bg-[#0F0F0F] transition-colors duration-200"
         style={{
           fontFamily: "'Segoe UI', Tahoma, 'Noto Sans Arabic', 'Arial', sans-serif",
           overscrollBehavior: 'none',

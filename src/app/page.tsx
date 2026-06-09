@@ -17,8 +17,7 @@ import ServicesScreen from '@/components/fahed/services-screen';
 import WalletScreen from '@/components/fahed/wallet-screen';
 import AccountScreen from '@/components/fahed/account-screen';
 import KycScreen from '@/components/fahed/kyc-screen';
-import AdminScreen from '@/components/fahed/admin-screen';
-import OwnerScreen from '@/components/fahed/owner-screen';
+// Admin/Owner screens moved to separate admin app (com.qtbm.south.admin)
 import NotificationsScreen from '@/components/fahed/notifications-screen';
 import OrdersScreen from '@/components/fahed/orders-screen';
 import DepositScreen from '@/components/fahed/deposit-screen';
@@ -309,7 +308,7 @@ function AppContent() {
           className="flex flex-col items-center"
         >
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 overflow-hidden" style={{ background: 'linear-gradient(145deg, #E60000 0%, #8B0000 100%)', boxShadow: '0 8px 24px rgba(230,0,0,0.3)' }}>
-            <span className="text-white text-sm font-bold">الحبيلين</span>
+            <span className="text-white text-sm font-bold">الجنوب</span>
           </div>
           <div className="w-8 h-8 border-2 border-[#E60000]/30 border-t-[#E60000] rounded-full animate-spin" />
         </motion.div>
@@ -337,7 +336,7 @@ function AppContent() {
           className="flex flex-col items-center"
         >
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 overflow-hidden" style={{ background: 'linear-gradient(145deg, #E60000 0%, #8B0000 100%)', boxShadow: '0 8px 24px rgba(230,0,0,0.3)' }}>
-            <span className="text-white text-sm font-bold">الحبيلين</span>
+            <span className="text-white text-sm font-bold">الجنوب</span>
           </div>
           <div className="w-8 h-8 border-2 border-[#E60000]/30 border-t-[#E60000] rounded-full animate-spin" />
         </motion.div>
@@ -353,8 +352,6 @@ function AppContent() {
   const overlayScreens: Record<string, React.ComponentType> = {
     notifications: NotificationsScreen,
     kyc: KycScreen,
-    admin: AdminScreen,
-    owner: OwnerScreen,
     orders: OrdersScreen,
     deposit: DepositScreen,
     savings: SavingsScreen,

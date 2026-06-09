@@ -164,7 +164,7 @@ export default function QRScreen() {
 
     const parsed = parseQRData(data);
     if (!parsed) {
-      setLookupError('رمز QR غير صالح - ليس رمز محفظة الحبيلين');
+      setLookupError('رمز QR غير صالح - ليس رمز محفظة الجنوب');
       return;
     }
 
@@ -344,7 +344,7 @@ export default function QRScreen() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'الحبيلين اونلاين',
+          title: 'محفظة الجنوب',
           text: qrData,
         });
       } catch {
@@ -719,7 +719,7 @@ export default function QRScreen() {
                             </span>
                           </div>
                           <span className="text-[10px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: '#E60000' }}>
-                            الحبيلين
+                            الجنوب
                           </span>
                         </div>
 
@@ -1086,9 +1086,9 @@ export default function QRScreen() {
                   {/* Logo and App Name */}
                   <div className="flex flex-col items-center mb-4">
                     <div className="w-12 h-12 rounded-xl overflow-hidden mb-2 flex items-center justify-center" style={{ boxShadow: '0 4px 16px rgba(201,168,76,0.3)', border: '1px solid rgba(201,168,76,0.3)' }}>
-                      <img src={LOGO_BASE64} alt="الحبيلين" className="w-full h-full object-cover" />
+                      <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" />
                     </div>
-                    <h3 className="text-sm font-bold" style={{ color: '#C9A84C' }}>الحبيلين اونلاين</h3>
+                    <h3 className="text-sm font-bold" style={{ color: '#C9A84C' }}>محفظة الجنوب</h3>
                     <p className="text-[10px]" style={{ color: 'rgba(201,168,76,0.6)' }}>محفظتك الرقمية الموثوقة</p>
                   </div>
 
@@ -1155,7 +1155,7 @@ export default function QRScreen() {
                   {/* Decorative divider */}
                   <div className="flex items-center gap-3 mb-4">
                     <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(201,168,76,0.3), transparent)' }} />
-                    <span className="text-[9px] font-bold" style={{ color: 'rgba(201,168,76,0.5)' }}>الحبيلين اونلاين</span>
+                    <span className="text-[9px] font-bold" style={{ color: 'rgba(201,168,76,0.5)' }}>محفظة الجنوب</span>
                     <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(201,168,76,0.3), transparent)' }} />
                   </div>
 

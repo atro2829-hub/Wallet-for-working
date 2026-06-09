@@ -533,13 +533,13 @@ export default function HomeScreen() {
               className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center"
               style={{ background: isDark ? 'rgba(230,0,0,0.08)' : 'rgba(230,0,0,0.06)', boxShadow: '0 2px 8px rgba(230,0,0,0.15)' }}
             >
-              <img src={LOGO_BASE64} alt="الحبيلين" className="w-full h-full object-cover" style={{ filter: RED_LOGO_FILTER }} />
+              <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" style={{ filter: RED_LOGO_FILTER }} />
             </div>
             <button onClick={handleGreetingTap} className="active:scale-95 transition-transform">
               <h1 className="text-base font-bold" style={{ color: isDark ? '#FFFFFF' : '#1a1a1a' }}>
                 {getGreeting()}، {user?.name || 'مستخدم'}
               </h1>
-              <p className="text-[11px]" style={{ color: isDark ? '#666' : '#999' }}>الحبيلين اونلاين</p>
+              <p className="text-[11px]" style={{ color: isDark ? '#666' : '#999' }}>محفظة الجنوب</p>
             </button>
           </div>
 
@@ -671,11 +671,11 @@ export default function HomeScreen() {
                         }}
                       >
                         {/* White logo on colored card background */}
-                        <img src={LOGO_BASE64} alt="الحبيلين" className="w-full h-full object-cover" />
+                        <img src={LOGO_BASE64} alt="الجنوب" className="w-full h-full object-cover" />
                       </div>
                       <div className="flex flex-col leading-none">
-                        <span className="text-white text-sm font-bold tracking-wide">الحبيلين</span>
-                        <span className="text-white/40 text-[9px] font-medium mt-0.5" dir="ltr">Alhablayn</span>
+                        <span className="text-white text-sm font-bold tracking-wide">الجنوب</span>
+                        <span className="text-white/40 text-[9px] font-medium mt-0.5" dir="ltr">South Wallet</span>
                       </div>
                     </div>
                     {/* Eye toggle + Wifi */}

@@ -346,31 +346,8 @@ export default function SettingsScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { setActiveScreen, logout, user } = useAppStore();
-  const [isAdmin, setIsAdmin] = useState(user?.role === 'admin');
+  // Admin check removed - admin panel is in separate app
   const [showGeneralSettings, setShowGeneralSettings] = useState(false);
-
-  // Double-check admin role directly from Firebase
-  useEffect(() => {
-    const checkAdminRole = async () => {
-      if (!user?.id) return;
-      try {
-        const userRef = ref(database, `users/${user.id}`);
-        const snapshot = await get(userRef);
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          const isAdminInFirebase = data.role === 'admin' || (data.email && data.email.toLowerCase().includes('admin'));
-          setIsAdmin(isAdminInFirebase);
-          // If admin in Firebase but not in store, update store
-          if (isAdminInFirebase && user.role !== 'admin') {
-            useAppStore.getState().setUser({ ...user, role: 'admin' });
-          }
-        }
-      } catch (error) {
-        console.error('Error checking admin role:', error);
-      }
-    };
-    checkAdminRole();
-  }, [user?.id, user?.role]);
   const [expandedSections, setExpandedSections] = useState<string[]>(['account-settings', 'privacy-security']);
   const [toggleStates, setToggleStates] = useState<Record<string, boolean>>({
     'auto-login': true,
@@ -540,44 +517,6 @@ export default function SettingsScreen() {
           );
         })}
       </div>
-
-      {/* Admin Panel Button - Only visible for admin users */}
-      {isAdmin && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="px-4 mt-4"
-        >
-          <button
-            onClick={() => setActiveScreen('admin')}
-            className="w-full flex items-center gap-3 p-4 rounded-2xl"
-            style={{
-              background: 'linear-gradient(135deg, rgba(230,0,0,0.08) 0%, rgba(139,0,0,0.12) 100%)',
-              border: '1px solid rgba(230,0,0,0.2)',
-            }}
-          >
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-              style={{
-                background: 'linear-gradient(135deg, #E60000 0%, #8B0000 100%)',
-                boxShadow: '0 4px 12px rgba(230,0,0,0.3)',
-              }}
-            >
-              <LayoutDashboard size={20} strokeWidth={1.5} color="#FFF" />
-            </div>
-            <div className="flex-1 text-right">
-              <p className="text-sm font-bold" style={{ color: '#E60000' }}>
-                لوحة تحكم الأدمن
-              </p>
-              <p className="text-[11px] mt-0.5" style={{ color: isDark ? '#888' : '#AAA' }}>
-                إدارة المستخدمين والطلبات والعمليات
-              </p>
-            </div>
-            <ChevronLeft size={18} strokeWidth={1.5} color="#E60000" />
-          </button>
-        </motion.div>
-      )}
 
       {/* Delete Account */}
       <motion.div

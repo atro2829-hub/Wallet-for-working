@@ -4,13 +4,13 @@ import { getDatabase } from 'firebase/database';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC5ageYEQl2KGteXFFxuGp7IHMnFBXuHSQ",
-  authDomain: "fahed-net.firebaseapp.com",
-  databaseURL: "https://fahed-net-default-rtdb.firebaseio.com",
-  projectId: "fahed-net",
-  storageBucket: "fahed-net.firebasestorage.app",
-  messagingSenderId: "483525695699",
-  appId: "1:483525695699:android:623d3c31e2f637de591c26"
+  apiKey: "AIzaSyBY9UTcryFEoq8VA1zD7OVnku-fjLxw-p4",
+  authDomain: "southern-portfolio.firebaseapp.com",
+  databaseURL: "https://southern-portfolio-default-rtdb.firebaseio.com",
+  projectId: "southern-portfolio",
+  storageBucket: "southern-portfolio.firebasestorage.app",
+  messagingSenderId: "501045825605",
+  appId: "1:501045825605:android:a0b11c5db57c9831d3932c"
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];

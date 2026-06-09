@@ -145,7 +145,7 @@ export default function PinScreen({ onUnlock }: PinScreenProps) {
         >
           <img
             src={LOGO_BASE64}
-            alt="الحبيلين اونلاين"
+            alt="محفظة الجنوب"
             className="w-10 h-10 object-contain"
             draggable={false}
           />

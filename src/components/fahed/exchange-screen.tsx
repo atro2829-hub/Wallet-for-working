@@ -310,7 +310,7 @@ export default function ExchangeScreen() {
   const handleShareReceipt = async () => {
     if (!voucherData) return;
     const text = `
-سند التحويل - الحبيلين اونلاين
+سند التحويل - محفظة الجنوب
 ══════════════════════════════
 رقم السند: ${voucherData.referenceNumber}
 التاريخ: ${formatVoucherDate(voucherData.date)}
@@ -325,13 +325,13 @@ export default function ExchangeScreen() {
 العمولة (${voucherData.commission}%): ${voucherData.commissionAmount < 1 ? voucherData.commissionAmount.toFixed(4) : formatNumber(parseFloat(voucherData.commissionAmount.toFixed(2)))} ${currencySymbols[voucherData.toCurrency]}
 صافي المبلغ: ${voucherData.toAmount < 1 ? voucherData.toAmount.toFixed(4) : formatNumber(parseFloat(voucherData.toAmount.toFixed(2)))} ${currencySymbols[voucherData.toCurrency]}
 ══════════════════════════════
-الحبيلين اونلاين - محفظتك الرقمية
+محفظة الجنوب - محفظتك الرقمية
 `.trim();
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'سند التحويل - الحبيلين اونلاين',
+          title: 'سند التحويل - محفظة الجنوب',
           text,
         });
       } catch {
@@ -697,10 +697,10 @@ export default function ExchangeScreen() {
                     {/* Logo + Brand Row */}
                     <div className="flex items-center gap-3 p-4" style={{ borderBottom: `1px dashed ${voucherDividerColor}` }}>
                       <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center" style={{ background: 'rgba(230,0,0,0.1)' }}>
-                        <img src={LOGO_BASE64} alt="الحبيلين اونلاين" className="w-full h-full object-cover" />
+                        <img src={LOGO_BASE64} alt="محفظة الجنوب" className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>الحبيلين اونلاين</p>
+                        <p className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>محفظة الجنوب</p>
                         <p className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>سند تبديل عملات</p>
                       </div>
                       <div className="flex items-center gap-1 px-2 py-1 rounded-md" style={{ background: 'rgba(16,185,129,0.1)' }}>
@@ -832,7 +832,7 @@ export default function ExchangeScreen() {
                     {/* Footer */}
                     <div className="px-4 pb-4 text-center">
                       <p className="text-[10px] font-bold" style={{ color: isDark ? '#555' : '#999' }}>
-                        الحبيلين اونلاين - محفظتك الرقمية
+                        محفظة الجنوب - محفظتك الرقمية
                       </p>
                       <p className="text-[9px] mt-1" style={{ color: isDark ? '#444' : '#DDD' }}>
                         {voucherData.referenceNumber}

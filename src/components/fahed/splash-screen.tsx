@@ -181,7 +181,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
                 boxShadow: '0 12px 40px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1)',
               }}
             >
-              <img src={LOGO_BASE64} alt="الحبيلين اونلاين" className="w-[72px] h-[72px] object-cover" />
+              <img src={LOGO_BASE64} alt="محفظة الجنوب" className="w-[72px] h-[72px] object-cover" />
             </div>
           </motion.div>
 
@@ -196,7 +196,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
             className="text-2xl font-bold text-white mb-2"
             style={{ textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}
           >
-            الحبيلين اونلاين
+            محفظة الجنوب
           </motion.h1>
 
           {/* Tagline */}

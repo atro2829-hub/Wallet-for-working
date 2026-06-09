@@ -113,8 +113,7 @@ export default function AccountScreen() {
   const { theme, setTheme } = useTheme();
   const isDark = theme === 'dark';
   const { user, setActiveScreen, logout, balanceVisible, toggleBalance, setUser } = useAppStore();
-  const [isAdmin, setIsAdmin] = useState(user?.role === 'admin' || user?.role === 'owner');
-  const [isOwner, setIsOwner] = useState(user?.role === 'owner');
+  // Admin/Owner panels moved to separate admin app
   const [expandedSections, setExpandedSections] = useState<string[]>(['account', 'privacy']);
   const [toggleStates, setToggleStates] = useState<Record<string, boolean>>({
     'auto-login': true,
@@ -182,34 +181,7 @@ export default function AccountScreen() {
     setLastLoginTime(formatted);
   }, []);
 
-  // Check admin/owner role directly from Firebase
-  useEffect(() => {
-    const checkRole = async () => {
-      if (!user?.id) return;
-      try {
-        const userRef = ref(database, `users/${user.id}`);
-        const snapshot = await get(userRef);
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          const isAdminEmail = data.email && data.email.toLowerCase().includes('admin');
-          let effectiveRole = data.role || 'user';
-          if (effectiveRole === 'owner') {
-            // Owner role from Firebase
-          } else if (effectiveRole === 'admin' || isAdminEmail) {
-            effectiveRole = 'admin';
-          }
-          setIsAdmin(effectiveRole === 'admin' || effectiveRole === 'owner');
-          setIsOwner(effectiveRole === 'owner');
-          if (effectiveRole !== user.role) {
-            setUser({ ...user, role: effectiveRole as 'user' | 'admin' | 'owner' });
-          }
-        }
-      } catch (e) {
-        console.error('Role check error:', e);
-      }
-    };
-    checkRole();
-  }, [user?.id, user?.role]);
+  // Admin/owner role check removed - panels are in separate admin app
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev =>
@@ -219,7 +191,10 @@ export default function AccountScreen() {
 
   const handleToggle = (itemId: string) => {
     if (itemId === 'dark-mode') {
-      setTheme(isDark ? 'light' : 'dark');
+      const newTheme = isDark ? 'light' : 'dark';
+      setTheme(newTheme);
+      // Also update Zustand store for persistence
+      useAppStore.getState().setTheme(newTheme as 'light' | 'dark');
     }
     setToggleStates(prev => ({ ...prev, [itemId]: !prev[itemId] }));
   };
@@ -231,7 +206,7 @@ export default function AccountScreen() {
   };
 
   const handleShareProfile = () => {
-    const text = `📱 حسابي في الحبيلين اونلاين\n🆔 رقم الحساب: ${user?.userId || ''}\n👤 الاسم: ${user?.name || ''}`;
+    const text = `📱 حسابي في محفظة الجنوب\n🆔 رقم الحساب: ${user?.userId || ''}\n👤 الاسم: ${user?.name || ''}`;
     if (navigator.share) {
       navigator.share({ text }).catch(() => {
         navigator.clipboard?.writeText(text);
@@ -457,8 +432,8 @@ export default function AccountScreen() {
                       <img src={LOGO_BASE64} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div>
-                      <span className="text-white text-xs font-bold block">الحبيلين اونلاين</span>
-                      <span className="text-white/60 text-[9px]">Al-Habaylain Online</span>
+                      <span className="text-white text-xs font-bold block">محفظة الجنوب</span>
+                      <span className="text-white/60 text-[9px]">South Wallet</span>
                     </div>
                   </div>
                   <div className="px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
@@ -676,7 +651,7 @@ export default function AccountScreen() {
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  const text = `🎁 استخدم كود الدعوة ${user?.userId || ''} في تطبيق الحبيلين اونلاين واحصل على مكافأة!`;
+                  const text = `🎁 استخدم كود الدعوة ${user?.userId || ''} في تطبيق محفظة الجنوب واحصل على مكافأة!`;
                   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
                   window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
                 }}
@@ -688,7 +663,7 @@ export default function AccountScreen() {
               </button>
               <button
                 onClick={() => {
-                  const text = `🎁 استخدم كود الدعوة ${user?.userId || ''} في تطبيق الحبيلين اونلاين واحصل على مكافأة!`;
+                  const text = `🎁 استخدم كود الدعوة ${user?.userId || ''} في تطبيق محفظة الجنوب واحصل على مكافأة!`;
                   navigator.share?.({ text }).catch(() => {
                     navigator.clipboard?.writeText(text);
                   });
@@ -798,82 +773,6 @@ export default function AccountScreen() {
           </motion.div>
         );
       })}
-
-      {/* Owner Panel Button - Only visible for owner users */}
-      {isOwner && (
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="px-4 mt-3"
-        >
-          <button
-            onClick={() => setActiveScreen('owner')}
-            className="w-full flex items-center gap-3 p-4 rounded-2xl"
-            style={{
-              background: 'linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(109,40,217,0.12) 100%)',
-              border: '1px solid rgba(139,92,246,0.25)',
-            }}
-          >
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-              style={{
-                background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
-                boxShadow: '0 4px 12px rgba(139,92,246,0.3)',
-              }}
-            >
-              <Crown size={20} strokeWidth={1.5} color="#FFF" />
-            </div>
-            <div className="flex-1 text-right">
-              <p className="text-sm font-bold" style={{ color: '#8B5CF6' }}>
-                لوحة تحكم المالك
-              </p>
-              <p className="text-[11px] mt-0.5" style={{ color: isDark ? '#888' : '#AAA' }}>
-                تحكم كامل بالتطبيق والاعدادات
-              </p>
-            </div>
-            <ChevronLeft size={18} strokeWidth={1.5} color="#8B5CF6" />
-          </button>
-        </motion.div>
-      )}
-
-      {/* Admin Panel Button - Only visible for admin users */}
-      {isAdmin && (
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="px-4 mt-3"
-        >
-          <button
-            onClick={() => setActiveScreen('admin')}
-            className="w-full flex items-center gap-3 p-4 rounded-2xl"
-            style={{
-              background: 'linear-gradient(135deg, rgba(230,0,0,0.08) 0%, rgba(139,0,0,0.12) 100%)',
-              border: '1px solid rgba(230,0,0,0.2)',
-            }}
-          >
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-              style={{
-                background: 'linear-gradient(135deg, #E60000 0%, #8B0000 100%)',
-                boxShadow: '0 4px 12px rgba(230,0,0,0.3)',
-              }}
-            >
-              <LayoutDashboard size={20} strokeWidth={1.5} color="#FFF" />
-            </div>
-            <div className="flex-1 text-right">
-              <p className="text-sm font-bold" style={{ color: '#E60000' }}>
-                لوحة تحكم الأدمن
-              </p>
-              <p className="text-[11px] mt-0.5" style={{ color: isDark ? '#888' : '#AAA' }}>
-                إدارة المستخدمين والطلبات والعمليات
-              </p>
-            </div>
-            <ChevronLeft size={18} strokeWidth={1.5} color="#E60000" />
-          </button>
-        </motion.div>
-      )}
 
       {/* Social Links Section */}
       {socialLinks && (

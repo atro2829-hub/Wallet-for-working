@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.fahd.net',
-  appName: 'الحبيلين اونلاين',
+  appId: 'com.qtbm.south',
+  appName: 'محفظة الجنوب',
   webDir: 'out',
   server: {
     androidScheme: 'https'
