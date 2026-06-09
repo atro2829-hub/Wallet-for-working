@@ -3,7 +3,6 @@ name: Build & Release APK
 on:
   push:
     branches: [main, master]
-    tags: ['v*']
   workflow_dispatch:
     inputs:
       build_type:
@@ -18,11 +17,11 @@ on:
 
 env:
   NODE_VERSION: '20'
-  JAVA_VERSION: '17'
+  JAVA_VERSION: '21'
 
 jobs:
   build-user-app:
-    name: Build User App APK
+    name: 🔨 Build User App APK
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.build_type == 'both' || github.event.inputs.build_type == 'user' || github.event_name != 'workflow_dispatch' }}
     steps:
@@ -53,6 +52,9 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
       - name: Build Debug APK
         working-directory: android
         run: ./gradlew assembleDebug
@@ -60,11 +62,6 @@ jobs:
       - name: Build Release APK
         working-directory: android
         run: ./gradlew assembleRelease
-        env:
-          MYAPP_UPLOAD_STORE_FILE: ${{ secrets.KEYSTORE_FILE }}
-          MYAPP_UPLOAD_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          MYAPP_UPLOAD_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          MYAPP_UPLOAD_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -87,12 +84,9 @@ jobs:
             android/app/build/outputs/apk/debug/app-debug.apk
 
   build-admin-app:
-    name: Build Admin App APK
+    name: 🔨 Build Admin App APK
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.build_type == 'both' || github.event.inputs.build_type == 'admin' || github.event_name != 'workflow_dispatch' }}
-    defaults:
-      run:
-        working-directory: south-admin
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -114,13 +108,19 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install dependencies
+        working-directory: south-admin
         run: npm ci
 
       - name: Build Next.js (static export)
+        working-directory: south-admin
         run: npm run build
 
       - name: Sync Capacitor
+        working-directory: south-admin
         run: npx cap sync android
+
+      - name: Make gradlew executable
+        run: chmod +x south-admin/android/gradlew
 
       - name: Build Debug APK
         working-directory: south-admin/android
@@ -129,11 +129,6 @@ jobs:
       - name: Build Release APK
         working-directory: south-admin/android
         run: ./gradlew assembleRelease
-        env:
-          MYAPP_UPLOAD_STORE_FILE: ${{ secrets.KEYSTORE_FILE }}
-          MYAPP_UPLOAD_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          MYAPP_UPLOAD_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          MYAPP_UPLOAD_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
