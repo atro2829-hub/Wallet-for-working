@@ -68,3 +68,6 @@ prisma/*.db
 # Misc
 *.log
 coverage/
+
+# JDK installations
+.jdks/
