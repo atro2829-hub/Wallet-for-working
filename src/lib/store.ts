@@ -369,7 +369,7 @@ interface AppState {
 
   // Promo codes
   promoCodes: PromoCode[];
-  applyPromoCode: (code: string) => PromoCode | null;
+  applyPromoCode: (code: string) => Promise<PromoCode | null>;
 
   // Gift codes
   redeemGiftCode: (code: string) => Promise<{ success: boolean; message: string; amount?: number; currency?: string }>;
@@ -958,18 +958,52 @@ export const useAppStore = create<AppState>()(
 
       // Promo codes
       promoCodes: defaultPromoCodes,
-      applyPromoCode: (code) => {
-        const state = get();
-        const promo = state.promoCodes.find(p => p.code === code && p.isActive && p.usedCount < p.maxUses && new Date(p.expiresAt) > new Date());
-        if (promo) {
-          set({
-            promoCodes: state.promoCodes.map(p =>
-              p.id === promo.id ? { ...p, usedCount: p.usedCount + 1 } : p
-            )
+      applyPromoCode: async (code) => {
+        if (!code.trim()) return null;
+        try {
+          const { database } = await import('@/lib/firebase');
+          const { ref, get, query, orderByChild, equalTo, update } = await import('firebase/database');
+
+          const normalizedCode = code.trim().toUpperCase();
+
+          // Query Firebase promo-codes by the `code` field
+          const promoCodesRef = ref(database, 'promo-codes');
+          const codeQuery = query(promoCodesRef, orderByChild('code'), equalTo(normalizedCode));
+          const querySnapshot = await get(codeQuery);
+
+          if (!querySnapshot.exists()) {
+            return null;
+          }
+
+          // Extract matching entries into an array to avoid TS narrowing issues with forEach callbacks
+          const matches: { key: string; data: PromoCode }[] = [];
+          querySnapshot.forEach((child) => {
+            const val = child.val() as PromoCode;
+            if (
+              val.isActive &&
+              val.usedCount < val.maxUses &&
+              (!val.expiresAt || new Date(val.expiresAt) > new Date())
+            ) {
+              matches.push({ key: child.key!, data: val });
+            }
           });
+
+          if (matches.length === 0) {
+            return null;
+          }
+
+          const { key: promoFirebaseKey, data: promo } = matches[0];
+
+          // Increment usedCount in Firebase
+          await update(ref(database, `promo-codes/${promoFirebaseKey}`), {
+            usedCount: (promo.usedCount || 0) + 1,
+          });
+
           return promo;
+        } catch (error) {
+          console.error('Apply promo code error:', error);
+          return null;
         }
-        return null;
       },
 
       // Gift codes
@@ -984,42 +1018,56 @@ export const useAppStore = create<AppState>()(
         }
         try {
           const { database } = await import('@/lib/firebase');
-          const { ref, get, runTransaction } = await import('firebase/database');
+          const { ref, get, query, orderByChild, equalTo, runTransaction, update } = await import('firebase/database');
 
-          // Look up the gift code in Firebase
-          const giftCodeRef = ref(database, `giftCodes/${code.trim().toUpperCase()}`);
-          const snapshot = await get(giftCodeRef);
+          // Look up the gift code in Firebase by the `code` field
+          // Admin creates codes via push(), so the Firebase key is an auto-generated ID,
+          // and the actual code string is stored as a field inside the record.
+          const normalizedCode = code.trim().toUpperCase();
+          const giftCodesRef = ref(database, 'giftCodes');
+          const codeQuery = query(giftCodesRef, orderByChild('code'), equalTo(normalizedCode));
+          const querySnapshot = await get(codeQuery);
 
-          if (!snapshot.exists()) {
+          if (!querySnapshot.exists()) {
             return { success: false, message: 'كود الهدية غير صالح' };
           }
 
-          const giftData = snapshot.val() as GiftCode;
+          // Extract matching entries into an array to avoid TS narrowing issues with forEach callbacks
+          const matches: { key: string; data: GiftCode }[] = [];
+          querySnapshot.forEach((child) => {
+            matches.push({ key: child.key!, data: child.val() as GiftCode });
+          });
+
+          if (matches.length === 0) {
+            return { success: false, message: 'كود الهدية غير صالح' };
+          }
+
+          const { key: giftFirebaseKey, data: gift } = matches[0];
 
           // Validate the gift code
-          if (!giftData.isActive) {
+          if (!gift.isActive) {
             return { success: false, message: 'هذا الكود غير مفعّل' };
           }
-          if (giftData.usedCount >= giftData.maxUses) {
+          if (gift.usedCount >= gift.maxUses) {
             return { success: false, message: 'تم استخدام هذا الكود الحد الأقصى من المرات' };
           }
-          if (new Date(giftData.expiresAt) < new Date()) {
+          if (gift.expiresAt && new Date(gift.expiresAt) < new Date()) {
             return { success: false, message: 'انتهت صلاحية هذا الكود' };
           }
 
-          // Check if user already redeemed this code
-          const redeemRef = ref(database, `giftCodeRedemptions/${code.trim().toUpperCase()}/${currentUser.id}`);
+          // Check if user already redeemed this code (use Firebase push key, not code string)
+          const redeemRef = ref(database, `giftCodeRedemptions/${giftFirebaseKey}/${currentUser.id}`);
           const redeemSnapshot = await get(redeemRef);
           if (redeemSnapshot.exists()) {
             return { success: false, message: 'لقد استخدمت هذا الكود من قبل' };
           }
 
-          // Increment usedCount atomically
+          // Increment usedCount atomically using the correct Firebase key
+          const giftCodeRef = ref(database, `giftCodes/${giftFirebaseKey}`);
           await runTransaction(giftCodeRef, (currentData) => {
             if (currentData === null) return currentData;
             if (currentData.usedCount < currentData.maxUses) {
-              currentData.usedCount++;
-              return currentData;
+              return { ...currentData, usedCount: currentData.usedCount + 1 };
             }
             return currentData; // Return unchanged data instead of aborting
           });
@@ -1038,9 +1086,9 @@ export const useAppStore = create<AppState>()(
             SAR: 'balanceSAR',
             USD: 'balanceUSD',
           };
-          const balanceField = currencyToField[giftData.currency] || 'balanceYER';
+          const balanceField = currencyToField[gift.currency] || 'balanceYER';
           const currentBalance = (currentUser[balanceField] as number) || 0;
-          const newBalance = currentBalance + giftData.amount;
+          const newBalance = currentBalance + gift.amount;
 
           const updatedUser = {
             ...currentUser,
@@ -1057,11 +1105,11 @@ export const useAppStore = create<AppState>()(
             id: txId,
             fromUserId: 'GIFT',
             toUserId: currentUser.id,
-            amount: giftData.amount,
-            currency: giftData.currency as 'YER' | 'SAR' | 'USD',
+            amount: gift.amount,
+            currency: gift.currency as 'YER' | 'SAR' | 'USD',
             type: 'deposit' as const,
             status: 'completed' as const,
-            description: `استرداد كود هدية: ${code.trim().toUpperCase()}`,
+            description: `استرداد كود هدية: ${normalizedCode}`,
             createdAt: new Date().toISOString(),
           };
 
@@ -1075,13 +1123,13 @@ export const useAppStore = create<AppState>()(
           state.addNotification({
             id: `gift-${Date.now()}`,
             title: 'تم استرداد كود الهدية!',
-            body: `تم إضافة ${giftData.amount} ${giftData.currency === 'YER' ? 'ر.ي' : giftData.currency === 'SAR' ? 'ر.س' : '$'} إلى رصيدك`,
+            body: `تم إضافة ${gift.amount} ${gift.currency === 'YER' ? 'ر.ي' : gift.currency === 'SAR' ? 'ر.س' : '$'} إلى رصيدك`,
             type: 'promo',
             isRead: false,
             createdAt: new Date().toISOString(),
           });
 
-          return { success: true, message: `تم إضافة ${giftData.amount} ${giftData.currency === 'YER' ? 'ر.ي' : giftData.currency === 'SAR' ? 'ر.س' : '$'} إلى رصيدك`, amount: giftData.amount, currency: giftData.currency };
+          return { success: true, message: `تم إضافة ${gift.amount} ${gift.currency === 'YER' ? 'ر.ي' : gift.currency === 'SAR' ? 'ر.س' : '$'} إلى رصيدك`, amount: gift.amount, currency: gift.currency };
         } catch (error) {
           console.error('Gift code redemption error:', error);
           return { success: false, message: 'حدث خطأ، يرجى المحاولة لاحقاً' };

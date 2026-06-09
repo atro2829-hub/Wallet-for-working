@@ -7,7 +7,7 @@ import {
   ArrowLeft, MessageSquare, Search, ChevronDown, ChevronUp, Plus,
   Send, ImagePlus, X, Clock, CheckCircle2, AlertCircle, HelpCircle,
   Headphones, Paperclip, Tag, Phone, Globe, ExternalLink,
-  Bot, Sparkles, MessageCircle, FileText, Ticket
+  Sparkles, MessageCircle, FileText, Ticket
 } from 'lucide-react';
 import { useAppStore, type SupportTicket } from '@/lib/store';
 import { timeAgo, generateReference, compressBase64Image, faqItems } from '@/lib/utils';
@@ -37,18 +37,8 @@ interface FirebaseTicket {
   image?: string;
 }
 
-// Bot responses for simulated live chat
-const botResponses = [
-  { trigger: /مرحبا|أهلا|هلا|السلام|صباح|مساء/, response: 'أهلاً وسهلاً بك! 👋 أنا المساعد الذكي للحبيلين اونلاين. كيف يمكنني مساعدتك اليوم؟' },
-  { trigger: /تحويل|ارسال|إرسال|حوالة/, response: 'لإجراء تحويل، اذهب إلى الصفحة الرئيسية واضغط على "تحويل الأموال". تأكد من توثيق حسابك أولاً. هل تحتاج مساعدة إضافية؟' },
-  { trigger: /رصيد|حساب|فلوس|مال/, response: 'يمكنك عرض رصيدك في الصفحة الرئيسية. إذا كان هناك مشكلة في الرصيد، يرجى إنشاء تذكرة دعم وسيقوم فريقنا بالتحقق. هل تريد إنشاء تذكرة؟' },
-  { trigger: /توثيق|verify|كيو سي|kyc/, response: 'لتوثيق حسابك، اذهب إلى قسم "بياناتي" في الحساب واتبع الخطوات. التوثيق يتيح لك جميع ميزات التطبيق. هل تحتاج تفاصيل أكثر؟' },
-  { trigger: /مشكلة|عطل|خطأ|لا يعمل/, response: 'أعتذر عن أي إزعاج! 🙏 يرجى إنشاء تذكرة دعم فنية مع وصف المشكلة وسيقوم فريقنا بمساعدتك في أقرب وقت.' },
-  { trigger: /شكر|شكرا|جزاك/, response: 'العفو! 😊 سعيد أنني استطعت المساعدة. هل لديك استفسار آخر؟' },
-  { trigger: /watson|واتساب|whatsapp/, response: 'يمكنك التواصل معنا عبر واتساب مباشرة! اضغط على زر واتساب أدناه للتواصل المباشر مع فريق الدعم.' },
-];
-
-const defaultBotResponse = 'شكراً لتواصلك! سأقوم بتحويل رسالتك لفريق الدعم. يمكنك أيضاً إنشاء تذكرة دعم للحصول على متابعة أسرع. هل تحتاج مساعدة في شيء آخر؟';
+// Live chat messages are now stored in Firebase at supportChat/{userId}/messages
+// No more fake bot - real admin replies come through Firebase
 
 // FAQ quick links
 const faqQuickLinks = [
@@ -101,12 +91,9 @@ export default function SupportScreen() {
   const [newMessage, setNewMessage] = useState('');
   const [newImage, setNewImage] = useState('');
 
-  // Live chat
-  const [chatMessages, setChatMessages] = useState<{ sender: 'user' | 'bot'; text: string; time: string }[]>([
-    { sender: 'bot', text: 'أهلاً بك في الدعم المباشر! 👋 أنا المساعد الذكي للحبيلين اونلاين. كيف يمكنني مساعدتك؟', time: new Date().toISOString() },
-  ]);
+  // Live chat - real Firebase chat
+  const [chatMessages, setChatMessages] = useState<{ id: string; sender: 'user' | 'admin'; text: string; time: string; adminName?: string }[]>([]);
   const [chatInput, setChatInput] = useState('');
-  const [isBotTyping, setIsBotTyping] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -136,10 +123,33 @@ export default function SupportScreen() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [selectedTicket?.messages?.length]);
 
+  // Listen to live chat messages from Firebase
+  useEffect(() => {
+    if (!user?.id) return;
+    const chatRef = ref(database, `supportChat/${user.id}/messages`);
+    const unsubscribe = onValue(chatRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const msgs = Object.entries(data).map(([id, val]: [string, any]) => ({
+          id,
+          sender: val.sender as 'user' | 'admin',
+          text: val.text || '',
+          time: val.time || '',
+          adminName: val.adminName || '',
+        }));
+        msgs.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+        setChatMessages(msgs);
+      } else {
+        setChatMessages([]);
+      }
+    });
+    return () => unsubscribe();
+  }, [user?.id]);
+
   // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages.length, isBotTyping]);
+  }, [chatMessages.length]);
 
   const filteredFaq = faqItems.filter(item => {
     if (!faqSearch) return true;
@@ -174,25 +184,29 @@ export default function SupportScreen() {
     setMessageInput('');
   };
 
-  // Chat bot handler
-  const handleSendChat = () => {
-    if (!chatInput.trim()) return;
-    const userMsg = { sender: 'user' as const, text: chatInput, time: new Date().toISOString() };
-    setChatMessages(prev => [...prev, userMsg]);
-    setChatInput('');
-    setIsBotTyping(true);
-
-    // Simulate bot thinking
-    setTimeout(() => {
-      const matchedResponse = botResponses.find(r => r.trigger.test(chatInput));
-      const botMsg = {
-        sender: 'bot' as const,
-        text: matchedResponse?.response || defaultBotResponse,
+  // Send live chat message to Firebase
+  const handleSendChat = async () => {
+    if (!chatInput.trim() || !user?.id) return;
+    try {
+      await push(ref(database, `supportChat/${user.id}/messages`), {
+        sender: 'user',
+        text: chatInput.trim(),
         time: new Date().toISOString(),
-      };
-      setIsBotTyping(false);
-      setChatMessages(prev => [...prev, botMsg]);
-    }, 800 + Math.random() * 1200);
+        isRead: false,
+      });
+      // Update conversation metadata for admin panel
+      await update(ref(database, `supportChat/${user.id}`), {
+        userName: user.name || 'مستخدم',
+        lastMessage: chatInput.trim(),
+        lastMessageTime: new Date().toISOString(),
+        unreadAdmin: 1, // Increment handled by admin reading
+        status: 'open',
+      });
+      setChatInput('');
+    } catch (e) {
+      // Fallback: still add locally
+      console.error('Failed to send chat message', e);
+    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -255,7 +269,7 @@ export default function SupportScreen() {
           <div className="flex gap-2 mb-4">
             {([
               { id: 'faq' as MainTab, label: 'مركز المساعدة', icon: HelpCircle },
-              { id: 'chat' as MainTab, label: 'دردشة مباشرة', icon: Bot },
+              { id: 'chat' as MainTab, label: 'دردشة مباشرة', icon: MessageCircle },
               { id: 'tickets' as MainTab, label: 'تذاكر الدعم', icon: MessageSquare },
             ]).map(tab => {
               const Icon = tab.icon;
@@ -398,21 +412,28 @@ export default function SupportScreen() {
               <motion.div key="chat" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col" style={{ height: 'calc(100vh - 180px)' }}>
                 {/* Chat messages area */}
                 <div className="flex-1 overflow-y-auto space-y-3 pb-3">
+                  {chatMessages.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <Headphones size={40} strokeWidth={1.5} color={isDark ? '#555' : '#CCC'} />
+                      <p className="text-sm mt-3" style={{ color: isDark ? '#888' : '#999' }}>ابدأ محادثة مع فريق الدعم</p>
+                      <p className="text-xs mt-1" style={{ color: isDark ? '#666' : '#BBB' }}>سنرد عليك في أقرب وقت</p>
+                    </div>
+                  )}
                   {chatMessages.map((msg, i) => (
                     <motion.div
-                      key={i}
+                      key={msg.id || i}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.02 }}
                       className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div className="max-w-[85%]">
-                        {msg.sender === 'bot' && (
+                        {msg.sender === 'admin' && (
                           <div className="flex items-center gap-1.5 mb-1">
-                            <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(230,0,0,0.15)' }}>
-                              <Bot size={12} color="#E60000" />
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.15)' }}>
+                              <Headphones size={12} color="#3B82F6" />
                             </div>
-                            <span className="text-[10px] font-bold" style={{ color: '#E60000' }}>المساعد الذكي</span>
+                            <span className="text-[10px] font-bold" style={{ color: '#3B82F6' }}>{msg.adminName || 'فريق الدعم'}</span>
                           </div>
                         )}
                         <div
@@ -420,7 +441,7 @@ export default function SupportScreen() {
                           style={{
                             background: msg.sender === 'user' ? '#E60000' : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
                             borderBottomRightRadius: msg.sender === 'user' ? '4px' : '16px',
-                            borderBottomLeftRadius: msg.sender === 'bot' ? '4px' : '16px',
+                            borderBottomLeftRadius: msg.sender === 'admin' ? '4px' : '16px',
                           }}
                         >
                           <p className="text-xs leading-relaxed" style={{ color: msg.sender === 'user' ? '#FFF' : isDark ? '#CCC' : '#333' }}>
@@ -433,31 +454,6 @@ export default function SupportScreen() {
                       </div>
                     </motion.div>
                   ))}
-
-                  {/* Bot typing indicator */}
-                  {isBotTyping && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="flex justify-start"
-                    >
-                      <div className="max-w-[85%]">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(230,0,0,0.15)' }}>
-                            <Bot size={12} color="#E60000" />
-                          </div>
-                          <span className="text-[10px] font-bold" style={{ color: '#E60000' }}>المساعد الذكي</span>
-                        </div>
-                        <div className="rounded-2xl p-3" style={{ background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', borderBottomLeftRadius: '4px' }}>
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full" style={{ background: isDark ? '#555' : '#AAA', animation: 'pulse 1s ease-in-out infinite' }} />
-                            <div className="w-2 h-2 rounded-full" style={{ background: isDark ? '#555' : '#AAA', animation: 'pulse 1s ease-in-out 0.2s infinite' }} />
-                            <div className="w-2 h-2 rounded-full" style={{ background: isDark ? '#555' : '#AAA', animation: 'pulse 1s ease-in-out 0.4s infinite' }} />
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
                   <div ref={chatEndRef} />
                 </div>
 

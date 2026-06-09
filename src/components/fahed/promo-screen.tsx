@@ -68,9 +68,9 @@ export default function PromoScreen() {
   const activeCodes = allCodes.filter(c => c.isActive && c.usedCount < c.maxUses && new Date(c.expiresAt) > new Date());
   const activeGiftCodes = firebaseGiftCodes.filter(c => c.isActive && c.usedCount < c.maxUses && new Date(c.expiresAt) > new Date());
 
-  const handleApplyCode = () => {
+  const handleApplyCode = async () => {
     if (!codeInput.trim()) return;
-    const result = applyPromoCode(codeInput.trim());
+    const result = await applyPromoCode(codeInput.trim());
     if (result) {
       const discountText = result.type === 'percentage' ? `${result.discount}%` : `${result.discount} ${currencySymbols[result.currency]}`;
       setApplyResult({ success: true, message: `تم تطبيق الخصم بنجاح`, discount: result.discount, discountType: discountText });

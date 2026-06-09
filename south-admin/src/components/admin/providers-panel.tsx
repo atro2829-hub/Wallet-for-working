@@ -85,10 +85,21 @@ export default function ProvidersPanel() {
         name, categoryId, color, icon, inputLabel, inputType, inputPrefix, isActive,
       };
       if (editing) {
-        await update(ref(database, `providers/${editing.id}`), data);
+        const updates: Record<string, any> = {
+          [`providers/${editing.id}`]: { ...editing, ...data },
+        };
+        // Sync visibility to adminSettings/visibility/providers/{id}
+        updates[`adminSettings/visibility/providers/${editing.id}`] = isActive;
+        await update(ref(database), updates);
         showToast('تم تحديث المزود', 'success');
       } else {
-        await push(ref(database, 'providers'), { ...data, id: generateId() });
+        const newRef = push(ref(database, 'providers'));
+        const updates: Record<string, any> = {
+          [`providers/${newRef.key}`]: { ...data, id: generateId() },
+        };
+        // Sync visibility to adminSettings/visibility/providers/{id}
+        updates[`adminSettings/visibility/providers/${newRef.key}`] = isActive;
+        await update(ref(database), updates);
         showToast('تم إضافة المزود', 'success');
       }
       setDialog(false);
@@ -98,7 +109,11 @@ export default function ProvidersPanel() {
 
   const handleDelete = async (id: string) => {
     try {
-      await remove(ref(database, `providers/${id}`));
+      const updates: Record<string, any> = {
+        [`providers/${id}`]: null,
+        [`adminSettings/visibility/providers/${id}`]: null,
+      };
+      await update(ref(database), updates);
       showToast('تم حذف المزود', 'success');
     } catch (e) { showToast('حدث خطأ', 'error'); }
   };
@@ -108,6 +123,8 @@ export default function ProvidersPanel() {
       const updates: Record<string, any> = {};
       filteredProviders.forEach(p => {
         updates[`providers/${p.id}/isActive`] = enable;
+        // Sync visibility to adminSettings/visibility/providers/{id}
+        updates[`adminSettings/visibility/providers/${p.id}`] = enable;
       });
       await update(ref(database), updates);
       showToast(enable ? 'تم تفعيل جميع المزودين' : 'تم تعطيل جميع المزودين', 'success');
@@ -177,7 +194,7 @@ export default function ProvidersPanel() {
                   <div className="flex items-center gap-2">
                     <Switch
                       checked={prov.isActive !== false}
-                      onCheckedChange={(v) => update(ref(database, `providers/${prov.id}`), { isActive: v })}
+                      onCheckedChange={(v) => update(ref(database), { [`providers/${prov.id}/isActive`]: v, [`adminSettings/visibility/providers/${prov.id}`]: v })}
                     />
                     <Badge className={prov.isActive !== false ? 'bg-green-500/20 text-green-600 dark:text-green-400' : 'bg-red-500/20 text-red-600 dark:text-red-400'}>
                       {prov.isActive !== false ? 'نشط' : 'معطل'}

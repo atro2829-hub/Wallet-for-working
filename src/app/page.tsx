@@ -44,6 +44,7 @@ import OrderBottomSheet from '@/components/fahed/order-bottom-sheet';
 import SplashScreen from '@/components/fahed/splash-screen';
 import PinScreen from '@/components/fahed/pin-screen';
 import { useFirebaseSync } from '@/lib/use-firebase-sync';
+import { useAdminSettings } from '@/lib/use-admin-settings';
 
 type AppPhase = 'splash' | 'pin' | 'main';
 
@@ -63,6 +64,7 @@ function AppContent() {
 
   // Sync user data from Firebase (real-time + on focus + on mount)
   useFirebaseSync();
+  const { maintenance, forceUpdate } = useAdminSettings();
 
   // Show KYC verification toast as a floating notification
   useEffect(() => {
@@ -370,6 +372,55 @@ function AppContent() {
 
   if (!isAuthenticated || !user) {
     return <AuthScreen />;
+  }
+
+  // Maintenance mode check
+  if (maintenance?.active) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(145deg, #E60000 0%, #8B0000 60%, #5C0000 100%)' }}>
+        <div className="flex flex-col items-center px-8 text-center">
+          <div className="w-20 h-20 rounded-3xl overflow-hidden flex items-center justify-center mb-6" style={{ background: 'rgba(255,255,255,0.15)' }}>
+            <img src={LOGO_BASE64} alt="الجنوب" className="w-14 h-14 object-cover" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-3">صيانة مجدولة</h1>
+          <p className="text-white/70 text-sm leading-relaxed mb-2">{maintenance.message || 'التطبيق حالياً في وضع الصيانة'}</p>
+          {maintenance.estimatedTime && (
+            <p className="text-white/50 text-xs">الوقت المتوقع للعودة: {maintenance.estimatedTime}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Force update check
+  if (forceUpdate?.active) {
+    const currentVersion = '0.4.6.5';
+    const minVersion = forceUpdate.minVersion || '0.0.0';
+    const needsUpdate = currentVersion < minVersion;
+    if (needsUpdate) {
+      return (
+        <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(145deg, #1A0A2E 0%, #2D1B4E 50%, #1A0A2E 100%)' }}>
+          <div className="flex flex-col items-center px-8 text-center">
+            <div className="w-20 h-20 rounded-3xl overflow-hidden flex items-center justify-center mb-6" style={{ background: 'rgba(255,255,255,0.1)' }}>
+              <img src={LOGO_BASE64} alt="الجنوب" className="w-14 h-14 object-cover" />
+            </div>
+            <h1 className="text-2xl font-bold text-white mb-3">تحديث مطلوب</h1>
+            <p className="text-white/70 text-sm leading-relaxed mb-4">{forceUpdate.message || 'يرجى تحديث التطبيق إلى أحدث إصدار للاستمرار'}</p>
+            {forceUpdate.updateUrl && (
+              <a
+                href={forceUpdate.updateUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-8 py-3 rounded-xl text-white font-bold text-sm"
+                style={{ background: '#E60000' }}
+              >
+                تحديث الآن
+              </a>
+            )}
+          </div>
+        </div>
+      );
+    }
   }
 
   // Full-screen overlays

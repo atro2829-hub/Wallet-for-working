@@ -59,9 +59,11 @@ export default function SectionsPanel() {
       const updates: Record<string, any> = {};
       defaultSections.forEach((sec, i) => {
         const key = `section_${i}`;
-        updates[key] = { ...sec, order: i };
+        updates[`ownerSettings/sections/${key}`] = { ...sec, order: i };
+        // Sync visibility to adminSettings/visibility/sections
+        updates[`adminSettings/visibility/sections/${sec.categoryId}`] = sec.isVisible !== false;
       });
-      await set(ref(database, 'ownerSettings/sections'), updates);
+      await update(ref(database), updates);
       showToast('تم إنشاء الأقسام الافتراضية', 'success');
     } catch (e) { showToast('حدث خطأ', 'error'); }
   };
@@ -71,10 +73,27 @@ export default function SectionsPanel() {
     try {
       const data = { name: secName, icon: secIcon, order: parseInt(secOrder) || 0, isVisible: secVisible, categoryId: secCategoryId };
       if (editing) {
-        await update(ref(database, `ownerSettings/sections/${editing.id}`), data);
+        const updates: Record<string, any> = {
+          [`ownerSettings/sections/${editing.id}`]: { ...editing, ...data },
+        };
+        // Sync visibility to adminSettings/visibility/sections/{categoryId}
+        const catId = secCategoryId || editing.categoryId || editing.id;
+        updates[`adminSettings/visibility/sections/${catId}`] = secVisible;
+        // If categoryId changed, remove the old entry
+        if (editing.categoryId && editing.categoryId !== secCategoryId && secCategoryId) {
+          updates[`adminSettings/visibility/sections/${editing.categoryId}`] = null;
+        }
+        await update(ref(database), updates);
         showToast('تم التحديث', 'success');
       } else {
-        await push(ref(database, 'ownerSettings/sections'), data);
+        const newRef = push(ref(database, 'ownerSettings/sections'));
+        const updates: Record<string, any> = {
+          [`ownerSettings/sections/${newRef.key}`]: data,
+        };
+        // Sync visibility to adminSettings/visibility/sections/{categoryId}
+        const catId = secCategoryId || newRef.key!;
+        updates[`adminSettings/visibility/sections/${catId}`] = secVisible;
+        await update(ref(database), updates);
         showToast('تم الإضافة', 'success');
       }
       setDialog(false);
@@ -95,12 +114,30 @@ export default function SectionsPanel() {
   };
 
   const handleDelete = async (id: string) => {
-    try { await remove(ref(database, `ownerSettings/sections/${id}`)); showToast('تم الحذف', 'success'); }
+    try {
+      // Find the section to get its categoryId for visibility cleanup
+      const section = sections.find(s => s.id === id);
+      const catId = section?.categoryId || id;
+      const updates: Record<string, any> = {
+        [`ownerSettings/sections/${id}`]: null,
+        [`adminSettings/visibility/sections/${catId}`]: null,
+      };
+      await update(ref(database), updates);
+      showToast('تم الحذف', 'success');
+    }
     catch (e) { showToast('حدث خطأ', 'error'); }
   };
 
   const handleToggle = async (s: any) => {
-    try { await update(ref(database, `ownerSettings/sections/${s.id}`), { isVisible: !s.isVisible }); }
+    try {
+      const newVisible = !s.isVisible;
+      const catId = s.categoryId || s.id;
+      const updates: Record<string, any> = {
+        [`ownerSettings/sections/${s.id}/isVisible`]: newVisible,
+        [`adminSettings/visibility/sections/${catId}`]: newVisible,
+      };
+      await update(ref(database), updates);
+    }
     catch (e) { showToast('حدث خطأ', 'error'); }
   };
 

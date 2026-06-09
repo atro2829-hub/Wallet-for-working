@@ -45,6 +45,8 @@ import { serviceIcons } from '@/lib/service-icons';
 import { productIcons } from '@/lib/product-icons';
 import { database } from '@/lib/firebase';
 import { ref, onValue } from 'firebase/database';
+import { useAdminSettings } from '@/lib/use-admin-settings';
+import { useFirebaseSync } from '@/lib/use-firebase-sync';
 
 // Visibility settings interface
 interface VisibilitySettings {
@@ -76,12 +78,6 @@ function hexToRgb(hex: string): string {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result ? `${parseInt(result[1], 16)},${parseInt(result[2], 16)},${parseInt(result[3], 16)}` : '255,255,255';
 }
-
-const balanceCards: BalanceCard[] = [
-  { currency: 'YER', accentColor: '#E60000', accentColorEnd: '#8B0000', glowColor: 'rgba(230,0,0,0.35)', patternColor: 'rgba(255,255,255,0.06)' },
-  { currency: 'SAR', accentColor: '#0D5A1F', accentColorEnd: '#1B7A2B', glowColor: 'rgba(13,90,31,0.35)', patternColor: 'rgba(255,255,255,0.06)' },
-  { currency: 'USD', accentColor: '#0D47A1', accentColorEnd: '#1565C0', glowColor: 'rgba(13,71,161,0.35)', patternColor: 'rgba(255,255,255,0.06)' },
-];
 
 // Services with custom SVG icons - each maps to a category-detail screen
 const homeServices = [
@@ -203,7 +199,32 @@ export default function HomeScreen() {
     setSelectedProvider,
     setOrderOpen,
     savingsGoals,
+    cardColors,
   } = useAppStore();
+
+  const { refreshAll } = useAdminSettings();
+  const { refreshUser } = useFirebaseSync();
+
+  // Derive balance cards from Firebase card colors in the store
+  const balanceCards: BalanceCard[] = [
+    { currency: 'YER', accentColor: cardColors.YER.primary, accentColorEnd: cardColors.YER.gradient, glowColor: `rgba(${hexToRgb(cardColors.YER.primary)},0.35)`, patternColor: 'rgba(255,255,255,0.06)' },
+    { currency: 'SAR', accentColor: cardColors.SAR.primary, accentColorEnd: cardColors.SAR.gradient, glowColor: `rgba(${hexToRgb(cardColors.SAR.primary)},0.35)`, patternColor: 'rgba(255,255,255,0.06)' },
+    { currency: 'USD', accentColor: cardColors.USD.primary, accentColorEnd: cardColors.USD.gradient, glowColor: `rgba(${hexToRgb(cardColors.USD.primary)},0.35)`, patternColor: 'rgba(255,255,255,0.06)' },
+  ];
+
+  // Pull-to-refresh state
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([refreshAll(), refreshUser()]);
+    } catch (e) {
+      console.error('Refresh error:', e);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
+    }
+  };
 
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -570,6 +591,15 @@ export default function HomeScreen() {
                   {unreadNotifCount}
                 </span>
               )}
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="w-10 h-10 rounded-xl flex items-center justify-center active:scale-95 transition-transform"
+              style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}
+              title="تحديث"
+            >
+              <RefreshCw size={20} strokeWidth={1.5} color={isDark ? '#CCC' : '#666'} className={isRefreshing ? 'animate-spin' : ''} />
             </button>
             <button
               onClick={() => setActiveScreen('support')}

@@ -121,9 +121,9 @@ export default function RechargeScreen() {
     setSelectedCompanyId(companyId);
   };
 
-  const handleApplyPromo = () => {
+  const handleApplyPromo = async () => {
     if (!promoCode.trim() || !selectedPackage) return;
-    const promo = useAppStore.getState().applyPromoCode(promoCode.trim().toUpperCase());
+    const promo = await useAppStore.getState().applyPromoCode(promoCode.trim().toUpperCase());
     if (promo) {
       const discount = promo.type === 'percentage'
         ? Math.round(selectedPackage.price * promo.discount / 100)

@@ -215,9 +215,9 @@ export default function DepositScreen() {
     reader.readAsDataURL(file);
   };
 
-  const handleApplyPromo = () => {
+  const handleApplyPromo = async () => {
     if (!promoCode.trim()) return;
-    const result = applyPromoCode(promoCode.trim().toUpperCase());
+    const result = await applyPromoCode(promoCode.trim().toUpperCase());
     if (result) {
       setPromoApplied(true);
       if (result.type === 'fixed') {

@@ -97,9 +97,9 @@ export default function OrderBottomSheet() {
     setTimeout(() => setSelectedProvider(null), 300);
   };
 
-  const handleApplyPromo = () => {
+  const handleApplyPromo = async () => {
     if (!promoCode.trim()) return;
-    const promo = applyPromoCode(promoCode.trim().toUpperCase());
+    const promo = await applyPromoCode(promoCode.trim().toUpperCase());
     if (promo) {
       const discount = promo.type === 'percentage' && selectedPackage
         ? Math.round(selectedPackage.price * promo.discount / 100)
