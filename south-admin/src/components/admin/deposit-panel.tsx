@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ref, onValue, update, push } from 'firebase/database';
+import { ref, onValue, update, push, get } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useAdminStore } from '@/lib/store';
 import { formatNumber, currencySymbols, generateId } from '@/lib/utils';
+import { notifyDepositStatus } from '@/lib/notifications';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -53,19 +54,30 @@ export default function DepositPanel() {
         reviewedAt: new Date().toISOString(),
       });
 
-      // Add balance
+      // Add balance using Firebase transaction-safe approach
       if (selected.userId && selected.amount) {
         const balanceKey = `balance${selected.currency || 'YER'}`;
         const userRef = ref(database, `users/${selected.userId}`);
-        onValue(userRef, async (snap) => {
-          const userData = snap.val();
-          if (userData) {
-            const current = userData[balanceKey] || 0;
-            await update(ref(database, `users/${selected.userId}`), {
-              [balanceKey]: current + selected.amount,
-            });
-          }
-        }, { onlyOnce: true });
+        const userSnap = await get(userRef);
+        const userData = userSnap.val();
+        if (userData) {
+          const current = userData[balanceKey] || 0;
+          await update(ref(database, `users/${selected.userId}`), {
+            [balanceKey]: current + selected.amount,
+          });
+        }
+      }
+
+      // Send push notification to the user
+      try {
+        await notifyDepositStatus(
+          selected.userId,
+          selected.amount,
+          selected.currency || 'YER',
+          'approved'
+        );
+      } catch (notifError) {
+        console.warn('Failed to send deposit notification:', notifError);
       }
 
       await push(ref(database, 'ownerSettings/activityLog'), {
@@ -88,6 +100,19 @@ export default function DepositPanel() {
         notes: notes || '',
         reviewedAt: new Date().toISOString(),
       });
+
+      // Send push notification to the user
+      try {
+        await notifyDepositStatus(
+          selected.userId,
+          selected.amount,
+          selected.currency || 'YER',
+          'rejected'
+        );
+      } catch (notifError) {
+        console.warn('Failed to send deposit rejection notification:', notifError);
+      }
+
       showToast('تم رفض الإيداع', 'success');
       setDetailOpen(false);
       setNotes('');

@@ -10,7 +10,61 @@ export interface NotificationPayload {
 }
 
 /**
- * Send a notification to a specific user
+ * Send FCM push notification to specific FCM tokens via the server API route
+ */
+async function sendFCMPush(tokens: string[], title: string, body: string, type: string, data?: Record<string, any>): Promise<void> {
+  if (!tokens || tokens.length === 0) return;
+
+  try {
+    const response = await fetch('/api/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tokens, title, body, type, data }),
+    });
+
+    if (!response.ok) {
+      console.warn('FCM push API returned non-OK status:', response.status);
+    }
+  } catch (error) {
+    console.warn('FCM push failed (non-blocking):', error);
+  }
+}
+
+/**
+ * Get FCM token for a user from Firebase RTDB
+ */
+async function getUserFCMToken(userId: string): Promise<string | null> {
+  try {
+    const tokenSnapshot = await get(ref(database, `users/${userId}/fcmToken`));
+    return tokenSnapshot.exists() ? tokenSnapshot.val() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get FCM tokens for all users
+ */
+async function getAllUserFCMTokens(): Promise<string[]> {
+  try {
+    const usersSnapshot = await get(ref(database, 'users'));
+    if (!usersSnapshot.exists()) return [];
+
+    const users = usersSnapshot.val();
+    const tokens: string[] = [];
+    Object.values(users).forEach((userData: any) => {
+      if (userData.fcmToken) {
+        tokens.push(userData.fcmToken);
+      }
+    });
+    return tokens;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Send a notification to a specific user (in-app + FCM push)
  */
 export async function sendNotificationToUser(userId: string, notification: NotificationPayload): Promise<void> {
   const notifId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -23,24 +77,32 @@ export async function sendNotificationToUser(userId: string, notification: Notif
     createdAt: new Date().toISOString(),
     data: notification.data || null,
   };
-  
+
+  // 1. Save to Firebase RTDB (in-app notification)
   await set(ref(database, `notifications/${userId}/${notifId}`), notifData);
+
+  // 2. Send FCM push notification (works when app is closed)
+  const fcmToken = await getUserFCMToken(userId);
+  if (fcmToken) {
+    await sendFCMPush([fcmToken], notification.title, notification.body, notification.type, notification.data);
+  }
 }
 
 /**
- * Send a notification to all users
+ * Send a notification to all users (in-app + FCM push)
  */
 export async function sendNotificationToAll(notification: NotificationPayload): Promise<void> {
   const notifId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
+
   // Get all users
   const usersSnapshot = await get(ref(database, 'users'));
   if (!usersSnapshot.exists()) return;
-  
+
   const users = usersSnapshot.val();
   const updates: Record<string, any> = {};
-  
-  Object.keys(users).forEach(uid => {
+  const tokens: string[] = [];
+
+  Object.entries(users).forEach(([uid, userData]: [string, any]) => {
     updates[`notifications/${uid}/${notifId}`] = {
       id: notifId,
       title: notification.title,
@@ -50,9 +112,21 @@ export async function sendNotificationToAll(notification: NotificationPayload): 
       createdAt: new Date().toISOString(),
       data: notification.data || null,
     };
+
+    // Collect FCM tokens
+    if (userData.fcmToken) {
+      tokens.push(userData.fcmToken);
+    }
   });
-  
+
+  // 1. Save to Firebase RTDB (in-app notifications)
   await update(ref(database), updates);
+
+  // 2. Send FCM push notifications (works when app is closed)
+  for (let i = 0; i < tokens.length; i += 500) {
+    const batch = tokens.slice(i, i + 500);
+    await sendFCMPush(batch, notification.title, notification.body, notification.type, notification.data);
+  }
 }
 
 /**
@@ -70,30 +144,8 @@ export async function sendNotificationToAdmin(notification: NotificationPayload 
     createdAt: new Date().toISOString(),
     data: notification.data || null,
   };
-  
-  await set(ref(database, `adminNotifications/${notifId}`), notifData);
-}
 
-/**
- * Send notification when a deposit request is created
- */
-export async function notifyDepositRequest(userId: string, userName: string, amount: number, currency: string): Promise<void> {
-  // Notify the user
-  await sendNotificationToUser(userId, {
-    title: 'طلب إيداع جديد',
-    body: `تم استلام طلب إيداعك بمبلغ ${amount} ${currency}. سيتم مراجعته قريباً.`,
-    type: 'transaction',
-    data: { action: 'deposit_request', amount, currency },
-  });
-  
-  // Notify admin
-  await sendNotificationToAdmin({
-    title: 'طلب إيداع جديد',
-    body: `طلب إيداع جديد من ${userName} بمبلغ ${amount} ${currency}`,
-    type: 'transaction',
-    category: 'deposits',
-    data: { action: 'deposit_request', userId, amount, currency },
-  });
+  await set(ref(database, `adminNotifications/${notifId}`), notifData);
 }
 
 /**
@@ -106,26 +158,6 @@ export async function notifyDepositStatus(userId: string, amount: number, curren
     body: `${statusText} طلب إيداعك بمبلغ ${amount} ${currency}`,
     type: 'transaction',
     data: { action: 'deposit_status', amount, currency, status },
-  });
-}
-
-/**
- * Send notification when an order is created
- */
-export async function notifyOrderCreated(userId: string, packageName: string, amount: number, currency: string): Promise<void> {
-  await sendNotificationToUser(userId, {
-    title: 'طلب جديد',
-    body: `تم إنشاء طلب ${packageName} بمبلغ ${amount} ${currency}`,
-    type: 'transaction',
-    data: { action: 'order_created', packageName, amount, currency },
-  });
-  
-  await sendNotificationToAdmin({
-    title: 'طلب خدمة جديد',
-    body: `طلب جديد: ${packageName} - ${amount} ${currency}`,
-    type: 'transaction',
-    category: 'orders',
-    data: { action: 'order_created', userId, packageName, amount, currency },
   });
 }
 
@@ -147,38 +179,15 @@ export async function notifyOrderStatus(userId: string, packageName: string, sta
 }
 
 /**
- * Send notification for money transfer
+ * Send notification when a withdraw is approved/rejected
  */
-export async function notifyTransfer(fromName: string, toUserId: string, amount: number, currency: string): Promise<void> {
-  await sendNotificationToUser(toUserId, {
-    title: 'تحويل وارد',
-    body: `استلمت ${amount} ${currency} من ${fromName}`,
-    type: 'transaction',
-    data: { action: 'transfer_received', amount, currency },
-  });
-}
-
-/**
- * Send notification for money request
- */
-export async function notifyMoneyRequest(fromName: string, fromUserId: string, toUserId: string, amount: number, currency: string): Promise<void> {
-  await sendNotificationToUser(toUserId, {
-    title: 'طلب تحويل',
-    body: `${fromName} يطلب منك ${amount} ${currency}`,
-    type: 'transaction',
-    data: { action: 'money_request', fromUserId, amount, currency },
-  });
-}
-
-/**
- * Send notification for gift code redemption
- */
-export async function notifyGiftCodeRedeemed(userId: string, amount: number, currency: string, code: string): Promise<void> {
+export async function notifyWithdrawStatus(userId: string, amount: number, currency: string, status: 'approved' | 'rejected'): Promise<void> {
+  const statusText = status === 'approved' ? 'تم قبول' : 'تم رفض';
   await sendNotificationToUser(userId, {
-    title: 'تم استرداد كود الهدية',
-    body: `تم إضافة ${amount} ${currency} إلى رصيدك من كود الهدية ${code.substring(0, 4)}****`,
+    title: `${statusText} طلب السحب`,
+    body: `${statusText} طلب سحبك بمبلغ ${amount} ${currency}`,
     type: 'transaction',
-    data: { action: 'gift_code_redeemed', amount, currency },
+    data: { action: 'withdraw_status', amount, currency, status },
   });
 }
 
@@ -193,7 +202,7 @@ export async function notifyKycStatus(userId: string, status: string): Promise<v
   };
   const msg = statusMessages[status];
   if (!msg) return;
-  
+
   await sendNotificationToUser(userId, {
     title: msg.title,
     body: msg.body,
@@ -203,35 +212,27 @@ export async function notifyKycStatus(userId: string, status: string): Promise<v
 }
 
 /**
- * Send notification for withdraw request
- */
-export async function notifyWithdrawRequest(userId: string, userName: string, amount: number, currency: string): Promise<void> {
-  await sendNotificationToUser(userId, {
-    title: 'طلب سحب جديد',
-    body: `تم استلام طلب سحبك بمبلغ ${amount} ${currency}. سيتم مراجعته قريباً.`,
-    type: 'transaction',
-    data: { action: 'withdraw_request', amount, currency },
-  });
-  
-  await sendNotificationToAdmin({
-    title: 'طلب سحب جديد',
-    body: `طلب سحب جديد من ${userName} بمبلغ ${amount} ${currency}`,
-    type: 'transaction',
-    category: 'withdrawals',
-    data: { action: 'withdraw_request', userId, amount, currency },
-  });
-}
-
-/**
  * Send notification when account is blocked/unblocked
  */
 export async function notifyAccountStatus(userId: string, isBlocked: boolean): Promise<void> {
   await sendNotificationToUser(userId, {
     title: isBlocked ? 'تم حظر حسابك' : 'تم إلغاء حظر حسابك',
-    body: isBlocked 
-      ? 'تم حظر حسابك. يرجى التواصل مع الدعم للمزيد من المعلومات.' 
+    body: isBlocked
+      ? 'تم حظر حسابك. يرجى التواصل مع الدعم للمزيد من المعلومات.'
       : 'تم إلغاء حظر حسابك. يمكنك الآن استخدام التطبيق بشكل طبيعي.',
     type: 'security',
     data: { action: 'account_status', isBlocked },
+  });
+}
+
+/**
+ * Send notification for money transfer (used when admin sends push from panel)
+ */
+export async function notifyTransfer(fromName: string, toUserId: string, amount: number, currency: string): Promise<void> {
+  await sendNotificationToUser(toUserId, {
+    title: 'تحويل وارد',
+    body: `استلمت ${amount} ${currency} من ${fromName}`,
+    type: 'transaction',
+    data: { action: 'transfer_received', amount, currency },
   });
 }

@@ -16,6 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Send, Bell, Loader2, Users, User, Clock, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { sendNotificationToUser } from '@/lib/notifications';
 
 interface NotificationHistory {
   id?: string;
@@ -113,12 +114,25 @@ export default function PushNotificationsPanel() {
           await update(ref(database), updates);
         }
 
-        // Save FCM queue entry for push notifications outside app
-        await set(ref(database, `fcmQueue/${notifId}`), {
-          title, body, type: 'broadcast', targetType: 'all',
-          sentAt: new Date().toISOString(), recipientCount: users.length,
-          icon: icon || '', data: dataUrl || '',
-        });
+        // Send FCM push notifications to all users with tokens
+        try {
+          const tokens: string[] = [];
+          users.forEach((user) => {
+            if (user.fcmToken) tokens.push(user.fcmToken);
+          });
+          if (tokens.length > 0) {
+            for (let j = 0; j < tokens.length; j += 500) {
+              const batch = tokens.slice(j, j + 500);
+              await fetch('/api/send-push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tokens: batch, title, body, type: notifType, data: dataUrl ? { url: dataUrl } : undefined }),
+              });
+            }
+          }
+        } catch (pushError) {
+          console.warn('FCM push failed:', pushError);
+        }
 
         // Update delivery count
         await update(ref(database, `adminNotifications/${notifId}`), { deliveryCount });
@@ -136,11 +150,18 @@ export default function PushNotificationsPanel() {
           id: notifId, title, body, type: notifType, isRead: false,
           createdAt: new Date().toISOString(), icon: icon || '', data: dataUrl || '',
         });
-        await set(ref(database, `fcmQueue/${notifId}`), {
-          title, body, type: 'specific', targetUid: targetUser.uid,
-          sentAt: new Date().toISOString(), recipientCount: 1,
-          icon: icon || '', data: dataUrl || '',
-        });
+        // Send FCM push notification to the specific user
+        try {
+          if (targetUser.fcmToken) {
+            await fetch('/api/send-push', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ tokens: [targetUser.fcmToken], title, body, type: notifType, data: dataUrl ? { url: dataUrl } : undefined }),
+            });
+          }
+        } catch (pushError) {
+          console.warn('FCM push failed:', pushError);
+        }
         showToast('تم إرسال الإشعار للمستخدم', 'success');
 
       } else if (targetType === 'segment') {
@@ -161,11 +182,25 @@ export default function PushNotificationsPanel() {
           });
           await update(ref(database), updates);
         }
-        await set(ref(database, `fcmQueue/${notifId}`), {
-          title, body, type: 'segment', targetSegment,
-          sentAt: new Date().toISOString(), recipientCount: segmentUsers.length,
-          icon: icon || '', data: dataUrl || '',
-        });
+        // Send FCM push notifications to segment users
+        try {
+          const tokens: string[] = [];
+          segmentUsers.forEach((user) => {
+            if (user.fcmToken) tokens.push(user.fcmToken);
+          });
+          if (tokens.length > 0) {
+            for (let j = 0; j < tokens.length; j += 500) {
+              const batch = tokens.slice(j, j + 500);
+              await fetch('/api/send-push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tokens: batch, title, body, type: notifType, data: dataUrl ? { url: dataUrl } : undefined }),
+              });
+            }
+          }
+        } catch (pushError) {
+          console.warn('FCM push failed:', pushError);
+        }
         await update(ref(database, `adminNotifications/${notifId}`), { deliveryCount });
         showToast(`تم إرسال الإشعار لـ ${segmentUsers.length} مستخدم`, 'success');
       }

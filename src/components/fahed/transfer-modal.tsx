@@ -351,6 +351,26 @@ export default function TransferModal() {
 
       await update(ref(database), updates);
 
+      // Send FCM push notification to the recipient (works when app is closed)
+      try {
+        const recipientFcmToken = recipientData.fcmToken;
+        if (recipientFcmToken) {
+          await fetch('/api/send-push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tokens: [recipientFcmToken],
+              title: 'تحويل وارد',
+              body: `تم استلام ${effectiveAmount.toLocaleString()} ${currency} من ${senderData.name || ''}`,
+              type: 'transaction',
+              data: { action: 'transfer_received', amount: effectiveAmount, currency },
+            }),
+          });
+        }
+      } catch (pushError) {
+        console.warn('FCM push to recipient failed (non-blocking):', pushError);
+      }
+
       setStatus('success');
       setTransferRef(txRef);
       setStep('success');

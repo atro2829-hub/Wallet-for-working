@@ -21,6 +21,7 @@ import {
   ArrowDownCircle, ArrowUpCircle, ShoppingCart, TrendingUp,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { notifyAccountStatus, notifyKycStatus, sendNotificationToUser } from '@/lib/notifications';
 
 export default function UsersPanel() {
   const { adminUser, showToast } = useAdminStore();
@@ -140,6 +141,14 @@ export default function UsersPanel() {
         blockReason: block ? blockReason : '',
         blockedAt: block ? new Date().toISOString() : '',
       });
+
+      // Send push notification to the user about account status change
+      try {
+        await notifyAccountStatus(selectedUser.uid, block);
+      } catch (notifError) {
+        console.warn('Failed to send account status notification:', notifError);
+      }
+
       showToast(block ? 'تم حظر المستخدم' : 'تم إلغاء حظر المستخدم', 'success');
       setBlockDialog(false);
       setBlockReason('');
@@ -218,6 +227,14 @@ export default function UsersPanel() {
         kycStatus: newKycStatus,
         kycUpdatedAt: new Date().toISOString(),
       });
+
+      // Send push notification to the user about KYC status change
+      try {
+        await notifyKycStatus(selectedUser.uid, newKycStatus);
+      } catch (notifError) {
+        console.warn('Failed to send KYC status notification:', notifError);
+      }
+
       showToast('تم تغيير حالة التحقق', 'success');
       setKycDialog(false);
     } catch (e) {
@@ -256,12 +273,11 @@ export default function UsersPanel() {
   const handleSendNotification = async () => {
     if (!selectedUser || !notifTitle || !notifBody) return;
     try {
-      await push(ref(database, `notifications/${selectedUser.uid}/push`), {
+      // Send notification with FCM push
+      await sendNotificationToUser(selectedUser.uid, {
         title: notifTitle,
         body: notifBody,
-        type: 'admin',
-        isRead: false,
-        createdAt: new Date().toISOString(),
+        type: 'info',
       });
       showToast('تم إرسال الإشعار للمستخدم', 'success');
       setNotifDialog(false);

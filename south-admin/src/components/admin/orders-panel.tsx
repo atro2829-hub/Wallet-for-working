@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ref, onValue, update, push } from 'firebase/database';
+import { ref, onValue, update, push, get } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useAdminStore } from '@/lib/store';
 import { formatNumber, currencySymbols, timeAgo, generateId } from '@/lib/utils';
+import { notifyOrderStatus } from '@/lib/notifications';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -53,6 +54,13 @@ export default function OrdersPanel() {
         completedAt: new Date().toISOString(),
       });
 
+      // Send push notification to the user
+      try {
+        await notifyOrderStatus(order.userId, order.packageName || order.providerName, 'completed');
+      } catch (notifError) {
+        console.warn('Failed to send order notification:', notifError);
+      }
+
       const logEntry = {
         id: generateId(),
         type: 'admin',
@@ -80,15 +88,21 @@ export default function OrdersPanel() {
       if (order.userId && order.amount) {
         const balanceKey = `balance${order.currency || 'YER'}`;
         const userRef = ref(database, `users/${order.userId}`);
-        const userSnap = await new Promise<any>((resolve) => {
-          onValue(userRef, (snap) => resolve(snap.val()), { onlyOnce: true });
-        });
-        if (userSnap) {
-          const currentBalance = userSnap[balanceKey] || 0;
+        const userSnap = await get(userRef);
+        const userData = userSnap.val();
+        if (userData) {
+          const currentBalance = userData[balanceKey] || 0;
           await update(ref(database, `users/${order.userId}`), {
             [balanceKey]: currentBalance + order.amount,
           });
         }
+      }
+
+      // Send push notification to the user
+      try {
+        await notifyOrderStatus(order.userId, order.packageName || order.providerName, 'cancelled');
+      } catch (notifError) {
+        console.warn('Failed to send order cancellation notification:', notifError);
       }
 
       const logEntry = {
