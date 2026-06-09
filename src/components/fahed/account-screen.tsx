@@ -44,7 +44,9 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { database } from '@/lib/firebase';
-import { ref, get, onValue } from 'firebase/database';
+import { auth } from '@/lib/firebase';
+import { ref, get, onValue, update } from 'firebase/database';
+import { sendPasswordResetEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { LOGO_BASE64 } from '@/lib/logo';
 
 interface SectionItem {
@@ -130,6 +132,17 @@ export default function AccountScreen() {
   const [showQRCard, setShowQRCard] = useState(false);
   const [lastLoginTime, setLastLoginTime] = useState<string>('');
 
+  // Password change state
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+
   // Social links from Firebase
   const [socialLinks, setSocialLinks] = useState<{
     whatsapp: string; facebook: string; twitter: string; instagram: string;
@@ -199,9 +212,47 @@ export default function AccountScreen() {
   };
 
   const handleItemClick = (item: SectionItem) => {
+    if (item.id === 'change-password') {
+      setShowPasswordDialog(true);
+      return;
+    }
     if (item.screen) {
       setActiveScreen(item.screen);
     }
+  };
+
+  const handleChangePassword = async () => {
+    if (!user || !auth.currentUser) return;
+    setPasswordError('');
+    if (newPassword !== confirmPassword) {
+      setPasswordError('\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0627\u0644\u062c\u062f\u064a\u062f\u0629 \u063a\u064a\u0631 \u0645\u062a\u0637\u0627\u0628\u0642\u0629');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError('\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u064a\u062c\u0628 \u0623\u0646 \u062a\u0643\u0648\u0646 6 \u0623\u062d\u0631\u0641 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644');
+      return;
+    }
+    setIsChangingPassword(true);
+    try {
+      const credential = EmailAuthProvider.credential(auth.currentUser.email || '', currentPassword);
+      await reauthenticateWithCredential(auth.currentUser, credential);
+      await updatePassword(auth.currentUser, newPassword);
+      await update(ref(database, `users/${user.id}`), { passwordChangedAt: new Date().toISOString() });
+      setPasswordSuccess(true);
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+      setTimeout(() => { setShowPasswordDialog(false); setPasswordSuccess(false); }, 2000);
+    } catch (error: any) {
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setPasswordError('\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0627\u0644\u062d\u0627\u0644\u064a\u0629 \u063a\u064a\u0631 \u0635\u062d\u064a\u062d\u0629');
+      } else if (error.code === 'auth/weak-password') {
+        setPasswordError('\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0636\u0639\u064a\u0641\u0629 \u062c\u062f\u0627\u064b');
+      } else {
+        try {
+          if (auth.currentUser.email) { await sendPasswordResetEmail(auth, auth.currentUser.email); setPasswordError('\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0631\u0627\u0628\u0637 \u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u062a\u0639\u064a\u064a\u0646 \u0625\u0644\u0649 \u0628\u0631\u064a\u062f\u0643'); }
+          else { setPasswordError('\u062d\u062f\u062b \u062e\u0637\u0623. \u064a\u0631\u062c\u0649 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.'); }
+        } catch { setPasswordError('\u062d\u062f\u062b \u062e\u0637\u0623. \u064a\u0631\u062c\u0649 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.'); }
+      }
+    } finally { setIsChangingPassword(false); }
   };
 
   const handleShareProfile = () => {
@@ -903,6 +954,87 @@ export default function AccountScreen() {
           </div>
         </motion.div>
       )}
+
+      {/* Password Change Dialog */}
+      <AnimatePresence>
+        {showPasswordDialog && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center"
+            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+            onClick={() => { setShowPasswordDialog(false); setPasswordError(''); setPasswordSuccess(false); }}>
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="w-full max-w-lg rounded-t-3xl p-5"
+              style={{ background: isDark ? '#0F0F0F' : '#F5F5F5' }}
+              onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(230,0,0,0.1)' }}>
+                  <Lock size={20} color="#E60000" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>تغيير كلمة المرور</h3>
+                  <p className="text-[11px]" style={{ color: isDark ? '#888' : '#AAA' }}>أدخل كلمة المرور الحالية والجديدة</p>
+                </div>
+              </div>
+              {passwordSuccess ? (
+                <div className="flex items-center gap-2 p-4 rounded-xl" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                  <Check size={16} color="#10B981" />
+                  <span className="text-sm" style={{ color: '#10B981' }}>تم تغيير كلمة المرور بنجاح!</span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {passwordError && (
+                    <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                      <Info size={14} color="#EF4444" />
+                      <span className="text-xs" style={{ color: '#EF4444' }}>{passwordError}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-[11px] font-medium block mb-1.5" style={{ color: isDark ? '#888' : '#999' }}>كلمة المرور الحالية</span>
+                    <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
+                      <input type={showCurrentPwd ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="••••••" dir="ltr"
+                        className="flex-1 bg-transparent outline-none text-sm" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} />
+                      <button onClick={() => setShowCurrentPwd(!showCurrentPwd)}>
+                        {showCurrentPwd ? <EyeOff size={16} color={isDark ? '#666' : '#AAA'} /> : <Eye size={16} color={isDark ? '#666' : '#AAA'} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-medium block mb-1.5" style={{ color: isDark ? '#888' : '#999' }}>كلمة المرور الجديدة</span>
+                    <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
+                      <input type={showNewPwd ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="6 أحرف على الأقل" dir="ltr"
+                        className="flex-1 bg-transparent outline-none text-sm" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} />
+                      <button onClick={() => setShowNewPwd(!showNewPwd)}>
+                        {showNewPwd ? <EyeOff size={16} color={isDark ? '#666' : '#AAA'} /> : <Eye size={16} color={isDark ? '#666' : '#AAA'} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-medium block mb-1.5" style={{ color: isDark ? '#888' : '#999' }}>تأكيد كلمة المرور</span>
+                    <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
+                      <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="أعد كتابة كلمة المرور" dir="ltr"
+                        className="flex-1 bg-transparent outline-none text-sm" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} />
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <motion.button whileTap={{ scale: 0.95 }} onClick={() => { setShowPasswordDialog(false); setPasswordError(''); }}
+                      className="flex-1 py-3 rounded-xl text-sm font-bold"
+                      style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', color: isDark ? '#FFF' : '#1a1a1a' }}>
+                      إلغاء
+                    </motion.button>
+                    <motion.button whileTap={{ scale: 0.95 }} onClick={handleChangePassword}
+                      disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword}
+                      className="flex-1 py-3 rounded-xl text-sm font-bold text-white"
+                      style={{ background: (isChangingPassword || !currentPassword || !newPassword || !confirmPassword) ? '#555' : '#E60000' }}>
+                      {isChangingPassword ? 'جارٍ التغيير...' : 'تغيير كلمة المرور'}
+                    </motion.button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Logout Button */}
       <motion.div

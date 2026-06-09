@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ref, onValue, update } from 'firebase/database';
+import { ref, onValue, set } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useAdminStore } from '@/lib/store';
 import { formatNumber, currencySymbols } from '@/lib/utils';
@@ -37,8 +37,8 @@ export default function ExchangeRatesPanel() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await update(ref(database, 'adminSettings/exchangeRates'), rates);
-      await update(ref(database, 'adminSettings/commissions'), commission);
+      await set(ref(database, 'adminSettings/exchangeRates'), rates);
+      await set(ref(database, 'adminSettings/commissions'), commission);
       showToast('تم حفظ الإعدادات', 'success');
     } catch (e) {
       showToast('حدث خطأ', 'error');

@@ -14,16 +14,16 @@ import { LOGO_BASE64 } from '@/lib/logo';
 import { ref, get, update, set as firebaseSet, onValue, off } from 'firebase/database';
 import { database } from '@/lib/firebase';
 
-interface InvestmentPlan {
+interface FirebaseInvestmentPlan {
   id: string;
   name: string;
-  duration: string;
+  type: 'daily' | 'weekly' | 'monthly' | 'quarterly';
   durationDays: number;
-  dailyRate: number;
   minAmount: number;
   maxAmount: number;
-  description: string;
-  color: string;
+  currency: string;
+  profitRate: number;
+  isActive: boolean;
 }
 
 interface ActiveInvestment {
@@ -41,56 +41,16 @@ interface ActiveInvestment {
   earnedSoFar?: number;
 }
 
-const investmentPlans: InvestmentPlan[] = [
-  {
-    id: 'usdt-daily',
-    name: 'USDT يومي',
-    duration: 'يومي',
-    durationDays: 1,
-    dailyRate: 0.5,
-    minAmount: 10,
-    maxAmount: 1000,
-    description: 'عائد يومي 0.5% - سحب يومي',
-    color: '#10B981',
-  },
-  {
-    id: 'usdt-weekly',
-    name: 'USDT أسبوعي',
-    duration: 'أسبوعي (7 أيام)',
-    durationDays: 7,
-    dailyRate: 0.8,
-    minAmount: 50,
-    maxAmount: 5000,
-    description: 'عائد يومي 0.8% - سحب أسبوعي',
-    color: '#3B82F6',
-  },
-  {
-    id: 'usdt-monthly',
-    name: 'USDT شهري',
-    duration: 'شهري (30 يوم)',
-    durationDays: 30,
-    dailyRate: 1.2,
-    minAmount: 100,
-    maxAmount: 10000,
-    description: 'عائد يومي 1.2% - سحب شهري',
-    color: '#8B5CF6',
-  },
-  {
-    id: 'usdt-quarterly',
-    name: 'USDT ربع سنوي',
-    duration: 'ربع سنوي (90 يوم)',
-    durationDays: 90,
-    dailyRate: 1.5,
-    minAmount: 500,
-    maxAmount: 50000,
-    description: 'عائد يومي 1.5% - سحب ربع سنوي',
-    color: '#F59E0B',
-  },
-];
+// Plan type display helpers
+const typeLabels: Record<string, string> = { daily: 'يومي', weekly: 'أسبوعي', monthly: 'شهري', quarterly: 'ربع سنوي' };
+const planColors = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4', '#EC4899'];
 
-function formatUsdtAmount(amount: number): string {
-  if (amount < 0.01) return '0.00';
-  return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function formatAmount(amount: number, currency: string): string {
+  if (currency === 'USD') {
+    if (amount < 0.01) return '0.00';
+    return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  return amount.toLocaleString('en-US');
 }
 
 // Countdown timer component
@@ -151,10 +111,11 @@ export default function InvestmentScreen() {
   const isDark = theme === 'dark';
   const { user, setUser, setActiveScreen, addNotification, addInvestment, updateInvestment } = useAppStore();
 
+  const [plans, setPlans] = useState<FirebaseInvestmentPlan[]>([]);
   const [activeInvestments, setActiveInvestments] = useState<ActiveInvestment[]>([]);
   const [investmentHistory, setInvestmentHistory] = useState<ActiveInvestment[]>([]);
   const [activeTab, setActiveTab] = useState<'plans' | 'active' | 'history'>('plans');
-  const [selectedPlan, setSelectedPlan] = useState<InvestmentPlan | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<FirebaseInvestmentPlan | null>(null);
   const [investAmount, setInvestAmount] = useState('');
   const [showInvestModal, setShowInvestModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -162,17 +123,33 @@ export default function InvestmentScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
-  const usdtBalance = user?.balanceUSD || 0;
+  // Fetch investment plans from Firebase adminSettings/investmentPlans
+  useEffect(() => {
+    const plansRef = ref(database, 'adminSettings/investmentPlans');
+    const unsubscribe = onValue(plansRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        // Firebase may store arrays as objects with numeric keys
+        const plansList: FirebaseInvestmentPlan[] = Array.isArray(data)
+          ? data.filter(Boolean).map((p, i) => ({ ...p, id: p.id || String(i) }))
+          : Object.entries(data).map(([id, val]: [string, any]) => ({ ...val, id }));
+        setPlans(plansList.filter(p => p.isActive));
+      } else {
+        setPlans([]);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
-  // Fetch investments from Firebase
+  // Fetch user investments from Firebase
   useEffect(() => {
     if (!user?.id) return;
-    const investRef = ref(database, `investments/${user.id}`);
+    const investRef = ref(database, `users/${user.id}/investments`);
     const listener = onValue(investRef, (snapshot) => {
       setIsLoading(false);
       if (snapshot.exists()) {
         const data = snapshot.val();
-        const allInvestments = Object.values(data) as ActiveInvestment[];
+        const allInvestments = Object.entries(data).map(([id, val]: [string, any]) => ({ id, ...val })) as ActiveInvestment[];
         const active = allInvestments.filter(inv => inv.status === 'active');
         const history = allInvestments.filter(inv => inv.status !== 'active');
         setActiveInvestments(active);
@@ -198,8 +175,8 @@ export default function InvestmentScreen() {
     const updates: Record<string, unknown> = {};
 
     // Mark investment as completed
-    updates[`investments/${user.id}/${investmentId}/status`] = 'completed';
-    updates[`investments/${user.id}/${investmentId}/completedAt`] = new Date().toISOString();
+    updates[`users/${user.id}/investments/${investmentId}/status`] = 'completed';
+    updates[`users/${user.id}/investments/${investmentId}/completedAt`] = new Date().toISOString();
 
     // Add profit + principal to user balance
     const balanceField = investment.currency === 'YER' ? 'balanceYER' : investment.currency === 'SAR' ? 'balanceSAR' : 'balanceUSD';
@@ -216,7 +193,7 @@ export default function InvestmentScreen() {
       currency: investment.currency,
       type: 'deposit',
       status: 'completed',
-      description: `استرداد استثمار ${investment.planName} - ربح ${formatUsdtAmount(investment.expectedProfit)} ${currencySymbols[investment.currency]}`,
+      description: `استرداد استثمار ${investment.planName} - ربح ${formatAmount(investment.expectedProfit, investment.currency)} ${currencySymbols[investment.currency]}`,
       createdAt: new Date().toISOString(),
     };
 
@@ -234,7 +211,7 @@ export default function InvestmentScreen() {
       addNotification({
         id: `inv-complete-${Date.now()}`,
         title: 'اكتمل الاستثمار!',
-        body: `تم استرداد ${formatUsdtAmount(totalReturn)} ${currencySymbols[investment.currency]} من خطة ${investment.planName}`,
+        body: `تم استرداد ${formatAmount(totalReturn, investment.currency)} ${currencySymbols[investment.currency]} من خطة ${investment.planName}`,
         type: 'transaction',
         isRead: false,
         createdAt: new Date().toISOString(),
@@ -244,7 +221,7 @@ export default function InvestmentScreen() {
     }
   }, [user, activeInvestments, completedIds, updateInvestment, setUser, addNotification]);
 
-  const handleInvestClick = (plan: InvestmentPlan) => {
+  const handleInvestClick = (plan: FirebaseInvestmentPlan) => {
     setSelectedPlan(plan);
     setInvestAmount(plan.minAmount.toString());
     setShowInvestModal(true);
@@ -254,22 +231,26 @@ export default function InvestmentScreen() {
     if (!selectedPlan || !user) return;
     const amount = parseFloat(investAmount) || 0;
     if (amount < selectedPlan.minAmount || amount > selectedPlan.maxAmount) return;
-    if (amount > usdtBalance) return;
+
+    const currency = selectedPlan.currency || 'USD';
+    const balanceField = currency === 'YER' ? 'balanceYER' : currency === 'SAR' ? 'balanceSAR' : 'balanceUSD';
+    const currentBalance = (user[balanceField] as number) || 0;
+    if (amount > currentBalance) return;
 
     setIsProcessing(true);
     try {
       const investId = `inv-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
       const startDate = new Date();
       const endDate = new Date(startDate.getTime() + selectedPlan.durationDays * 24 * 60 * 60 * 1000);
-      const expectedProfit = amount * (selectedPlan.dailyRate / 100) * selectedPlan.durationDays;
+      const expectedProfit = amount * (selectedPlan.profitRate / 100) * selectedPlan.durationDays;
 
       const newInvestment: ActiveInvestment = {
         id: investId,
         planId: selectedPlan.id,
         planName: selectedPlan.name,
         amount,
-        currency: 'USD',
-        profitRate: selectedPlan.dailyRate,
+        currency: currency as 'YER' | 'SAR' | 'USD',
+        profitRate: selectedPlan.profitRate,
         expectedProfit,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
@@ -277,8 +258,8 @@ export default function InvestmentScreen() {
       };
 
       const updates: Record<string, unknown> = {};
-      updates[`investments/${user.id}/${investId}`] = newInvestment;
-      updates[`users/${user.id}/balanceUSD`] = (user.balanceUSD || 0) - amount;
+      updates[`users/${user.id}/investments/${investId}`] = newInvestment;
+      updates[`users/${user.id}/${balanceField}`] = currentBalance - amount;
 
       const txId = `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
       updates[`transactions/${txId}`] = {
@@ -286,17 +267,18 @@ export default function InvestmentScreen() {
         fromUserId: user.id,
         toUserId: user.id,
         amount,
-        currency: 'USD',
+        currency,
         type: 'investment',
         status: 'completed',
-        description: `استثمار ${formatUsdtAmount(amount)} USDT في خطة ${selectedPlan.name}`,
+        description: `استثمار ${formatAmount(amount, currency)} ${currencySymbols[currency]} في خطة ${selectedPlan.name}`,
         createdAt: new Date().toISOString(),
       };
 
       const notifId = `notif-${Date.now()}`;
       updates[`notifications/${user.id}/${notifId}`] = {
+        id: notifId,
         title: 'تم الاستثمار بنجاح',
-        body: `تم استثمار ${formatUsdtAmount(amount)} USDT في خطة ${selectedPlan.name} بعائد ${selectedPlan.dailyRate}% يومياً`,
+        body: `تم استثمار ${formatAmount(amount, currency)} ${currencySymbols[currency]} في خطة ${selectedPlan.name} بعائد ${selectedPlan.profitRate}%`,
         type: 'transaction',
         isRead: false,
         createdAt: new Date().toISOString(),
@@ -305,7 +287,7 @@ export default function InvestmentScreen() {
       await update(ref(database), updates);
 
       addInvestment(newInvestment);
-      setUser({ ...user, balanceUSD: (user.balanceUSD || 0) - amount });
+      setUser({ ...user, [balanceField]: currentBalance - amount });
       setShowInvestModal(false);
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
@@ -316,8 +298,12 @@ export default function InvestmentScreen() {
     }
   };
 
+  const selectedBalance = selectedPlan
+    ? (selectedPlan.currency === 'YER' ? (user?.balanceYER || 0) : selectedPlan.currency === 'SAR' ? (user?.balanceSAR || 0) : (user?.balanceUSD || 0))
+    : 0;
+
   const estimatedReturn = selectedPlan
-    ? (parseFloat(investAmount) || 0) * (1 + (selectedPlan.dailyRate / 100) * selectedPlan.durationDays)
+    ? (parseFloat(investAmount) || 0) * (1 + (selectedPlan.profitRate / 100) * selectedPlan.durationDays)
     : 0;
   const estimatedProfit = estimatedReturn - (parseFloat(investAmount) || 0);
 
@@ -351,7 +337,7 @@ export default function InvestmentScreen() {
               <ArrowLeft size={18} strokeWidth={1.5} color="#FFF" />
             </motion.button>
             <div className="flex-1">
-              <h1 className="text-white text-xl font-bold">استثمار USDT</h1>
+              <h1 className="text-white text-xl font-bold">الاستثمار</h1>
               <p className="text-white/40 text-xs">عوائد مضمونة • سحب مرن</p>
             </div>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.2)' }}>
@@ -359,24 +345,28 @@ export default function InvestmentScreen() {
             </div>
           </div>
 
-          {/* USDT Balance Card */}
-          <div className="rounded-2xl p-4" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}>
-            <div className="flex items-center gap-2 mb-2">
-              <Coins size={16} color="#10B981" />
-              <span className="text-[11px] font-medium" style={{ color: '#10B981' }}>رصيد USDT</span>
+          {/* Balance Cards */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { currency: 'YER', balance: user?.balanceYER || 0 },
+              { currency: 'SAR', balance: user?.balanceSAR || 0 },
+              { currency: 'USD', balance: user?.balanceUSD || 0 },
+            ].map(({ currency, balance }) => (
+              <div key={currency} className="rounded-xl p-2.5 text-center" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                <p className="text-[9px]" style={{ color: 'rgba(255,255,255,0.5)' }}>{currency}</p>
+                <p className="text-sm font-bold" dir="ltr" style={{ color: '#10B981' }}>{formatAmount(balance, currency)}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-4 mt-3">
+            <div>
+              <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>استثمارات نشطة</span>
+              <p className="text-sm font-bold" style={{ color: '#FFF' }}>{activeInvestments.length}</p>
             </div>
-            <p className="text-3xl font-bold" dir="ltr" style={{ color: '#10B981' }}>
-              {formatUsdtAmount(usdtBalance)}
-            </p>
-            <div className="flex items-center gap-4 mt-2">
-              <div>
-                <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>استثمارات نشطة</span>
-                <p className="text-sm font-bold" style={{ color: '#FFF' }}>{activeInvestments.length}</p>
-              </div>
-              <div>
-                <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>أرباح مكتسبة</span>
-                <p className="text-sm font-bold" style={{ color: '#10B981' }}>${formatUsdtAmount(totalEarnings)}</p>
-              </div>
+            <div>
+              <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>أرباح مكتسبة</span>
+              <p className="text-sm font-bold" style={{ color: '#10B981' }}>${formatAmount(totalEarnings, 'USD')}</p>
             </div>
           </div>
         </div>
@@ -414,51 +404,64 @@ export default function InvestmentScreen() {
         <AnimatePresence mode="wait">
           {activeTab === 'plans' && (
             <motion.div key="plans" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
-              {investmentPlans.map((plan, index) => (
-                <motion.div key={plan.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * index }}
-                  className="rounded-2xl overflow-hidden" style={{ background: cardBg, border: `1px solid ${borderColor}` }}>
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${plan.color}15` }}>
-                          <TrendingUp size={18} color={plan.color} />
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{plan.name}</h3>
-                          <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>{plan.duration}</p>
-                        </div>
-                      </div>
-                      <div className="text-left">
-                        <p className="text-lg font-bold" style={{ color: plan.color }}>{plan.dailyRate}%</p>
-                        <p className="text-[9px]" style={{ color: isDark ? '#666' : '#BBB' }}>عائد يومي</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      <div className="p-2 rounded-lg text-center" style={{ background: innerBg }}>
-                        <p className="text-[9px]" style={{ color: isDark ? '#666' : '#AAA' }}>الحد الأدنى</p>
-                        <p className="text-xs font-bold" style={{ color: isDark ? '#CCC' : '#444' }}>${formatUsdtAmount(plan.minAmount)}</p>
-                      </div>
-                      <div className="p-2 rounded-lg text-center" style={{ background: innerBg }}>
-                        <p className="text-[9px]" style={{ color: isDark ? '#666' : '#AAA' }}>الحد الأقصى</p>
-                        <p className="text-xs font-bold" style={{ color: isDark ? '#CCC' : '#444' }}>${formatUsdtAmount(plan.maxAmount)}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 p-2 rounded-lg mb-3" style={{ background: innerBg }}>
-                      <Info size={12} color={isDark ? '#888' : '#AAA'} />
-                      <span className="text-[10px]" style={{ color: isDark ? '#888' : '#888' }}>
-                        عائد إجمالي {((plan.dailyRate / 100) * plan.durationDays * 100).toFixed(0)}% خلال {plan.durationDays} يوم
-                      </span>
-                    </div>
-
-                    <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleInvestClick(plan)}
-                      className="w-full py-2.5 rounded-xl text-xs font-bold text-white" style={{ background: plan.color }}>
-                      استثمر الآن
-                    </motion.button>
+              {plans.length === 0 && (
+                <div className="rounded-2xl p-8 flex flex-col items-center" style={{ background: cardBg, border: `1px solid ${borderColor}` }}>
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style={{ background: innerBg }}>
+                    <TrendingUp size={24} strokeWidth={1.5} color={isDark ? '#333' : '#DDD'} />
                   </div>
-                </motion.div>
-              ))}
+                  <p className="text-sm font-medium" style={{ color: isDark ? '#555' : '#AAA' }}>لا توجد خطط استثمار متاحة</p>
+                  <p className="text-[11px] mt-1" style={{ color: isDark ? '#444' : '#CCC' }}>سيتم إضافة خطط جديدة قريباً</p>
+                </div>
+              )}
+              {plans.map((plan, index) => {
+                const color = planColors[index % planColors.length];
+                const currency = plan.currency || 'USD';
+                return (
+                  <motion.div key={plan.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * index }}
+                    className="rounded-2xl overflow-hidden" style={{ background: cardBg, border: `1px solid ${borderColor}` }}>
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${color}15` }}>
+                            <TrendingUp size={18} color={color} />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{plan.name}</h3>
+                            <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>{typeLabels[plan.type] || plan.type} - {plan.durationDays} يوم</p>
+                          </div>
+                        </div>
+                        <div className="text-left">
+                          <p className="text-lg font-bold" style={{ color }}>{plan.profitRate}%</p>
+                          <p className="text-[9px]" style={{ color: isDark ? '#666' : '#BBB' }}>عائد يومي</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        <div className="p-2 rounded-lg text-center" style={{ background: innerBg }}>
+                          <p className="text-[9px]" style={{ color: isDark ? '#666' : '#AAA' }}>الحد الأدنى</p>
+                          <p className="text-xs font-bold" style={{ color: isDark ? '#CCC' : '#444' }}>{formatAmount(plan.minAmount, currency)} {currencySymbols[currency]}</p>
+                        </div>
+                        <div className="p-2 rounded-lg text-center" style={{ background: innerBg }}>
+                          <p className="text-[9px]" style={{ color: isDark ? '#666' : '#AAA' }}>الحد الأقصى</p>
+                          <p className="text-xs font-bold" style={{ color: isDark ? '#CCC' : '#444' }}>{formatAmount(plan.maxAmount, currency)} {currencySymbols[currency]}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 p-2 rounded-lg mb-3" style={{ background: innerBg }}>
+                        <Info size={12} color={isDark ? '#888' : '#AAA'} />
+                        <span className="text-[10px]" style={{ color: isDark ? '#888' : '#888' }}>
+                          عائد إجمالي {((plan.profitRate / 100) * plan.durationDays * 100).toFixed(0)}% خلال {plan.durationDays} يوم
+                        </span>
+                      </div>
+
+                      <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleInvestClick(plan)}
+                        className="w-full py-2.5 rounded-xl text-xs font-bold text-white" style={{ background: color }}>
+                        استثمر الآن
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                );
+              })}
 
               <div className="rounded-2xl p-4" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
                 <div className="flex items-start gap-2">
@@ -466,7 +469,7 @@ export default function InvestmentScreen() {
                   <div>
                     <p className="text-xs font-bold mb-1" style={{ color: '#10B981' }}>ملاحظة مهمة</p>
                     <p className="text-[10px] leading-relaxed" style={{ color: isDark ? '#AAA' : '#666' }}>
-                      الاستثمار في العملات الرقمية ينطوي على مخاطر. العوائد المذكورة تقديرية وليست مضمونة. يرجى الاستثمار بما يتوافق مع قدرتك المالية.
+                      الاستثمار ينطوي على مخاطر. العوائد المذكورة تقديرية وليست مضمونة. يرجى الاستثمار بما يتوافق مع قدرتك المالية.
                     </p>
                   </div>
                 </div>
@@ -488,13 +491,13 @@ export default function InvestmentScreen() {
                 </div>
               ) : activeInvestments.length > 0 ? (
                 <div className="space-y-3">
-                  {activeInvestments.map((inv) => {
-                    const plan = investmentPlans.find(p => p.id === inv.planId);
+                  {activeInvestments.map((inv, invIdx) => {
+                    const plan = plans.find(p => p.id === inv.planId);
                     const progress = getProgress(inv);
                     const daysElapsed = Math.floor((Date.now() - new Date(inv.startDate).getTime()) / (1000 * 60 * 60 * 24));
                     const dailyEarning = inv.amount * (inv.profitRate / 100);
                     const totalEarning = dailyEarning * daysElapsed;
-                    const color = plan?.color || '#10B981';
+                    const color = planColors[invIdx % planColors.length];
 
                     return (
                       <motion.div key={inv.id}
@@ -538,15 +541,15 @@ export default function InvestmentScreen() {
                           <div className="grid grid-cols-3 gap-2 mb-3">
                             <div className="p-2 rounded-lg text-center" style={{ background: innerBg }}>
                               <p className="text-[9px]" style={{ color: isDark ? '#666' : '#AAA' }}>المبلغ</p>
-                              <p className="text-[11px] font-bold" style={{ color: isDark ? '#CCC' : '#444' }}>${formatUsdtAmount(inv.amount)}</p>
+                              <p className="text-[11px] font-bold" style={{ color: isDark ? '#CCC' : '#444' }}>{formatAmount(inv.amount, inv.currency)}</p>
                             </div>
                             <div className="p-2 rounded-lg text-center" style={{ background: innerBg }}>
                               <p className="text-[9px]" style={{ color: isDark ? '#666' : '#AAA' }}>عائد يومي</p>
-                              <p className="text-[11px] font-bold" style={{ color }}>${formatUsdtAmount(dailyEarning)}</p>
+                              <p className="text-[11px] font-bold" style={{ color }}>{formatAmount(dailyEarning, inv.currency)}</p>
                             </div>
                             <div className="p-2 rounded-lg text-center" style={{ background: innerBg }}>
                               <p className="text-[9px]" style={{ color: isDark ? '#666' : '#AAA' }}>مكتسب</p>
-                              <p className="text-[11px] font-bold" style={{ color }}>${formatUsdtAmount(totalEarning)}</p>
+                              <p className="text-[11px] font-bold" style={{ color }}>{formatAmount(totalEarning, inv.currency)}</p>
                             </div>
                           </div>
 
@@ -574,7 +577,7 @@ export default function InvestmentScreen() {
                     <TrendingUp size={24} strokeWidth={1.5} color={isDark ? '#333' : '#DDD'} />
                   </div>
                   <p className="text-sm font-medium" style={{ color: isDark ? '#555' : '#AAA' }}>لا توجد استثمارات نشطة</p>
-                  <p className="text-[11px] mt-1" style={{ color: isDark ? '#444' : '#CCC' }}>ابدأ بالاستثمار في خطط USDT</p>
+                  <p className="text-[11px] mt-1" style={{ color: isDark ? '#444' : '#CCC' }}>ابدأ بالاستثمار في إحدى الخطط</p>
                   <button onClick={() => setActiveTab('plans')}
                     className="mt-3 px-4 py-2 rounded-lg text-xs font-bold text-white" style={{ background: '#10B981' }}>
                     عرض الخطط
@@ -596,7 +599,7 @@ export default function InvestmentScreen() {
                         </div>
                         <div>
                           <p className="text-xs font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{inv.planName}</p>
-                          <p className="text-[9px]" style={{ color: isDark ? '#666' : '#AAA' }}>${formatUsdtAmount(inv.amount)} USDT</p>
+                          <p className="text-[9px]" style={{ color: isDark ? '#666' : '#AAA' }}>{formatAmount(inv.amount, inv.currency)} {currencySymbols[inv.currency]}</p>
                         </div>
                       </div>
                       <div className="text-left">
@@ -634,81 +637,89 @@ export default function InvestmentScreen() {
               className="w-full max-w-lg rounded-t-3xl p-5"
               style={{ background: isDark ? '#0F0F0F' : '#F5F5F5' }}
               onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${selectedPlan.color}15` }}>
-                  <TrendingUp size={20} color={selectedPlan.color} />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>استثمار في {selectedPlan.name}</h3>
-                  <p className="text-[11px]" style={{ color: isDark ? '#888' : '#AAA' }}>عائد يومي {selectedPlan.dailyRate}%</p>
-                </div>
-              </div>
+              {(() => {
+                const color = planColors[plans.indexOf(selectedPlan) % planColors.length] || '#10B981';
+                const currency = selectedPlan.currency || 'USD';
+                return (
+                  <>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${color}15` }}>
+                        <TrendingUp size={20} color={color} />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>استثمار في {selectedPlan.name}</h3>
+                        <p className="text-[11px]" style={{ color: isDark ? '#888' : '#AAA' }}>عائد يومي {selectedPlan.profitRate}% • {currency}</p>
+                      </div>
+                    </div>
 
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11px] font-medium" style={{ color: isDark ? '#888' : '#999' }}>مبلغ الاستثمار (USDT)</span>
-                    <span className="text-[11px]" style={{ color: isDark ? '#666' : '#BBB' }}>
-                      رصيدك: ${formatUsdtAmount(usdtBalance)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
-                    <input type="number" value={investAmount} onChange={e => setInvestAmount(e.target.value)} placeholder="0" dir="ltr"
-                      className="flex-1 bg-transparent outline-none text-xl font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} />
-                    <span className="text-sm font-bold" style={{ color: '#10B981' }}>USDT</span>
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    {[selectedPlan.minAmount, selectedPlan.minAmount * 5, selectedPlan.minAmount * 10, selectedPlan.maxAmount].map((amt, i) => (
-                      <button key={i} onClick={() => setInvestAmount(amt.toString())}
-                        className="flex-1 py-1.5 rounded-lg text-[10px] font-bold"
-                        style={{ background: innerBg, color: isDark ? '#CCC' : '#444' }}>
-                        ${formatUsdtAmount(amt)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[11px] font-medium" style={{ color: isDark ? '#888' : '#999' }}>مبلغ الاستثمار ({currency})</span>
+                          <span className="text-[11px]" style={{ color: isDark ? '#666' : '#BBB' }}>
+                            رصيدك: {formatAmount(selectedBalance, currency)} {currencySymbols[currency]}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
+                          <input type="number" value={investAmount} onChange={e => setInvestAmount(e.target.value)} placeholder="0" dir="ltr"
+                            className="flex-1 bg-transparent outline-none text-xl font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} />
+                          <span className="text-sm font-bold" style={{ color: '#10B981' }}>{currency}</span>
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                          {[selectedPlan.minAmount, selectedPlan.minAmount * 5, selectedPlan.minAmount * 10, selectedPlan.maxAmount].map((amt, i) => (
+                            <button key={i} onClick={() => setInvestAmount(amt.toString())}
+                              className="flex-1 py-1.5 rounded-lg text-[10px] font-bold"
+                              style={{ background: innerBg, color: isDark ? '#CCC' : '#444' }}>
+                              {formatAmount(amt, currency)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                <div className="p-3 rounded-xl space-y-2" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px]" style={{ color: isDark ? '#888' : '#999' }}>عائد يومي</span>
-                    <span className="text-[11px] font-bold" style={{ color: '#10B981' }}>
-                      ${formatUsdtAmount((parseFloat(investAmount) || 0) * (selectedPlan.dailyRate / 100))}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px]" style={{ color: isDark ? '#888' : '#999' }}>عائد إجمالي ({selectedPlan.durationDays} يوم)</span>
-                    <span className="text-[11px] font-bold" style={{ color: '#10B981' }}>
-                      ${formatUsdtAmount(estimatedProfit)}
-                    </span>
-                  </div>
-                  <div className="h-px" style={{ background: 'rgba(16,185,129,0.2)' }} />
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>إجمالي الاسترداد</span>
-                    <span className="text-xs font-bold" style={{ color: '#10B981' }}>${formatUsdtAmount(estimatedReturn)}</span>
-                  </div>
-                </div>
+                      <div className="p-3 rounded-xl space-y-2" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]" style={{ color: isDark ? '#888' : '#999' }}>عائد يومي</span>
+                          <span className="text-[11px] font-bold" style={{ color: '#10B981' }}>
+                            {formatAmount((parseFloat(investAmount) || 0) * (selectedPlan.profitRate / 100), currency)} {currencySymbols[currency]}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]" style={{ color: isDark ? '#888' : '#999' }}>عائد إجمالي ({selectedPlan.durationDays} يوم)</span>
+                          <span className="text-[11px] font-bold" style={{ color: '#10B981' }}>
+                            {formatAmount(estimatedProfit, currency)} {currencySymbols[currency]}
+                          </span>
+                        </div>
+                        <div className="h-px" style={{ background: 'rgba(16,185,129,0.2)' }} />
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>إجمالي الاسترداد</span>
+                          <span className="text-xs font-bold" style={{ color: '#10B981' }}>{formatAmount(estimatedReturn, currency)} {currencySymbols[currency]}</span>
+                        </div>
+                      </div>
 
-                {(parseFloat(investAmount) || 0) > usdtBalance && (
-                  <div className="flex items-center gap-2 p-2.5 rounded-xl" style={{ background: 'rgba(230,0,0,0.1)', border: '1px solid rgba(230,0,0,0.2)' }}>
-                    <Wallet size={14} color="#E60000" />
-                    <span className="text-[11px] font-medium" style={{ color: '#E60000' }}>رصيد USDT غير كافي</span>
-                  </div>
-                )}
+                      {(parseFloat(investAmount) || 0) > selectedBalance && (
+                        <div className="flex items-center gap-2 p-2.5 rounded-xl" style={{ background: 'rgba(230,0,0,0.1)', border: '1px solid rgba(230,0,0,0.2)' }}>
+                          <Wallet size={14} color="#E60000" />
+                          <span className="text-[11px] font-medium" style={{ color: '#E60000' }}>رصيد {currency} غير كافي</span>
+                        </div>
+                      )}
 
-                <div className="flex gap-3">
-                  <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowInvestModal(false)}
-                    className="flex-1 py-3 rounded-xl text-sm font-bold"
-                    style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', color: isDark ? '#FFF' : '#1a1a1a' }}>
-                    إلغاء
-                  </motion.button>
-                  <motion.button whileTap={{ scale: 0.95 }} onClick={handleConfirmInvest}
-                    disabled={isProcessing || (parseFloat(investAmount) || 0) < selectedPlan.minAmount || (parseFloat(investAmount) || 0) > usdtBalance}
-                    className="flex-1 py-3 rounded-xl text-sm font-bold text-white"
-                    style={{ background: (isProcessing || (parseFloat(investAmount) || 0) < selectedPlan.minAmount || (parseFloat(investAmount) || 0) > usdtBalance) ? '#555' : selectedPlan.color }}>
-                    {isProcessing ? 'جارٍ الاستثمار...' : 'تأكيد الاستثمار'}
-                  </motion.button>
-                </div>
-              </div>
+                      <div className="flex gap-3">
+                        <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowInvestModal(false)}
+                          className="flex-1 py-3 rounded-xl text-sm font-bold"
+                          style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', color: isDark ? '#FFF' : '#1a1a1a' }}>
+                          إلغاء
+                        </motion.button>
+                        <motion.button whileTap={{ scale: 0.95 }} onClick={handleConfirmInvest}
+                          disabled={isProcessing || (parseFloat(investAmount) || 0) < selectedPlan.minAmount || (parseFloat(investAmount) || 0) > selectedBalance}
+                          className="flex-1 py-3 rounded-xl text-sm font-bold text-white"
+                          style={{ background: (isProcessing || (parseFloat(investAmount) || 0) < selectedPlan.minAmount || (parseFloat(investAmount) || 0) > selectedBalance) ? '#555' : color }}>
+                          {isProcessing ? 'جارٍ الاستثمار...' : 'تأكيد الاستثمار'}
+                        </motion.button>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </motion.div>
           </motion.div>
         )}

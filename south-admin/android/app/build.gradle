@@ -16,6 +16,14 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            storeFile file('../../../south-wallet.keystore')
+            storePassword 'southwallet123'
+            keyAlias 'southwallet'
+            keyPassword 'southwallet123'
+        }
+    }
     buildTypes {
         debug {
             debuggable true
@@ -23,16 +31,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            // Signing config - uses keystore generated during CI build
-            def hasKeystore = project.hasProperty('MYAPP_UPLOAD_STORE_FILE') && file(project.MYAPP_UPLOAD_STORE_FILE).exists()
-            if (hasKeystore) {
-                signingConfig signingConfigs.create('release') {
-                    storeFile file(project.MYAPP_UPLOAD_STORE_FILE)
-                    storePassword project.MYAPP_UPLOAD_STORE_PASSWORD
-                    keyAlias project.MYAPP_UPLOAD_KEY_ALIAS
-                    keyPassword project.MYAPP_UPLOAD_KEY_PASSWORD
-                }
-            }
+            signingConfig signingConfigs.release
         }
     }
 }

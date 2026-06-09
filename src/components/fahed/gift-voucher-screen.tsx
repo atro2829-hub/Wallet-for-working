@@ -5,7 +5,7 @@ import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Gift, Copy, Check, Share2, Phone, Clock,
-  XCircle, CheckCircle2, Tag, Plus, Wallet, MessageSquare, Hash
+  XCircle, CheckCircle2, Tag, Plus, Wallet, MessageSquare, Hash, AlertCircle, Search
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { currencySymbols, currencyNames, currencyBadgeColors, timeAgo } from '@/lib/utils';
@@ -40,7 +40,7 @@ export default function GiftVoucherScreen() {
   const isDark = theme === 'dark';
   const { user, setUser, addNotification } = useAppStore();
 
-  const [activeTab, setActiveTab] = useState<'create' | 'my-codes'>('create');
+  const [activeTab, setActiveTab] = useState<'create' | 'redeem' | 'my-codes'>('create');
   const [codes, setCodes] = useState<UserGiftCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -51,6 +51,11 @@ export default function GiftVoucherScreen() {
   const [message, setMessage] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [createdCode, setCreatedCode] = useState<UserGiftCode | null>(null);
+
+  // Redeem form
+  const [redeemCode, setRedeemCode] = useState('');
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  const [redeemResult, setRedeemResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Fetch user gift codes from Firebase
   useEffect(() => {
@@ -200,14 +205,18 @@ export default function GiftVoucherScreen() {
 
       {/* Tab Switcher */}
       <div className="px-5 mt-4">
-        <div className="flex gap-2 p-1 rounded-2xl" style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}>
-          <button onClick={() => setActiveTab('create')} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all duration-200" style={{ background: activeTab === 'create' ? '#E60000' : 'transparent', color: activeTab === 'create' ? '#FFF' : (isDark ? '#999' : '#666'), boxShadow: activeTab === 'create' ? '0 4px 12px rgba(230,0,0,0.3)' : 'none' }}>
-            <Plus size={16} />
-            <span className="text-sm font-bold">إنشاء قسيمة</span>
+        <div className="flex gap-1.5 p-1 rounded-2xl" style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}>
+          <button onClick={() => setActiveTab('create')} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl transition-all duration-200" style={{ background: activeTab === 'create' ? '#E60000' : 'transparent', color: activeTab === 'create' ? '#FFF' : (isDark ? '#999' : '#666'), boxShadow: activeTab === 'create' ? '0 4px 12px rgba(230,0,0,0.3)' : 'none' }}>
+            <Plus size={14} />
+            <span className="text-xs font-bold">إنشاء</span>
           </button>
-          <button onClick={() => setActiveTab('my-codes')} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all duration-200" style={{ background: activeTab === 'my-codes' ? '#E60000' : 'transparent', color: activeTab === 'my-codes' ? '#FFF' : (isDark ? '#999' : '#666'), boxShadow: activeTab === 'my-codes' ? '0 4px 12px rgba(230,0,0,0.3)' : 'none' }}>
-            <Tag size={16} />
-            <span className="text-sm font-bold">قسائمي</span>
+          <button onClick={() => setActiveTab('redeem')} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl transition-all duration-200" style={{ background: activeTab === 'redeem' ? '#E60000' : 'transparent', color: activeTab === 'redeem' ? '#FFF' : (isDark ? '#999' : '#666'), boxShadow: activeTab === 'redeem' ? '0 4px 12px rgba(230,0,0,0.3)' : 'none' }}>
+            <Hash size={14} />
+            <span className="text-xs font-bold">استرداد</span>
+          </button>
+          <button onClick={() => setActiveTab('my-codes')} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl transition-all duration-200" style={{ background: activeTab === 'my-codes' ? '#E60000' : 'transparent', color: activeTab === 'my-codes' ? '#FFF' : (isDark ? '#999' : '#666'), boxShadow: activeTab === 'my-codes' ? '0 4px 12px rgba(230,0,0,0.3)' : 'none' }}>
+            <Tag size={14} />
+            <span className="text-xs font-bold">قسائمي</span>
           </button>
         </div>
       </div>
@@ -323,6 +332,112 @@ export default function GiftVoucherScreen() {
                 </>
               )}
             </motion.div>
+          ) : activeTab === 'redeem' ? (
+            <motion.div key="redeem" initial={{ opacity: 0, x: 0 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 0 }} className="space-y-4">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl p-4" style={{ background: cardBg, border: `1px solid ${borderColor}` }}>
+                <div className="flex items-center gap-2 mb-4">
+                  <Hash size={16} color="#E60000" />
+                  <h3 className="text-sm font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>استرداد قسيمة هدية</h3>
+                </div>
+
+                <div className="mb-4">
+                  <span className="text-[11px] font-medium block mb-1.5" style={{ color: isDark ? '#888' : '#999' }}>كود القسيمة</span>
+                  <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: innerBg }}>
+                    <Gift size={16} color="#E60000" />
+                    <input type="text" value={redeemCode} onChange={e => setRedeemCode(e.target.value.toUpperCase())} placeholder="أدخل كود القسيمة" maxLength={8} dir="ltr"
+                      className="flex-1 bg-transparent outline-none text-lg font-mono font-bold tracking-wider" style={{ color: isDark ? '#FFF' : '#1a1a1a' }} />
+                  </div>
+                </div>
+
+                {redeemResult && (
+                  <div className={`flex items-center gap-2 p-3 rounded-xl mb-4 ${redeemResult.success ? '' : ''}`} style={{ background: redeemResult.success ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${redeemResult.success ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
+                    {redeemResult.success ? <CheckCircle2 size={16} color="#10B981" /> : <AlertCircle size={16} color="#EF4444" />}
+                    <span className="text-xs" style={{ color: redeemResult.success ? '#10B981' : '#EF4444' }}>{redeemResult.message}</span>
+                  </div>
+                )}
+
+                <motion.button whileTap={{ scale: 0.95 }} onClick={async () => {
+                  if (!redeemCode.trim() || !user) return;
+                  setIsRedeeming(true);
+                  setRedeemResult(null);
+                  try {
+                    // Search for the gift code in Firebase
+                    const codesRef = ref(database, 'userGiftCodes');
+                    const snapshot = await get(codesRef);
+                    if (!snapshot.exists()) {
+                      setRedeemResult({ success: false, message: 'كود القسيمة غير صالح' });
+                      setIsRedeeming(false);
+                      return;
+                    }
+                    const data = snapshot.val();
+                    let foundCode: UserGiftCode | null = null;
+                    let foundCodeId: string | null = null;
+                    for (const [id, val] of Object.entries(data)) {
+                      const code = val as UserGiftCode;
+                      if (code.code === redeemCode.trim() && code.status === 'active') {
+                        foundCode = { ...code, id };
+                        foundCodeId = id;
+                        break;
+                      }
+                    }
+                    if (!foundCode || !foundCodeId) {
+                      setRedeemResult({ success: false, message: 'كود القسيمة غير صالح أو مستخدم بالفعل' });
+                      setIsRedeeming(false);
+                      return;
+                    }
+                    if (foundCode.creatorUid === user.id) {
+                      setRedeemResult({ success: false, message: 'لا يمكنك استرداد قسيمتك الخاصة' });
+                      setIsRedeeming(false);
+                      return;
+                    }
+                    const codeCurrency = foundCode.currency || 'YER';
+                    const balanceField = codeCurrency === 'YER' ? 'balanceYER' : codeCurrency === 'SAR' ? 'balanceSAR' : 'balanceUSD';
+                    const currentBalance = (user[balanceField] as number) || 0;
+                    const updates: Record<string, unknown> = {};
+                    updates[`userGiftCodes/${foundCodeId}/status`] = 'redeemed';
+                    updates[`userGiftCodes/${foundCodeId}/redeemedBy`] = user.id;
+                    updates[`userGiftCodes/${foundCodeId}/redeemedAt`] = new Date().toISOString();
+                    updates[`users/${user.id}/${balanceField}`] = currentBalance + foundCode.amount;
+                    const txId = `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+                    updates[`transactions/${txId}`] = {
+                      id: txId, fromUserId: foundCode.creatorUid, toUserId: user.id,
+                      amount: foundCode.amount, currency: codeCurrency, type: 'deposit',
+                      status: 'completed', description: `استرداد قسيمة هدية من ${foundCode.creatorName}`,
+                      createdAt: new Date().toISOString(),
+                    };
+                    await update(ref(database), updates);
+                    setUser({ ...user, [balanceField]: currentBalance + foundCode.amount });
+                    addNotification({
+                      id: `gift-redeem-${Date.now()}`, title: 'تم استرداد القسيمة!',
+                      body: `تم إضافة ${foundCode.amount} ${currencySymbols[codeCurrency]} إلى رصيدك`,
+                      type: 'transaction', isRead: false, createdAt: new Date().toISOString(),
+                    });
+                    setRedeemResult({ success: true, message: `تم إضافة ${foundCode.amount} ${currencySymbols[codeCurrency]} إلى رصيدك بنجاح!` });
+                    setRedeemCode('');
+                  } catch (error) {
+                    console.error('Error redeeming code:', error);
+                    setRedeemResult({ success: false, message: 'حدث خطأ أثناء استرداد القسيمة' });
+                  } finally {
+                    setIsRedeeming(false);
+                  }
+                }} disabled={isRedeeming || !redeemCode.trim()}
+                  className="w-full py-3.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2"
+                  style={{ background: isRedeeming || !redeemCode.trim() ? '#555' : 'linear-gradient(135deg, #E60000 0%, #B30000 100%)', boxShadow: !isRedeeming && redeemCode.trim() ? '0 4px 12px rgba(230,0,0,0.3)' : 'none' }}>
+                  {isRedeeming ? 'جارٍ الاسترداد...' : <><Gift size={16} /> استرداد القسيمة</>}
+                </motion.button>
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+                className="rounded-2xl p-4" style={{ background: 'rgba(230,0,0,0.06)', border: '1px solid rgba(230,0,0,0.1)' }}>
+                <div className="flex items-start gap-2">
+                  <AlertCircle size={14} color="#E60000" className="mt-0.5 shrink-0" />
+                  <p className="text-[10px] leading-relaxed" style={{ color: isDark ? '#AAA' : '#666' }}>
+                    أدخل كود القسيمة المكون من 8 أحرف/أرقام. سيتم إضافة المبلغ إلى رصيدك فوراً بعد الاسترداد.
+                  </p>
+                </div>
+              </motion.div>
+            </motion.div>
           ) : (
             <motion.div key="my-codes" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
               {isLoading ? (
@@ -429,6 +544,3 @@ export default function GiftVoucherScreen() {
     </div>
   );
 }
-
-// Need AlertCircle import
-import { AlertCircle } from 'lucide-react';

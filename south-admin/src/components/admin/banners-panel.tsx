@@ -23,6 +23,7 @@ export default function BannersPanel() {
   const [dialog, setDialog] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [imageBase64, setImageBase64] = useState('');
   const [url, setUrl] = useState('');
   const [urlType, setUrlType] = useState<'whatsapp' | 'facebook' | 'website' | 'deeplink' | 'none'>('none');
@@ -71,6 +72,8 @@ export default function BannersPanel() {
     try {
       const data = {
         title,
+        description,
+        imageUrl: imageBase64,
         image: imageBase64,
         url: urlType !== 'none' ? url : '',
         urlType: urlType !== 'none' ? urlType : '',
@@ -86,7 +89,7 @@ export default function BannersPanel() {
         showToast('تم إضافة البانر', 'success');
       }
       setDialog(false);
-      setTitle(''); setImageBase64(''); setUrl(''); setUrlType('none'); setOrder('0'); setIsActive(true); setEditing(null); setUrlTestResult('none');
+      setTitle(''); setDescription(''); setImageBase64(''); setUrl(''); setUrlType('none'); setOrder('0'); setIsActive(true); setEditing(null); setUrlTestResult('none');
     } catch (e) { showToast('حدث خطأ', 'error'); }
   };
 
@@ -111,14 +114,14 @@ export default function BannersPanel() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">البانرات الإعلانية</h1><p className="text-muted-foreground text-sm mt-1">{formatNumber(banners.length)} بانر</p></div>
-        <Button onClick={() => { setEditing(null); setTitle(''); setImageBase64(''); setUrl(''); setUrlType('none'); setOrder('0'); setIsActive(true); setUrlTestResult('none'); setDialog(true); }} size="sm"><Plus className="w-4 h-4 ml-1" /> بانر جديد</Button>
+        <Button onClick={() => { setEditing(null); setTitle(''); setDescription(''); setImageBase64(''); setUrl(''); setUrlType('none'); setOrder('0'); setIsActive(true); setUrlTestResult('none'); setDialog(true); }} size="sm"><Plus className="w-4 h-4 ml-1" /> بانر جديد</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {banners.map((b, i) => (
           <motion.div key={b.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}>
             <Card className="admin-card border-0 shadow-none overflow-hidden">
-              {b.image && <img src={b.image} alt={b.title || ''} className="w-full h-32 object-cover" />}
+              {(b.imageUrl || b.image) && <img src={b.imageUrl || b.image} alt={b.title || ''} className="w-full h-32 object-cover" />}
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -135,7 +138,7 @@ export default function BannersPanel() {
                   <div className="flex items-center gap-2">
                     <Badge className={b.isActive ? 'bg-green-500/20 text-green-600 dark:text-green-400' : 'bg-red-500/20 text-red-600 dark:text-red-400'}>{b.isActive ? 'نشط' : 'معطل'}</Badge>
                     <Button variant="ghost" size="sm" onClick={() => {
-                      setEditing(b); setTitle(b.title || ''); setImageBase64(b.image || '');
+                      setEditing(b); setTitle(b.title || ''); setDescription(b.description || ''); setImageBase64(b.imageUrl || b.image || '');
                       setUrl(b.url || b.link || ''); setUrlType(b.urlType || (b.url || b.link ? 'website' : 'none'));
                       setOrder(String(b.order || 0)); setIsActive(b.isActive !== false); setUrlTestResult('none'); setDialog(true);
                     }}><Edit className="w-4 h-4" /></Button>
@@ -154,6 +157,7 @@ export default function BannersPanel() {
           <DialogHeader><DialogTitle>{editing ? 'تعديل بانر' : 'إضافة بانر'}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>العنوان</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+            <div><Label>الوصف</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف مختصر للبانر..." /></div>
             <div><Label>الصورة</Label>
               <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full text-sm" />
               {imageBase64 && <img src={imageBase64} alt="preview" className="mt-2 w-full h-24 object-cover rounded-lg" />}

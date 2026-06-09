@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 
 interface CardColor {
   primary: string;
+  gradient: string;
   gradientStart: string;
   gradientEnd: string;
 }
@@ -24,9 +25,9 @@ interface CardColors {
 }
 
 const defaultColors: CardColors = {
-  YER: { primary: '#E60000', gradientStart: '#E60000', gradientEnd: '#8B0000' },
-  SAR: { primary: '#059669', gradientStart: '#059669', gradientEnd: '#065F46' },
-  USD: { primary: '#2563EB', gradientStart: '#2563EB', gradientEnd: '#1E40AF' },
+  YER: { primary: '#E60000', gradient: '#8B0000', gradientStart: '#E60000', gradientEnd: '#8B0000' },
+  SAR: { primary: '#059669', gradient: '#065F46', gradientStart: '#059669', gradientEnd: '#065F46' },
+  USD: { primary: '#2563EB', gradient: '#1E40AF', gradientStart: '#2563EB', gradientEnd: '#1E40AF' },
 };
 
 const currencyNames: Record<string, string> = { YER: 'الريال اليمني', SAR: 'الريال السعودي', USD: 'الدولار الأمريكي' };
@@ -45,9 +46,9 @@ export default function CardColorsPanel() {
       const data = snapshot.val();
       if (data) {
         setColors({
-          YER: data.YER || defaultColors.YER,
-          SAR: data.SAR || defaultColors.SAR,
-          USD: data.USD || defaultColors.USD,
+          YER: { ...defaultColors.YER, ...data.YER },
+          SAR: { ...defaultColors.SAR, ...data.SAR },
+          USD: { ...defaultColors.USD, ...data.USD },
         });
       }
       setLoading(false);
@@ -62,7 +63,18 @@ export default function CardColorsPanel() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await set(ref(database, 'adminSettings/cardColors'), colors);
+      // Ensure each color has the `gradient` field (required by user app's CardColor type)
+      const dataToSave: CardColors = {} as CardColors;
+      for (const currency of Object.keys(colors) as Array<keyof CardColors>) {
+        const c = colors[currency];
+        dataToSave[currency] = {
+          primary: c.primary,
+          gradient: c.gradientEnd || c.gradient || c.gradientStart,
+          gradientStart: c.gradientStart,
+          gradientEnd: c.gradientEnd,
+        };
+      }
+      await set(ref(database, 'adminSettings/cardColors'), dataToSave);
       showToast('تم حفظ ألوان البطائق بنجاح في Firebase', 'success');
     } catch (e) {
       showToast('حدث خطأ في الحفظ', 'error');
@@ -76,9 +88,9 @@ export default function CardColorsPanel() {
     try {
       // Write test colors
       const testColors: CardColors = {
-        YER: { primary: '#FF0000', gradientStart: '#FF0000', gradientEnd: '#990000' },
-        SAR: { primary: '#00CC00', gradientStart: '#00CC00', gradientEnd: '#006600' },
-        USD: { primary: '#0066FF', gradientStart: '#0066FF', gradientEnd: '#003399' },
+        YER: { primary: '#FF0000', gradient: '#990000', gradientStart: '#FF0000', gradientEnd: '#990000' },
+        SAR: { primary: '#00CC00', gradient: '#006600', gradientStart: '#00CC00', gradientEnd: '#006600' },
+        USD: { primary: '#0066FF', gradient: '#003399', gradientStart: '#0066FF', gradientEnd: '#003399' },
       };
       await set(ref(database, 'adminSettings/cardColors'), testColors);
 

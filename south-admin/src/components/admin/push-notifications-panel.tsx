@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ref, onValue, push, set, get } from 'firebase/database';
+import { ref, onValue, push, set, get, update } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useAdminStore } from '@/lib/store';
 import { formatNumber, formatDateAr, generateId } from '@/lib/utils';
@@ -97,20 +97,20 @@ export default function PushNotificationsPanel() {
         // Save to admin notification history
         await set(ref(database, `adminNotifications/${notifId}`), { ...notifData, recipientCount: users.length, deliveryCount: 0, status: 'sent' });
 
-        // Save to each user's inbox
+        // Save to each user's notifications (direct path, no inbox sub-key)
         let deliveryCount = 0;
         const batchSize = 50;
         for (let i = 0; i < users.length; i += batchSize) {
           const batch = users.slice(i, i + batchSize);
           const updates: Record<string, any> = {};
           batch.forEach((user) => {
-            updates[`notifications/${user.uid}/inbox/${notifId}`] = {
-              title, body, type: notifType, isRead: false,
+            updates[`notifications/${user.uid}/${notifId}`] = {
+              id: notifId, title, body, type: notifType, isRead: false,
               createdAt: new Date().toISOString(), icon: icon || '', data: dataUrl || '',
             };
             deliveryCount++;
           });
-          await update(ref(database), updates).catch(() => {});
+          await update(ref(database), updates);
         }
 
         // Save FCM queue entry for push notifications outside app
@@ -132,8 +132,8 @@ export default function PushNotificationsPanel() {
         if (!targetUser) { showToast('لم يتم العثور على المستخدم', 'error'); setSending(false); return; }
 
         await set(ref(database, `adminNotifications/${notifId}`), { ...notifData, type: notifType, targetUid: targetUser.uid, recipientCount: 1, deliveryCount: 1, status: 'sent' });
-        await set(ref(database, `notifications/${targetUser.uid}/inbox/${notifId}`), {
-          title, body, type: notifType, isRead: false,
+        await set(ref(database, `notifications/${targetUser.uid}/${notifId}`), {
+          id: notifId, title, body, type: notifType, isRead: false,
           createdAt: new Date().toISOString(), icon: icon || '', data: dataUrl || '',
         });
         await set(ref(database, `fcmQueue/${notifId}`), {
@@ -153,13 +153,13 @@ export default function PushNotificationsPanel() {
           const batch = segmentUsers.slice(i, i + batchSize);
           const updates: Record<string, any> = {};
           batch.forEach((user) => {
-            updates[`notifications/${user.uid}/inbox/${notifId}`] = {
-              title, body, type: notifType, isRead: false,
+            updates[`notifications/${user.uid}/${notifId}`] = {
+              id: notifId, title, body, type: notifType, isRead: false,
               createdAt: new Date().toISOString(), icon: icon || '', data: dataUrl || '',
             };
             deliveryCount++;
           });
-          await update(ref(database), updates).catch(() => {});
+          await update(ref(database), updates);
         }
         await set(ref(database, `fcmQueue/${notifId}`), {
           title, body, type: 'segment', targetSegment,
@@ -306,9 +306,4 @@ export default function PushNotificationsPanel() {
       </Tabs>
     </div>
   );
-}
-
-// Helper function needed for batch updates
-function update(ref: any, data: any) {
-  return import('firebase/database').then(({ update }) => update(ref, data));
 }
