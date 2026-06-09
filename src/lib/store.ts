@@ -849,13 +849,46 @@ export const useAppStore = create<AppState>()(
       notifications: [],
       setNotifications: (notifications) => set({ notifications }),
       addNotification: (notif) => set((state) => ({ notifications: [notif, ...state.notifications] })),
-      removeNotification: (id) => set((state) => ({
-        notifications: state.notifications.filter(n => n.id !== id)
-      })),
-      clearNotifications: () => set({ notifications: [] }),
-      markNotificationRead: (id) => set((state) => ({
-        notifications: state.notifications.map(n => n.id === id ? { ...n, isRead: true } : n)
-      })),
+      removeNotification: (id) => {
+        set((state) => ({
+          notifications: state.notifications.filter(n => n.id !== id),
+        }));
+        // Delete from Firebase
+        const user = get().user;
+        if (user?.id) {
+          import('@/lib/firebase').then(({ database }) => {
+            import('firebase/database').then(({ ref, remove }) => {
+              remove(ref(database, `notifications/${user.id}/${id}`));
+            });
+          });
+        }
+      },
+      clearNotifications: () => {
+        const user = get().user;
+        set({ notifications: [] });
+        // Delete all from Firebase
+        if (user?.id) {
+          import('@/lib/firebase').then(({ database }) => {
+            import('firebase/database').then(({ ref, remove }) => {
+              remove(ref(database, `notifications/${user.id}`));
+            });
+          });
+        }
+      },
+      markNotificationRead: (id) => {
+        set((state) => ({
+          notifications: state.notifications.map(n => n.id === id ? { ...n, isRead: true } : n),
+        }));
+        // Update in Firebase
+        const user = get().user;
+        if (user?.id) {
+          import('@/lib/firebase').then(({ database }) => {
+            import('firebase/database').then(({ ref, update }) => {
+              update(ref(database, `notifications/${user.id}/${id}`), { isRead: true });
+            });
+          });
+        }
+      },
       unreadCount: () => get().notifications.filter(n => !n.isRead).length,
 
       // Service system
