@@ -56,6 +56,9 @@ android/local.properties
 *.keystore
 !south-wallet.keystore
 
+# Android SDK (should never be in repo)
+.android-sdk/
+
 # Capacitor
 android/app/src/main/assets/public/
 
