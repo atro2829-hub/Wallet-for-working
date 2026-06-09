@@ -72,3 +72,32 @@ android/.gradle/
 /prisma/
 /bun.lock
 /Caddyfile
+
+# Android SDK and JDK (too large for git)
+.android-sdk/
+.jdks/
+
+# Build outputs
+android/app/build/
+south-admin/android/app/build/
+android/.gradle/
+south-admin/android/.gradle/
+
+# Local config
+android/local.properties
+south-admin/android/local.properties
+
+# Keystores
+*.keystore
+
+# Download and upload dirs
+download/
+upload/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Dev server
+.zscripts/
