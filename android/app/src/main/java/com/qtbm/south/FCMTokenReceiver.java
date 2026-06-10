@@ -5,12 +5,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-
 /**
  * Receives FCM token broadcasts from SouthFirebaseMessagingService
- * and saves them to Firebase Realtime Database for the web layer to access.
+ * and saves them to SharedPreferences for the web layer to access.
  */
 public class FCMTokenReceiver extends BroadcastReceiver {
 
