@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { Plus, Trash2, Edit, TrendingUp, Search, Loader2, CheckCircle, XCircle, Clock, DollarSign, BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { sendNotificationToUser } from '@/lib/notifications';
 
 interface InvestmentPlan {
   id?: string;
@@ -143,6 +144,15 @@ export default function InvestmentsPanel() {
     if (!inv?.uid || !inv?.id) return;
     try {
       await update(ref(database, `users/${inv.uid}/investments/${inv.id}`), { status: 'completed', completedAt: new Date().toISOString() });
+      // Send FCM push notification + in-app notification
+      try {
+        await sendNotificationToUser(inv.uid, {
+          title: 'تم إكمال الاستثمار',
+          body: `تم إكمال استثمارك في خطة ${inv.planName || ''} بمبلغ ${inv.amount} ${currencySymbols[inv.currency || 'YER']}`,
+          type: 'transaction',
+          data: { action: 'investment_completed', planName: inv.planName, amount: inv.amount },
+        });
+      } catch {}
       showToast('تم إكمال الاستثمار', 'success');
       setConfirmDialog({ type: 'complete', investment: null });
     } catch (e) { showToast('حدث خطأ', 'error'); }
@@ -153,7 +163,27 @@ export default function InvestmentsPanel() {
     if (!inv?.uid || !inv?.id) return;
     try {
       await update(ref(database, `users/${inv.uid}/investments/${inv.id}`), { status: 'cancelled', cancelledAt: new Date().toISOString() });
-      showToast('تم إلغاء الاستثمار', 'success');
+      // Refund the investment amount
+      if (inv.amount) {
+        const balanceKey = `balance${inv.currency || 'YER'}`;
+        const userRef = ref(database, `users/${inv.uid}`);
+        const userSnap = await get(userRef);
+        const userData = userSnap.val();
+        if (userData) {
+          const current = userData[balanceKey] || 0;
+          await update(ref(database, `users/${inv.uid}`), { [balanceKey]: current + inv.amount });
+        }
+      }
+      // Send FCM push notification + in-app notification
+      try {
+        await sendNotificationToUser(inv.uid, {
+          title: 'تم إلغاء الاستثمار',
+          body: `تم إلغاء استثمارك في خطة ${inv.planName || ''} واسترداد ${inv.amount} ${currencySymbols[inv.currency || 'YER']}`,
+          type: 'transaction',
+          data: { action: 'investment_cancelled', planName: inv.planName, amount: inv.amount },
+        });
+      } catch {}
+      showToast('تم إلغاء الاستثمار واسترداد المبلغ', 'success');
       setConfirmDialog({ type: 'cancel', investment: null });
     } catch (e) { showToast('حدث خطأ', 'error'); }
   };

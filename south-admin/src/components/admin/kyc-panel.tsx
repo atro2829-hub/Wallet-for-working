@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Search, CheckCircle, XCircle, UserCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { notifyKycStatus } from '@/lib/notifications';
 
 export default function KYCPanel() {
   const { adminUser, showToast } = useAdminStore();
@@ -45,6 +46,10 @@ export default function KYCPanel() {
     if (!selected) return;
     try {
       await update(ref(database, `users/${selected.uid}`), { kycStatus: 'verified' });
+
+      // Send FCM push notification to the user
+      try { await notifyKycStatus(selected.uid, 'verified'); } catch {}
+
       await push(ref(database, 'ownerSettings/activityLog'), {
         id: generateId(), type: 'admin', action: 'توثيق حساب',
         details: `توثيق هوية ${selected.name || selected.email}`,
@@ -59,6 +64,10 @@ export default function KYCPanel() {
     if (!selected) return;
     try {
       await update(ref(database, `users/${selected.uid}`), { kycStatus: 'rejected', kycRejectReason: reason });
+
+      // Send FCM push notification to the user
+      try { await notifyKycStatus(selected.uid, 'rejected'); } catch {}
+
       showToast('تم رفض التوثيق', 'success');
       setDetailOpen(false);
       setReason('');

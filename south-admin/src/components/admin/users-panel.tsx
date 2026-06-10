@@ -169,6 +169,18 @@ export default function UsersPanel() {
 
       await update(ref(database, `users/${selectedUser.uid}`), { [balanceKey]: newBalance });
 
+      // Send FCM push notification + in-app notification to the user
+      try {
+        await sendNotificationToUser(selectedUser.uid, {
+          title: balanceAction === 'add' ? 'إضافة رصيد' : 'خصم رصيد',
+          body: balanceAction === 'add'
+            ? `تم إضافة ${amount} ${currencySymbols[balanceCurrency]} إلى رصيدك`
+            : `تم خصم ${amount} ${currencySymbols[balanceCurrency]} من رصيدك`,
+          type: 'transaction',
+          data: { action: 'balance_adjust', balanceAction, amount, currency: balanceCurrency },
+        });
+      } catch {}
+
       // Log transaction
       const logEntry = {
         id: generateId(),
