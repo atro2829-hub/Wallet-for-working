@@ -251,6 +251,14 @@ export default function DepositScreen() {
       const depositRef = ref(database, `depositRequests/${requestId}`);
       await set(depositRef, request);
 
+      // Send notification to admin about new deposit
+      try {
+        const { notifyDepositRequest } = await import('@/lib/notifications');
+        await notifyDepositRequest(user.id, user.name, parseFloat(depositAmount) || 0, depositCurrency);
+      } catch {
+        // Non-critical
+      }
+
       // Update local store
       addDepositRequest(request);
 
@@ -290,6 +298,14 @@ export default function DepositScreen() {
       // Save to Firebase
       const withdrawRef = ref(database, `withdrawRequests/${requestId}`);
       await set(withdrawRef, request);
+
+      // Send notification to admin about new withdraw request
+      try {
+        const { notifyWithdrawRequest } = await import('@/lib/notifications');
+        await notifyWithdrawRequest(user.id, user.name, withdrawAmountNum, withdrawCurrency);
+      } catch {
+        // Non-critical
+      }
 
       // Update local store
       addWithdrawRequest(request);

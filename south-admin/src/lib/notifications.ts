@@ -236,3 +236,75 @@ export async function notifyTransfer(fromName: string, toUserId: string, amount:
     data: { action: 'transfer_received', amount, currency },
   });
 }
+
+/**
+ * Send notification when a deposit request is created
+ */
+export async function notifyDepositRequest(userId: string, userName: string, amount: number, currency: string): Promise<void> {
+  await sendNotificationToUser(userId, {
+    title: 'طلب إيداع جديد',
+    body: `تم استلام طلب إيداعك بمبلغ ${amount} ${currency}. سيتم مراجعته قريباً.`,
+    type: 'transaction',
+    data: { action: 'deposit_request', amount, currency },
+  });
+
+  await sendNotificationToAdmin({
+    title: 'طلب إيداع جديد',
+    body: `طلب إيداع جديد من ${userName} بمبلغ ${amount} ${currency}`,
+    type: 'transaction',
+    category: 'deposits',
+    data: { action: 'deposit_request', userId, amount, currency },
+  });
+}
+
+/**
+ * Send notification when an order is created
+ */
+export async function notifyOrderCreated(userId: string, packageName: string, amount: number, currency: string): Promise<void> {
+  await sendNotificationToUser(userId, {
+    title: 'طلب جديد',
+    body: `تم إنشاء طلب ${packageName} بمبلغ ${amount} ${currency}`,
+    type: 'transaction',
+    data: { action: 'order_created', packageName, amount, currency },
+  });
+
+  await sendNotificationToAdmin({
+    title: 'طلب خدمة جديد',
+    body: `طلب جديد: ${packageName} - ${amount} ${currency}`,
+    type: 'transaction',
+    category: 'orders',
+    data: { action: 'order_created', userId, packageName, amount, currency },
+  });
+}
+
+/**
+ * Send notification when a withdraw request is created
+ */
+export async function notifyWithdrawRequest(userId: string, userName: string, amount: number, currency: string): Promise<void> {
+  await sendNotificationToUser(userId, {
+    title: 'طلب سحب جديد',
+    body: `تم استلام طلب سحبك بمبلغ ${amount} ${currency}. سيتم مراجعته قريباً.`,
+    type: 'transaction',
+    data: { action: 'withdraw_request', amount, currency },
+  });
+
+  await sendNotificationToAdmin({
+    title: 'طلب سحب جديد',
+    body: `طلب سحب جديد من ${userName} بمبلغ ${amount} ${currency}`,
+    type: 'transaction',
+    category: 'withdrawals',
+    data: { action: 'withdraw_request', userId, amount, currency },
+  });
+}
+
+/**
+ * Send notification for money request
+ */
+export async function notifyMoneyRequest(fromName: string, fromUserId: string, toUserId: string, amount: number, currency: string): Promise<void> {
+  await sendNotificationToUser(toUserId, {
+    title: 'طلب تحويل',
+    body: `${fromName} يطلب منك ${amount} ${currency}`,
+    type: 'transaction',
+    data: { action: 'money_request', fromUserId, amount, currency },
+  });
+}

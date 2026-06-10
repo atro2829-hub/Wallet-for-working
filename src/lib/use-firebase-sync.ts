@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { database } from '@/lib/firebase';
 import { ref, get, onValue, query, orderByChild, equalTo, limitToLast } from 'firebase/database';
 import { useAppStore } from '@/lib/store';
+import type { ServiceProvider, ProductPackage, ServiceCategory } from '@/lib/store';
 
 /**
  * Syncs user data and transactions from Firebase Realtime Database to the local Zustand store.
@@ -26,6 +27,9 @@ export function useFirebaseSync() {
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const txUnsubscribeRef = useRef<(() => void) | null>(null);
   const notifUnsubscribeRef = useRef<(() => void) | null>(null);
+  const providersUnsubscribeRef = useRef<(() => void) | null>(null);
+  const packagesUnsubscribeRef = useRef<(() => void) | null>(null);
+  const categoriesUnsubscribeRef = useRef<(() => void) | null>(null);
   const isRefreshing = useRef(false);
 
   // Use refs for stable references in callbacks
@@ -447,6 +451,84 @@ export function useFirebaseSync() {
       window.removeEventListener('online', handleOnline);
     };
   }, []); // Empty deps - uses refs internally
+
+  // ─────────────────────────────────────────────────────────
+  //  Sync global data: providers, packages, categories
+  //  These are NOT user-specific — load on mount regardless of auth
+  // ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    // Providers listener
+    const providersRef = ref(database, 'providers');
+    const provUnsubscribe = onValue(providersRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const providers: ServiceProvider[] = Object.values(data).map((p: any) => ({
+          id: p.id || '',
+          categoryId: p.categoryId || '',
+          name: p.name || '',
+          color: p.color || '',
+          icon: p.icon || '',
+          isActive: p.isActive !== undefined ? p.isActive : true,
+          inputLabel: p.inputLabel || '',
+          inputType: p.inputType || 'text',
+          inputPrefix: p.inputPrefix || undefined,
+        }));
+        useAppStore.getState().setProviders(providers);
+      }
+      // If no data in Firebase, keep the default values already in the store
+    }, (error) => {
+      console.error('Firebase providers onValue error:', error);
+    });
+    providersUnsubscribeRef.current = provUnsubscribe;
+
+    // Packages listener
+    const packagesRef = ref(database, 'packages');
+    const pkgUnsubscribe = onValue(packagesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const packages: ProductPackage[] = Object.values(data).map((p: any) => ({
+          id: p.id || '',
+          providerId: p.providerId || '',
+          name: p.name || '',
+          price: p.price || 0,
+          currency: p.currency || 'YER',
+          executionType: p.executionType || 'manual',
+          isActive: p.isActive !== undefined ? p.isActive : true,
+        }));
+        useAppStore.getState().setPackages(packages);
+      }
+    }, (error) => {
+      console.error('Firebase packages onValue error:', error);
+    });
+    packagesUnsubscribeRef.current = pkgUnsubscribe;
+
+    // Categories listener (stored under adminSettings/categories)
+    const categoriesRef = ref(database, 'adminSettings/categories');
+    const catUnsubscribe = onValue(categoriesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const categories: ServiceCategory[] = Object.values(data).map((c: any) => ({
+          id: c.id || '',
+          name: c.name || '',
+          type: c.type || 'telecom',
+          icon: c.icon || '',
+        }));
+        useAppStore.getState().setCategories(categories);
+      }
+    }, (error) => {
+      console.error('Firebase categories onValue error:', error);
+    });
+    categoriesUnsubscribeRef.current = catUnsubscribe;
+
+    return () => {
+      provUnsubscribe();
+      providersUnsubscribeRef.current = null;
+      pkgUnsubscribe();
+      packagesUnsubscribeRef.current = null;
+      catUnsubscribe();
+      categoriesUnsubscribeRef.current = null;
+    };
+  }, []); // Run once on mount
 
   return { refreshUser };
 }

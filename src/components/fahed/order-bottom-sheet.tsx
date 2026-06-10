@@ -211,6 +211,14 @@ export default function OrderBottomSheet() {
         // Non-critical
       }
 
+      // Send proper admin notification with FCM push
+      try {
+        const { notifyOrderCreated } = await import('@/lib/notifications');
+        await notifyOrderCreated(user.id, selectedPackage.name, effectivePrice, selectedPackage.currency);
+      } catch {
+        // Non-critical - admin-notifications already written above
+      }
+
       setUser(updatedUser);
       addOrder(newOrder);
       addTransaction(newTx);

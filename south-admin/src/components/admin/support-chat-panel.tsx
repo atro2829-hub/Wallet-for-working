@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ref, onValue, push, update, off, set } from 'firebase/database';
+import { ref, onValue, push, update, off, set, get } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useAdminStore } from '@/lib/store';
 import { timeAgo } from '@/lib/utils';
@@ -434,20 +434,54 @@ function LiveChatPanel({ adminUser, showToast }: { adminUser: any; showToast: (m
 
   const sendMessage = async () => {
     if (!messageText.trim() || !selectedUserId) return;
+    const replyText = messageText.trim();
     try {
       await push(ref(database, `supportChat/${selectedUserId}/messages`), {
         sender: 'admin',
-        text: messageText.trim(),
+        text: replyText,
         type: 'text',
         time: new Date().toISOString(),
         isRead: false,
         adminName: adminUser?.displayName || 'المدير',
       });
+      const currentUnreadUser = conversations.find(c => c.userId === selectedUserId)?.unreadUser || 0;
       await update(ref(database, `supportChat/${selectedUserId}`), {
-        lastMessage: messageText.trim(),
+        lastMessage: replyText,
         lastMessageTime: new Date().toISOString(),
-        unreadUser: (conversations.find(c => c.userId === selectedUserId)?.unreadUser || 0) + 1,
+        unreadUser: currentUnreadUser + 1,
       });
+
+      // Send push notification to the user about admin reply
+      try {
+        const userFcmToken = (await get(ref(database, `users/${selectedUserId}/fcmToken`))).val();
+        if (userFcmToken) {
+          await fetch('/api/send-push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tokens: [userFcmToken],
+              title: 'رد من الدعم',
+              body: replyText.substring(0, 100),
+              type: 'general',
+              data: { action: 'support_chat_reply', adminName: adminUser?.displayName || 'المدير' },
+            }),
+          });
+        }
+        // Also write in-app notification
+        const notifId = `chat_reply_${Date.now()}`;
+        await set(ref(database, `notifications/${selectedUserId}/${notifId}`), {
+          id: notifId,
+          title: 'رد من الدعم',
+          body: replyText.substring(0, 100),
+          type: 'info',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          data: { action: 'support_chat_reply' },
+        });
+      } catch (notifErr) {
+        console.warn('Failed to notify user about chat reply:', notifErr);
+      }
+
       setMessageText('');
     } catch (e) {
       showToast('حدث خطأ في إرسال الرسالة', 'error');

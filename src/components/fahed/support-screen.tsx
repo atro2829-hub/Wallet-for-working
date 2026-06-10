@@ -187,24 +187,49 @@ export default function SupportScreen() {
   // Send live chat message to Firebase
   const handleSendChat = async () => {
     if (!chatInput.trim() || !user?.id) return;
+    const messageText = chatInput.trim();
     try {
       await push(ref(database, `supportChat/${user.id}/messages`), {
         sender: 'user',
-        text: chatInput.trim(),
+        text: messageText,
         time: new Date().toISOString(),
         isRead: false,
       });
+
+      // Get current unreadAdmin count and increment it
+      const convRef = ref(database, `supportChat/${user.id}`);
+      const convSnap = await get(convRef);
+      const currentUnread = convSnap.exists() ? (convSnap.val().unreadAdmin || 0) : 0;
+
       // Update conversation metadata for admin panel
-      await update(ref(database, `supportChat/${user.id}`), {
+      await update(convRef, {
         userName: user.name || 'مستخدم',
-        lastMessage: chatInput.trim(),
+        userPhone: user.phone || '',
+        lastMessage: messageText,
         lastMessageTime: new Date().toISOString(),
-        unreadAdmin: 1, // Increment handled by admin reading
+        unreadAdmin: currentUnread + 1,
         status: 'open',
       });
+
+      // Send push notification to admin about new chat message
+      try {
+        const adminNotifId = `chat_notif_${Date.now()}`;
+        await set(ref(database, `adminNotifications/${adminNotifId}`), {
+          id: adminNotifId,
+          title: 'رسالة دعم جديدة',
+          body: `${user.name || 'مستخدم'}: ${messageText.substring(0, 50)}`,
+          type: 'transaction',
+          category: 'support',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          data: { action: 'support_chat', userId: user.id },
+        });
+      } catch (notifErr) {
+        console.warn('Failed to notify admin about chat:', notifErr);
+      }
+
       setChatInput('');
     } catch (e) {
-      // Fallback: still add locally
       console.error('Failed to send chat message', e);
     }
   };
