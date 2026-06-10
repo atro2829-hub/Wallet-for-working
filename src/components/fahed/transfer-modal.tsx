@@ -26,6 +26,7 @@ import { currencySymbols, currencyNames, currencyFlags, currencyBadgeColors, gen
 import { useToast } from '@/components/fahed/toast-provider';
 import { database } from '@/lib/firebase';
 import { ref, get, update, push } from 'firebase/database';
+import { sendFCMDirect } from '@/lib/fcm-sender';
 
 type Currency = 'YER' | 'SAR' | 'USD';
 type TransferMode = 'userId' | 'phone';
@@ -355,17 +356,13 @@ export default function TransferModal() {
       try {
         const recipientFcmToken = recipientData.fcmToken;
         if (recipientFcmToken) {
-          await fetch('/api/send-push', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              tokens: [recipientFcmToken],
-              title: 'تحويل وارد',
-              body: `تم استلام ${effectiveAmount.toLocaleString()} ${currency} من ${senderData.name || ''}`,
-              type: 'transaction',
-              data: { action: 'transfer_received', amount: effectiveAmount, currency },
-            }),
-          });
+          await sendFCMDirect(
+            [recipientFcmToken],
+            'تحويل وارد',
+            `تم استلام ${effectiveAmount.toLocaleString()} ${currency} من ${senderData.name || ''}`,
+            'transaction',
+            { action: 'transfer_received', amount: effectiveAmount, currency },
+          );
         }
       } catch (pushError) {
         console.warn('FCM push to recipient failed (non-blocking):', pushError);

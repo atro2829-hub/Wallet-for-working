@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Send, Bell, Loader2, Users, User, Clock, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { sendNotificationToUser } from '@/lib/notifications';
+import { sendFCMDirect } from '@/lib/fcm-sender';
 
 interface NotificationHistory {
   id?: string;
@@ -121,14 +122,7 @@ export default function PushNotificationsPanel() {
             if (user.fcmToken) tokens.push(user.fcmToken);
           });
           if (tokens.length > 0) {
-            for (let j = 0; j < tokens.length; j += 500) {
-              const batch = tokens.slice(j, j + 500);
-              await fetch('/api/send-push', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tokens: batch, title, body, type: notifType, data: dataUrl ? { url: dataUrl } : undefined }),
-              });
-            }
+            await sendFCMDirect(tokens, title, body, notifType, dataUrl ? { url: dataUrl } : undefined);
           }
         } catch (pushError) {
           console.warn('FCM push failed:', pushError);
@@ -153,11 +147,7 @@ export default function PushNotificationsPanel() {
         // Send FCM push notification to the specific user
         try {
           if (targetUser.fcmToken) {
-            await fetch('/api/send-push', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ tokens: [targetUser.fcmToken], title, body, type: notifType, data: dataUrl ? { url: dataUrl } : undefined }),
-            });
+            await sendFCMDirect([targetUser.fcmToken], title, body, notifType, dataUrl ? { url: dataUrl } : undefined);
           }
         } catch (pushError) {
           console.warn('FCM push failed:', pushError);
@@ -189,14 +179,7 @@ export default function PushNotificationsPanel() {
             if (user.fcmToken) tokens.push(user.fcmToken);
           });
           if (tokens.length > 0) {
-            for (let j = 0; j < tokens.length; j += 500) {
-              const batch = tokens.slice(j, j + 500);
-              await fetch('/api/send-push', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tokens: batch, title, body, type: notifType, data: dataUrl ? { url: dataUrl } : undefined }),
-              });
-            }
+            await sendFCMDirect(tokens, title, body, notifType, dataUrl ? { url: dataUrl } : undefined);
           }
         } catch (pushError) {
           console.warn('FCM push failed:', pushError);

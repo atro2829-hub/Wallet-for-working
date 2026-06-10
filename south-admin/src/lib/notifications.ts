@@ -1,5 +1,6 @@
 import { database } from '@/lib/firebase';
 import { ref, set, update, get } from 'firebase/database';
+import { sendFCMDirect } from '@/lib/fcm-sender';
 
 export interface NotificationPayload {
   title: string;
@@ -10,21 +11,14 @@ export interface NotificationPayload {
 }
 
 /**
- * Send FCM push notification to specific FCM tokens via the server API route
+ * Send FCM push notification directly to FCM tokens using the FCM HTTP v1 API.
+ * This bypasses the /api/send-push route which doesn't work in static exports (Capacitor APKs).
  */
 async function sendFCMPush(tokens: string[], title: string, body: string, type: string, data?: Record<string, any>): Promise<void> {
   if (!tokens || tokens.length === 0) return;
 
   try {
-    const response = await fetch('/api/send-push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tokens, title, body, type, data }),
-    });
-
-    if (!response.ok) {
-      console.warn('FCM push API returned non-OK status:', response.status);
-    }
+    await sendFCMDirect(tokens, title, body, type, data);
   } catch (error) {
     console.warn('FCM push failed (non-blocking):', error);
   }

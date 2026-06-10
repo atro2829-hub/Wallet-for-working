@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ref, onValue, push, update, off, set, get } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useAdminStore } from '@/lib/store';
+import { sendFCMDirect } from '@/lib/fcm-sender';
 import { timeAgo } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -455,17 +456,13 @@ function LiveChatPanel({ adminUser, showToast }: { adminUser: any; showToast: (m
       try {
         const userFcmToken = (await get(ref(database, `users/${selectedUserId}/fcmToken`))).val();
         if (userFcmToken) {
-          await fetch('/api/send-push', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              tokens: [userFcmToken],
-              title: 'رد من الدعم',
-              body: replyText.substring(0, 100),
-              type: 'general',
-              data: { action: 'support_chat_reply', adminName: adminUser?.displayName || 'المدير' },
-            }),
-          });
+          await sendFCMDirect(
+            [userFcmToken],
+            'رد من الدعم',
+            replyText.substring(0, 100),
+            'general',
+            { action: 'support_chat_reply', adminName: adminUser?.displayName || 'المدير' },
+          );
         }
         // Also write in-app notification
         const notifId = `chat_reply_${Date.now()}`;
