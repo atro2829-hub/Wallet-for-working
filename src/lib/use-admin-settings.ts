@@ -233,21 +233,26 @@ export function useAdminSettings() {
     });
 
     // 10. Providers (from Firebase)
+    // IMPORTANT: Use Firebase key as the provider ID (not the stored `id` field)
+    // because the stored `id` may contain Firebase push IDs from south-admin,
+    // while the Firebase key IS the correct human-readable ID (e.g., 'pubg', 'freefire')
     attachListener('providers', PATHS.providers, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const list = Object.values(data) as any[];
-        const providers: ServiceProvider[] = list.map(p => ({
-          id: p.id || '',
-          categoryId: p.categoryId || 'telecom',
-          name: p.name || '',
-          color: p.color || '#6C3CE1',
-          icon: p.icon || '',
-          isActive: p.isActive !== false,
-          inputLabel: p.inputLabel || 'رقم الهاتف',
-          inputType: p.inputType || 'text',
-          inputPrefix: p.inputPrefix || '',
-        }));
+        const entries = Object.entries(data) as [string, any][];
+        const providers: ServiceProvider[] = entries
+          .filter(([key, p]) => p && p.name) // skip ghost/corrupted entries
+          .map(([key, p]) => ({
+            id: key, // Use Firebase key as the canonical ID
+            categoryId: p.categoryId || 'telecom',
+            name: p.name || '',
+            color: p.color || '#6C3CE1',
+            icon: p.icon || '',
+            isActive: p.isActive !== false,
+            inputLabel: p.inputLabel || 'رقم الهاتف',
+            inputType: p.inputType || 'text',
+            inputPrefix: p.inputPrefix || '',
+          }));
         store.setProviders(providers);
       }
     });
@@ -256,11 +261,11 @@ export function useAdminSettings() {
     attachListener('packages', PATHS.packages, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const list = Object.values(data) as any[];
-        const packages: ProductPackage[] = list
-          .filter(p => p && p.name && p.providerId)
-          .map(p => ({
-            id: p.id || '',
+        const entries = Object.entries(data) as [string, any][];
+        const packages: ProductPackage[] = entries
+          .filter(([key, p]) => p && p.name && p.providerId)
+          .map(([key, p]) => ({
+            id: key,
             providerId: p.providerId || '',
             name: p.name || '',
             price: p.price || 0,
@@ -383,35 +388,37 @@ export function useAdminSettings() {
         setSections(parseSections(snap.val()));
       }),
 
-      // 10. Providers
+      // 10. Providers (use Firebase key as ID)
       get(ref(database, PATHS.providers)).then((snap) => {
         const data = snap.val();
         if (data) {
-          const list = Object.values(data) as any[];
-          const providers: ServiceProvider[] = list.map(p => ({
-            id: p.id || '',
-            categoryId: p.categoryId || 'telecom',
-            name: p.name || '',
-            color: p.color || '#6C3CE1',
-            icon: p.icon || '',
-            isActive: p.isActive !== false,
-            inputLabel: p.inputLabel || 'رقم الهاتف',
-            inputType: p.inputType || 'text',
-            inputPrefix: p.inputPrefix || '',
-          }));
+          const entries = Object.entries(data) as [string, any][];
+          const providers: ServiceProvider[] = entries
+            .filter(([key, p]) => p && p.name)
+            .map(([key, p]) => ({
+              id: key,
+              categoryId: p.categoryId || 'telecom',
+              name: p.name || '',
+              color: p.color || '#6C3CE1',
+              icon: p.icon || '',
+              isActive: p.isActive !== false,
+              inputLabel: p.inputLabel || 'رقم الهاتف',
+              inputType: p.inputType || 'text',
+              inputPrefix: p.inputPrefix || '',
+            }));
           store.setProviders(providers);
         }
       }),
 
-      // 11. Packages
+      // 11. Packages (use Firebase key as ID)
       get(ref(database, PATHS.packages)).then((snap) => {
         const data = snap.val();
         if (data) {
-          const list = Object.values(data) as any[];
-          const packages: ProductPackage[] = list
-            .filter(p => p && p.name && p.providerId)
-            .map(p => ({
-              id: p.id || '',
+          const entries = Object.entries(data) as [string, any][];
+          const packages: ProductPackage[] = entries
+            .filter(([key, p]) => p && p.name && p.providerId)
+            .map(([key, p]) => ({
+              id: key,
               providerId: p.providerId || '',
               name: p.name || '',
               price: p.price || 0,

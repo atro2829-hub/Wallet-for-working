@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ref, onValue, push, update, remove, set } from 'firebase/database';
+import { ref, onValue, update, remove, set } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useAdminStore } from '@/lib/store';
 import { formatNumber, generateId } from '@/lib/utils';
@@ -86,19 +86,25 @@ export default function ProvidersPanel() {
       };
       if (editing) {
         const updates: Record<string, any> = {
-          [`providers/${editing.id}`]: { ...editing, ...data },
+          [`providers/${editing.id}`]: { ...data, id: editing.id },
         };
         // Sync visibility to adminSettings/visibility/providers/{id}
         updates[`adminSettings/visibility/providers/${editing.id}`] = isActive;
         await update(ref(database), updates);
         showToast('تم تحديث المزود', 'success');
       } else {
-        const newRef = push(ref(database, 'providers'));
+        // Generate a clean slug-based ID from the provider name (Arabic-safe)
+        const cleanId = name.trim()
+          .replace(/[\s]+/g, '-')
+          .replace(/[^\u0600-\u06FFa-zA-Z0-9\-]/g, '')
+          .toLowerCase();
+        // Fallback to timestamp-based ID if name is empty after cleaning
+        const providerId = cleanId || `provider-${Date.now()}`;
         const updates: Record<string, any> = {
-          [`providers/${newRef.key}`]: { ...data, id: generateId() },
+          [`providers/${providerId}`]: { ...data, id: providerId },
         };
         // Sync visibility to adminSettings/visibility/providers/{id}
-        updates[`adminSettings/visibility/providers/${newRef.key}`] = isActive;
+        updates[`adminSettings/visibility/providers/${providerId}`] = isActive;
         await update(ref(database), updates);
         showToast('تم إضافة المزود', 'success');
       }
