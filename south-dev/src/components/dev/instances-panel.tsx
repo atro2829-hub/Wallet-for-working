@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useDevStore, AppInstance } from '@/lib/store';
-import { database } from '@/lib/firebase';
+import { database, storage } from '@/lib/firebase';
 import { ref, set, push, remove, update, get } from 'firebase/database';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getDatabase as getClientDb, ref as clientRef, get as clientGet } from 'firebase/database';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,7 +14,7 @@ import {
   ChevronUp, Save, X, Rocket, FileJson, Tag, Copy as CopyIcon,
   ArrowLeft, Zap, Package, User, CreditCard, Clock,
   Shield, Phone, MapPin, Calendar, Layers, Hash,
-  Info, ToggleLeft, ToggleRight, Eye, Github
+  Info, ToggleLeft, ToggleRight, Eye, Github, Camera, Image as ImageIcon
 } from 'lucide-react';
 import {
   cn, generateId, generateOrderNumber, buildStatusLabels, buildStatusColors,
@@ -23,6 +24,7 @@ import {
   subscriptionTypeColors, buildPriorityLabels, buildPriorityColors,
   formatDateAr, copyToClipboard
 } from '@/lib/utils';
+import { Progress } from '@/components/ui/progress';
 
 const emptyInstance: Partial<AppInstance> = {
   orderNumber: '',
@@ -129,6 +131,319 @@ export default function InstancesPanel() {
   const [githubRepoTestResult, setGithubRepoTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const adminFileInputRef = useRef<HTMLInputElement>(null);
+  const iconFileInputRef = useRef<HTMLInputElement>(null);
+  const transparentIconFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Icon upload states
+  const [appIconPreview, setAppIconPreview] = useState<string | null>(null);
+  const [appTransparentIconPreview, setAppTransparentIconPreview] = useState<string | null>(null);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
+  const [uploadingTransparentIcon, setUploadingTransparentIcon] = useState(false);
+
+  // Build progress states
+  const [buildProgress, setBuildProgress] = useState<Record<string, {
+    steps: { name: string; nameAr: string; status: 'pending' | 'in_progress' | 'completed' | 'failed' }[];
+    percentage: number;
+    runId: string;
+  }>>({});
+
+  type BuildStepStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
+
+  // Helper: build the complete client payload for a build dispatch
+  const buildClientPayload = (instance: AppInstance, appType: 'user' | 'admin' | 'both') => ({
+    instanceId: instance.id,
+    appType,
+    appName: instance.appName,
+    primaryColor: instance.primaryColor,
+    secondaryColor: instance.secondaryColor,
+    userAppPackageName: instance.userAppPackageName,
+    adminAppPackageName: instance.adminAppPackageName,
+    appLogoUrl: instance.appLogoUrl,
+    appTransparentIconUrl: instance.appTransparentIconUrl,
+    firebaseApiKey: instance.firebaseApiKey,
+    firebaseProjectId: instance.firebaseProjectId,
+    firebaseDatabaseUrl: instance.firebaseDatabaseUrl,
+    firebaseStorageBucket: instance.firebaseStorageBucket,
+    firebaseMessagingSenderId: instance.firebaseMessagingSenderId,
+    firebaseAppId: instance.firebaseAppId,
+    googleServicesJson: instance.googleServicesJson,
+    firebaseAdminSdk: instance.firebaseAdminSdk,
+    socialLinks: JSON.stringify(instance.socialLinks || {}),
+    version: instance.version || '1.0.0',
+  });
+
+  // Build progress steps definition
+  const BUILD_STEPS = [
+    { name: 'install', nameAr: 'تثبيت التبعيات', keyword: 'install' },
+    { name: 'build_next', nameAr: 'بناء Next.js', keyword: 'build' },
+    { name: 'sync_capacitor', nameAr: 'مزامنة Capacitor', keyword: 'sync' },
+    { name: 'build_apk', nameAr: 'بناء APK', keyword: 'apk' },
+    { name: 'upload', nameAr: 'رفع الملفات', keyword: 'upload' },
+  ];
+
+  // Map GitHub Actions step names to our build steps
+  const mapStepToBuildStep = (stepName: string): number => {
+    const lower = stepName.toLowerCase();
+    if (lower.includes('install') || lower.includes('dependency') || lower.includes('npm ci') || lower.includes('npm install')) return 0;
+    if (lower.includes('build') && !lower.includes('apk')) return 1;
+    if (lower.includes('sync') || lower.includes('capacitor')) return 2;
+    if (lower.includes('apk') || lower.includes('gradle') || lower.includes('android')) return 3;
+    if (lower.includes('upload') || lower.includes('artifact') || lower.includes('release')) return 4;
+    return -1;
+  };
+
+  // Poll build progress for a specific run
+  const pollBuildProgress = useCallback(async (instanceId: string, runId: string) => {
+    if (!devSettings.githubToken || !devSettings.githubOwner || !devSettings.githubRepo) return;
+
+    try {
+      const response = await fetch(
+        `https://api.github.com/repos/${devSettings.githubOwner}/${devSettings.githubRepo}/actions/runs/${runId}/jobs`,
+        {
+          headers: {
+            'Authorization': `Bearer ${devSettings.githubToken}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      );
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const jobs = data.jobs || [];
+
+      if (jobs.length === 0) return;
+
+      // Collect all steps from all jobs
+      const allSteps: { name: string; status: string; conclusion: string | null }[] = [];
+      for (const job of jobs) {
+        if (job.steps) {
+          allSteps.push(...job.steps);
+        }
+      }
+
+      // Map GitHub steps to our build steps
+      const newSteps: { name: string; nameAr: string; status: BuildStepStatus }[] = BUILD_STEPS.map(step => ({
+        ...step,
+        status: 'pending' as BuildStepStatus,
+      }));
+
+      for (const ghStep of allSteps) {
+        const buildStepIdx = mapStepToBuildStep(ghStep.name);
+        if (buildStepIdx === -1) continue;
+
+        if (ghStep.status === 'completed') {
+          if (ghStep.conclusion === 'success') {
+            newSteps[buildStepIdx].status = 'completed';
+          } else if (ghStep.conclusion === 'failure') {
+            newSteps[buildStepIdx].status = 'failed';
+          }
+        } else if (ghStep.status === 'in_progress') {
+          newSteps[buildStepIdx].status = 'in_progress';
+        }
+      }
+
+      // Calculate percentage
+      const completedCount = newSteps.filter(s => s.status === 'completed').length;
+      const inProgressCount = newSteps.filter(s => s.status === 'in_progress').length;
+      const percentage = Math.round(((completedCount + inProgressCount * 0.5) / newSteps.length) * 100);
+
+      setBuildProgress(prev => ({
+        ...prev,
+        [instanceId]: {
+          steps: newSteps,
+          percentage,
+          runId,
+        },
+      }));
+
+      // Check if run is completed
+      const runResponse = await fetch(
+        `https://api.github.com/repos/${devSettings.githubOwner}/${devSettings.githubRepo}/actions/runs/${runId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${devSettings.githubToken}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      );
+
+      if (runResponse.ok) {
+        const runData = await runResponse.json();
+        if (runData.status === 'completed') {
+          const isSuccess = runData.conclusion === 'success';
+          const updates: any = { updatedAt: new Date().toISOString() };
+
+          const instance = instances.find(i => i.id === instanceId);
+          if (instance) {
+            if (instance.userAppBuildStatus === 'building' || instance.userAppBuildStatus === 'queued') {
+              updates.userAppBuildStatus = isSuccess ? 'success' : 'failed';
+              updates.userAppBuildAt = new Date().toISOString();
+            }
+            if (instance.adminAppBuildStatus === 'building' || instance.adminAppBuildStatus === 'queued') {
+              updates.adminAppBuildStatus = isSuccess ? 'success' : 'failed';
+              updates.adminAppBuildAt = new Date().toISOString();
+            }
+            await update(ref(database, `appInstances/${instanceId}`), updates);
+
+            // Update all steps to final status
+            setBuildProgress(prev => ({
+              ...prev,
+              [instanceId]: {
+                steps: newSteps.map(s => ({
+                  ...s,
+                  status: isSuccess ? 'completed' : (s.status === 'failed' ? 'failed' : (s.status === 'completed' ? 'completed' : 'failed')),
+                })),
+                percentage: isSuccess ? 100 : percentage,
+                runId,
+              },
+            }));
+
+            addNotification({
+              type: isSuccess ? 'build_complete' : 'build_failed',
+              title: isSuccess ? 'اكتمال البناء' : 'فشل البناء',
+              message: `${isSuccess ? 'تم بنجاح' : 'فشل'} بناء "${instance.appName}"`,
+              read: false,
+              instanceId,
+            });
+          }
+
+          // Remove progress after a delay
+          setTimeout(() => {
+            setBuildProgress(prev => {
+              const next = { ...prev };
+              delete next[instanceId];
+              return next;
+            });
+          }, 5000);
+        }
+      }
+    } catch (error) {
+      console.error('Poll build progress error:', error);
+    }
+  }, [devSettings, instances, addNotification]);
+
+  // Auto-poll for active builds
+  useEffect(() => {
+    const activeProgressEntries = Object.entries(buildProgress);
+    if (activeProgressEntries.length === 0) {
+      // Also check instances that are building/queued but don't have progress tracked yet
+      const activeBuilds = instances.filter(i =>
+        i.githubRunId && (i.userAppBuildStatus === 'building' || i.userAppBuildStatus === 'queued' || i.adminAppBuildStatus === 'building' || i.adminAppBuildStatus === 'queued')
+      );
+      if (activeBuilds.length === 0) return;
+
+      // Start tracking these builds
+      for (const inst of activeBuilds) {
+        if (!buildProgress[inst.id] && inst.githubRunId) {
+          pollBuildProgress(inst.id, inst.githubRunId);
+        }
+      }
+      return;
+    }
+
+    const interval = setInterval(() => {
+      for (const [instanceId, progress] of activeProgressEntries) {
+        pollBuildProgress(instanceId, progress.runId);
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [buildProgress, instances, pollBuildProgress]);
+
+  // Pick image from camera/gallery
+  const pickImage = async (isTransparent: boolean = false) => {
+    const setPreview = isTransparent ? setAppTransparentIconPreview : setAppIconPreview;
+    const setUploading = isTransparent ? setUploadingTransparentIcon : setUploadingIcon;
+    const formKey = isTransparent ? 'appTransparentIconUrl' : 'appLogoUrl';
+    const storagePath = isTransparent ? 'transparent-icon' : 'icon';
+
+    try {
+      setUploading(true);
+
+      // Try Capacitor Camera API first (native app)
+      let imageDataUrl: string | null = null;
+
+      try {
+        const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
+        const photo = await Camera.getPhoto({
+          quality: 90,
+          allowEditing: true,
+          resultType: CameraResultType.DataUrl,
+          source: CameraSource.Prompt,
+        });
+        imageDataUrl = photo.dataUrl || null;
+      } catch {
+        // Camera API not available (web browser), fallback to file input
+        if (isTransparent) {
+          transparentIconFileInputRef.current?.click();
+        } else {
+          iconFileInputRef.current?.click();
+        }
+        setUploading(false);
+        return;
+      }
+
+      if (!imageDataUrl) {
+        setUploading(false);
+        return;
+      }
+
+      // Upload to Firebase Storage
+      const instanceId = editingId || formData.id || generateId();
+      const iconRef = storageRef(storage, `app-icons/${instanceId}/${storagePath}.png`);
+
+      // Convert data URL to blob
+      const response = await fetch(imageDataUrl);
+      const blob = await response.blob();
+
+      await uploadBytes(iconRef, blob);
+      const downloadUrl = await getDownloadURL(iconRef);
+
+      updateForm(formKey, downloadUrl);
+      setPreview(imageDataUrl);
+    } catch (error) {
+      console.error('Error picking image:', error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Handle file input fallback for icon upload (web browser)
+  const handleIconFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isTransparent: boolean = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const setPreview = isTransparent ? setAppTransparentIconPreview : setAppIconPreview;
+    const setUploading = isTransparent ? setUploadingTransparentIcon : setUploadingIcon;
+    const formKey = isTransparent ? 'appTransparentIconUrl' : 'appLogoUrl';
+    const storagePath = isTransparent ? 'transparent-icon' : 'icon';
+
+    try {
+      setUploading(true);
+
+      // Read file as data URL for preview
+      const reader = new FileReader();
+      const dataUrl = await new Promise<string>((resolve) => {
+        reader.onload = (ev) => resolve(ev.target?.result as string);
+        reader.readAsDataURL(file);
+      });
+
+      // Upload to Firebase Storage
+      const instanceId = editingId || formData.id || generateId();
+      const iconRef = storageRef(storage, `app-icons/${instanceId}/${storagePath}.png`);
+
+      await uploadBytes(iconRef, file);
+      const downloadUrl = await getDownloadURL(iconRef);
+
+      updateForm(formKey, downloadUrl);
+      setPreview(dataUrl);
+    } catch (error) {
+      console.error('Error uploading icon:', error);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const filteredInstances = instances.filter(i => {
     const matchSearch = !searchQuery ||
@@ -197,6 +512,8 @@ export default function InstancesPanel() {
     setAdminAutoFilled(false);
     setAutoFillToast(null);
     setGithubRepoTestResult(null);
+    setAppIconPreview(null);
+    setAppTransparentIconPreview(null);
   };
 
   const handleEditInstance = (instance: AppInstance) => {
@@ -209,6 +526,8 @@ export default function InstancesPanel() {
     setAdminAutoFilled(false);
     setAutoFillToast(null);
     setGithubRepoTestResult(null);
+    setAppIconPreview(instance.appLogoUrl || null);
+    setAppTransparentIconPreview(instance.appTransparentIconUrl || null);
   };
 
   const handleViewDetail = (instance: AppInstance) => {
@@ -413,7 +732,7 @@ export default function InstancesPanel() {
     }
   };
 
-  const handleTriggerBuild = async (instance: AppInstance, appType: 'user' | 'admin') => {
+  const handleTriggerBuild = async (instance: AppInstance, appType: 'user' | 'admin' | 'both') => {
     if (!devSettings.githubToken || !devSettings.githubOwner || !devSettings.githubRepo) {
       addNotification({
         type: 'build_failed',
@@ -426,14 +745,22 @@ export default function InstancesPanel() {
     }
 
     try {
-      const statusKey = appType === 'user' ? 'userAppBuildStatus' : 'adminAppBuildStatus';
-      await update(ref(database, `appInstances/${instance.id}`), {
-        [statusKey]: 'queued',
+      const effectiveAppType = appType;
+      const statusUpdates: any = {
         buildPriority: instance.buildPriority || 'normal',
         lastBuildAt: new Date().toISOString(),
         totalBuilds: (instance.totalBuilds || 0) + 1,
         updatedAt: new Date().toISOString(),
-      });
+      };
+
+      if (effectiveAppType === 'both' || effectiveAppType === 'user') {
+        statusUpdates.userAppBuildStatus = 'queued';
+      }
+      if (effectiveAppType === 'both' || effectiveAppType === 'admin') {
+        statusUpdates.adminAppBuildStatus = 'queued';
+      }
+
+      await update(ref(database, `appInstances/${instance.id}`), statusUpdates);
 
       const response = await fetch(
         `https://api.github.com/repos/${devSettings.githubOwner}/${devSettings.githubRepo}/dispatches`,
@@ -446,20 +773,7 @@ export default function InstancesPanel() {
           },
           body: JSON.stringify({
             event_type: 'build-custom-app',
-            client_payload: {
-              instanceId: instance.id,
-              appType,
-              appName: instance.appName,
-              primaryColor: instance.primaryColor,
-              secondaryColor: instance.secondaryColor,
-              packageName: appType === 'user' ? instance.userAppPackageName : instance.adminAppPackageName,
-              firebaseApiKey: appType === 'admin' ? instance.adminFirebaseApiKey : instance.firebaseApiKey,
-              firebaseProjectId: appType === 'admin' ? instance.adminFirebaseProjectId : instance.firebaseProjectId,
-              firebaseDatabaseUrl: appType === 'admin' ? instance.adminFirebaseDatabaseUrl : instance.firebaseDatabaseUrl,
-              firebaseStorageBucket: appType === 'admin' ? instance.adminFirebaseStorageBucket : instance.firebaseStorageBucket,
-              firebaseMessagingSenderId: appType === 'admin' ? instance.adminFirebaseMessagingSenderId : instance.firebaseMessagingSenderId,
-              firebaseAppId: appType === 'admin' ? instance.adminFirebaseAppId : instance.firebaseAppId,
-            },
+            client_payload: buildClientPayload(instance, effectiveAppType),
           }),
         }
       );
@@ -467,16 +781,56 @@ export default function InstancesPanel() {
       if (response.ok) {
         const updated = {
           ...instance,
-          [statusKey]: 'queued',
-          lastBuildAt: new Date().toISOString(),
-          totalBuilds: (instance.totalBuilds || 0) + 1,
+          ...statusUpdates,
         };
         setInstances(instances.map(i => i.id === instance.id ? updated : i));
         if (view === 'detail') setSelectedInstance(updated);
+
+        // Poll for the latest run ID after a short delay
+        setTimeout(async () => {
+          try {
+            const runsResponse = await fetch(
+              `https://api.github.com/repos/${devSettings.githubOwner}/${devSettings.githubRepo}/actions/runs?event=repository_dispatch&per_page=1`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${devSettings.githubToken}`,
+                  'Accept': 'application/vnd.github.v3+json',
+                },
+              }
+            );
+            if (runsResponse.ok) {
+              const runsData = await runsResponse.json();
+              if (runsData.workflow_runs?.length > 0) {
+                const runId = String(runsData.workflow_runs[0].id);
+                await update(ref(database, `appInstances/${instance.id}`), { githubRunId: runId });
+
+                // Initialize build progress tracking
+                setBuildProgress(prev => ({
+                  ...prev,
+                  [instance.id]: {
+                    steps: BUILD_STEPS.map(step => ({
+                      ...step,
+                      status: 'pending' as const,
+                    })),
+                    percentage: 0,
+                    runId,
+                  },
+                }));
+
+                // Start first poll
+                pollBuildProgress(instance.id, runId);
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching run ID:', err);
+          }
+        }, 3000);
+
+        const appTypeLabel = effectiveAppType === 'both' ? 'الاثنين' : effectiveAppType === 'user' ? 'تطبيق المستخدم' : 'تطبيق الإدارة';
         addNotification({
           type: 'build_complete',
           title: 'طلب بناء',
-          message: `تم إرسال طلب بناء ${appType === 'user' ? 'تطبيق المستخدم' : 'تطبيق الإدارة'} لـ "${instance.appName}"`,
+          message: `تم إرسال طلب بناء ${appTypeLabel} لـ "${instance.appName}"`,
           read: false,
           instanceId: instance.id,
         });
@@ -487,8 +841,7 @@ export default function InstancesPanel() {
   };
 
   const handleBuildBoth = async (instance: AppInstance) => {
-    await handleTriggerBuild(instance, 'user');
-    await handleTriggerBuild(instance, 'admin');
+    await handleTriggerBuild(instance, 'both');
   };
 
   const handleAppNameChange = (name: string) => {
@@ -799,6 +1152,47 @@ export default function InstancesPanel() {
               )}
             </div>
           </div>
+
+          {/* Build Progress Steps */}
+          {buildProgress[inst.id] && (
+            <div className="mt-4 p-4 rounded-xl bg-purple-500/5 border border-purple-500/15">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold text-foreground">تقدم البناء</span>
+                <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">{buildProgress[inst.id].percentage}%</span>
+              </div>
+              <Progress value={buildProgress[inst.id].percentage} className="h-2 mb-4" />
+              <div className="space-y-2">
+                {buildProgress[inst.id].steps.map((step, idx) => (
+                  <div key={idx} className="flex items-center gap-2.5">
+                    <span className="text-base">
+                      {step.status === 'completed' ? '✅' : step.status === 'in_progress' ? '🔄' : step.status === 'failed' ? '❌' : '⏳'}
+                    </span>
+                    <span className={`text-xs font-medium ${
+                      step.status === 'completed' ? 'text-green-600 dark:text-green-400' :
+                      step.status === 'in_progress' ? 'text-blue-600 dark:text-blue-400' :
+                      step.status === 'failed' ? 'text-red-600 dark:text-red-400' :
+                      'text-muted-foreground'
+                    }`}>
+                      {step.nameAr}
+                    </span>
+                    {step.status === 'in_progress' && (
+                      <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+                    )}
+                  </div>
+                ))}
+              </div>
+              {inst.githubRunId && devSettings.githubOwner && devSettings.githubRepo && (
+                <a
+                  href={`https://github.com/${devSettings.githubOwner}/${devSettings.githubRepo}/actions/runs/${inst.githubRunId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 mt-3 text-xs text-purple-600 dark:text-purple-400 hover:underline"
+                >
+                  <ExternalLink className="w-3 h-3" /> عرض في GitHub Actions
+                </a>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Firebase Config */}
@@ -1010,12 +1404,95 @@ export default function InstancesPanel() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className={labelClass}>رابط الشعار</label>
-                  <input className={inputClass} value={formData.appLogoUrl || ''} onChange={e => updateForm('appLogoUrl', e.target.value)} placeholder="https://..." dir="ltr" />
+                  <label className={labelClass}>شعار التطبيق</label>
+                  <div className="p-3 rounded-xl bg-muted/20 border border-border/30 space-y-3">
+                    {/* Icon Preview */}
+                    <div className="flex items-center justify-center">
+                      <div
+                        className="w-20 h-20 rounded-2xl flex items-center justify-center overflow-hidden border-2 border-dashed border-border/50"
+                        style={{ background: formData.primaryColor || '#6C3CE1' }}
+                      >
+                        {(appIconPreview || formData.appLogoUrl) ? (
+                          <img src={appIconPreview || formData.appLogoUrl} alt="شعار التطبيق" className="w-14 h-14 object-contain" />
+                        ) : (
+                          <ImageIcon className="w-8 h-8 text-white/50" />
+                        )}
+                      </div>
+                    </div>
+                    {/* Upload Buttons */}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => pickImage(false)}
+                        disabled={uploadingIcon}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs font-medium hover:bg-purple-500/20 transition-colors disabled:opacity-50"
+                      >
+                        {uploadingIcon ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                        {uploadingIcon ? 'جاري الرفع...' : 'التقاط/اختيار'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => iconFileInputRef.current?.click()}
+                        disabled={uploadingIcon}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-muted/50 text-muted-foreground text-xs font-medium hover:bg-muted/70 transition-colors disabled:opacity-50"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        ملف
+                      </button>
+                    </div>
+                    <input ref={iconFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleIconFileUpload(e, false)} />
+                    {/* URL fallback */}
+                    {formData.appLogoUrl && (
+                      <div className="flex items-center gap-1.5 p-1.5 rounded-lg bg-green-500/5 border border-green-500/15">
+                        <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />
+                        <span className="text-[10px] text-green-600 dark:text-green-400 truncate" dir="ltr">{formData.appLogoUrl}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
-                  <label className={labelClass}>رابط الأيقونة الشفافة</label>
-                  <input className={inputClass} value={formData.appTransparentIconUrl || ''} onChange={e => updateForm('appTransparentIconUrl', e.target.value)} placeholder="https://..." dir="ltr" />
+                  <label className={labelClass}>أيقونة شفافة</label>
+                  <div className="p-3 rounded-xl bg-muted/20 border border-border/30 space-y-3">
+                    {/* Transparent Icon Preview */}
+                    <div className="flex items-center justify-center">
+                      <div className="w-20 h-20 rounded-2xl flex items-center justify-center overflow-hidden border-2 border-dashed border-border/50 bg-[repeating-conic-gradient(#808080_0%_25%,transparent_0%_50%)] bg-[length:16px_16px]">
+                        {(appTransparentIconPreview || formData.appTransparentIconUrl) ? (
+                          <img src={appTransparentIconPreview || formData.appTransparentIconUrl} alt="أيقونة شفافة" className="w-14 h-14 object-contain" />
+                        ) : (
+                          <ImageIcon className="w-8 h-8 text-muted-foreground/30" />
+                        )}
+                      </div>
+                    </div>
+                    {/* Upload Buttons */}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => pickImage(true)}
+                        disabled={uploadingTransparentIcon}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs font-medium hover:bg-purple-500/20 transition-colors disabled:opacity-50"
+                      >
+                        {uploadingTransparentIcon ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                        {uploadingTransparentIcon ? 'جاري الرفع...' : 'التقاط/اختيار'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => transparentIconFileInputRef.current?.click()}
+                        disabled={uploadingTransparentIcon}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-muted/50 text-muted-foreground text-xs font-medium hover:bg-muted/70 transition-colors disabled:opacity-50"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        ملف
+                      </button>
+                    </div>
+                    <input ref={transparentIconFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleIconFileUpload(e, true)} />
+                    {/* URL fallback */}
+                    {formData.appTransparentIconUrl && (
+                      <div className="flex items-center gap-1.5 p-1.5 rounded-lg bg-green-500/5 border border-green-500/15">
+                        <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />
+                        <span className="text-[10px] text-green-600 dark:text-green-400 truncate" dir="ltr">{formData.appTransparentIconUrl}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className={labelClass}>اللون الأساسي</label>
@@ -1398,6 +1875,24 @@ export default function InstancesPanel() {
                         الإدارة: {buildStatusLabels[instance.adminAppBuildStatus]}
                       </span>
                     </div>
+
+                    {/* Build Progress Bar (compact) */}
+                    {buildProgress[instance.id] && (
+                      <div className="mb-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">جاري البناء</span>
+                          <span className="text-[10px] text-muted-foreground">{buildProgress[instance.id].percentage}%</span>
+                        </div>
+                        <Progress value={buildProgress[instance.id].percentage} className="h-1.5" />
+                        <div className="flex gap-1.5 mt-1.5">
+                          {buildProgress[instance.id].steps.map((step, idx) => (
+                            <span key={idx} className="text-[9px]">
+                              {step.status === 'completed' ? '✅' : step.status === 'in_progress' ? '🔄' : step.status === 'failed' ? '❌' : '⏳'}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Tags, Client & Payment */}
                     <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">

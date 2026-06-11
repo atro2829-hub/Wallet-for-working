@@ -203,7 +203,7 @@ export default function BuildActivityPanel() {
 
       await update(ref(database, `appInstances/${activity.instanceId}`), updates);
 
-      // Trigger GitHub Actions again
+      // Trigger GitHub Actions again with complete data
       if (devSettings.githubToken && devSettings.githubOwner && devSettings.githubRepo) {
         await fetch(
           `https://api.github.com/repos/${devSettings.githubOwner}/${devSettings.githubRepo}/dispatches`,
@@ -222,13 +222,20 @@ export default function BuildActivityPanel() {
                 appName: instance.appName,
                 primaryColor: instance.primaryColor,
                 secondaryColor: instance.secondaryColor,
-                packageName: isUser ? instance.userAppPackageName : instance.adminAppPackageName,
+                userAppPackageName: instance.userAppPackageName,
+                adminAppPackageName: instance.adminAppPackageName,
+                appLogoUrl: instance.appLogoUrl,
+                appTransparentIconUrl: instance.appTransparentIconUrl,
                 firebaseApiKey: isUser ? instance.firebaseApiKey : instance.adminFirebaseApiKey,
                 firebaseProjectId: isUser ? instance.firebaseProjectId : instance.adminFirebaseProjectId,
                 firebaseDatabaseUrl: isUser ? instance.firebaseDatabaseUrl : instance.adminFirebaseDatabaseUrl,
                 firebaseStorageBucket: isUser ? instance.firebaseStorageBucket : instance.adminFirebaseStorageBucket,
                 firebaseMessagingSenderId: isUser ? instance.firebaseMessagingSenderId : instance.adminFirebaseMessagingSenderId,
                 firebaseAppId: isUser ? instance.firebaseAppId : instance.adminFirebaseAppId,
+                googleServicesJson: instance.googleServicesJson,
+                firebaseAdminSdk: instance.firebaseAdminSdk,
+                socialLinks: JSON.stringify(instance.socialLinks || {}),
+                version: instance.version || '1.0.0',
               },
             }),
           }
