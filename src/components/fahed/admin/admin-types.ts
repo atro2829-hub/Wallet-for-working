@@ -128,7 +128,7 @@ export const defaultAppSettings: AppSettings = {
   primaryColor: '#E60000',
   maintenanceMode: false,
   supportPhone: '+967700000000',
-  supportEmail: 'support@janoubwallet.com',
+  supportEmail: '',
   supportWhatsApp: '+967700000000',
   facebookLink: '',
   twitterLink: '',

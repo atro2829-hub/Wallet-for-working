@@ -73,6 +73,7 @@ import {
   Heart,
   Gamepad2,
   UserCog,
+  Landmark,
 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -129,7 +130,8 @@ const navSections: NavSection[] = [
       { id: 'investments', label: 'إدارة الاستثمار', icon: TrendingUp, roles: ['admin', 'owner'] },
       { id: 'gift-codes', label: 'أكواد الهدايا', icon: Gift, roles: ['admin', 'owner'] },
       { id: 'promo-codes', label: 'أكواد الخصم', icon: Tag, roles: ['admin', 'owner'] },
-      { id: 'banks', label: 'الحسابات البنكية', icon: Building2, roles: ['admin', 'owner'] },
+      { id: 'offices', label: 'المكاتب والوكلاء', icon: Building2, roles: ['admin', 'owner'] },
+      { id: 'banks', label: 'الحسابات البنكية', icon: Landmark, roles: ['admin', 'owner'] },
       { id: 'limits', label: 'إدارة السقوف والحدود', icon: SlidersHorizontal, roles: ['admin', 'owner'] },
       { id: 'financial-reports', label: 'التقارير المالية', icon: BarChart3, roles: ['admin', 'owner'] },
       { id: 'settlements', label: 'إدارة التسويات', icon: CircleDollarSign, roles: ['admin', 'owner'] },

@@ -28,6 +28,7 @@ import {
   QrCode,
   AlertCircle,
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useAppStore } from '@/lib/store';
 import { formatNumber, currencySymbols, currencyBadgeColors, generateReference, compressBase64Image, defaultExchangeRates } from '@/lib/utils';
 import { playTransactionSound } from '@/lib/transaction-sounds';
@@ -61,6 +62,12 @@ interface BankInfo {
   isActive: boolean;
 }
 
+interface CryptoNetwork {
+  networkName: string;
+  walletAddress: string;
+  isActive: boolean;
+}
+
 interface CryptoCurrency {
   id: string;
   name: string;
@@ -72,6 +79,8 @@ interface CryptoCurrency {
   isActive: boolean;
   minDeposit: number;
   minWithdraw: number;
+  networks?: CryptoNetwork[];
+  code?: string;
 }
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: typeof CheckCircle2 }> = {
@@ -108,6 +117,7 @@ export default function DepositScreen() {
 
   // Crypto deposit form
   const [selectedCryptoId, setSelectedCryptoId] = useState('');
+  const [selectedCryptoNetwork, setSelectedCryptoNetwork] = useState('');
   const [cryptoTxHash, setCryptoTxHash] = useState('');
 
   // Withdraw form
@@ -122,6 +132,7 @@ export default function DepositScreen() {
 
   // Crypto withdraw form
   const [selectedWithdrawCryptoId, setSelectedWithdrawCryptoId] = useState('');
+  const [selectedWithdrawCryptoNetwork, setSelectedWithdrawCryptoNetwork] = useState('');
   const [cryptoWalletAddress, setCryptoWalletAddress] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -140,6 +151,7 @@ export default function DepositScreen() {
   // Copy feedback
   const [copiedBankId, setCopiedBankId] = useState<string | null>(null);
   const [copiedCryptoId, setCopiedCryptoId] = useState<string | null>(null);
+  const [copiedNetworkKey, setCopiedNetworkKey] = useState<string | null>(null);
 
   // Card code feedback
   const [cardError, setCardError] = useState('');
@@ -197,51 +209,107 @@ export default function DepositScreen() {
 
     const fetchCryptoCurrencies = async () => {
       try {
-        const cryptoRef = ref(database, 'adminSettings/cryptoCurrencies');
-        const snapshot = await get(cryptoRef);
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          const cryptoList: CryptoCurrency[] = [];
-          if (Array.isArray(data)) {
-            data.forEach((item: Record<string, any>, index: number) => {
-              if (item && item.name) {
-                cryptoList.push({
-                  id: item.id || String(index),
-                  name: item.name || '',
-                  symbol: item.symbol || '',
-                  network: item.network || '',
-                  address: item.address || '',
-                  icon: item.icon || '',
-                  color: item.color || '#26A17B',
-                  isActive: item.isActive !== false,
-                  minDeposit: item.minDeposit || 10,
-                  minWithdraw: item.minWithdraw || 20,
-                });
-              }
-            });
-          } else if (typeof data === 'object') {
-            Object.entries(data).forEach(([key, item]: [string, Record<string, any>]) => {
-              if (item && item.name) {
-                cryptoList.push({
-                  id: item.id || key,
-                  name: item.name || '',
-                  symbol: item.symbol || '',
-                  network: item.network || '',
-                  address: item.address || '',
-                  icon: item.icon || '',
-                  color: item.color || '#26A17B',
-                  isActive: item.isActive !== false,
-                  minDeposit: item.minDeposit || 10,
-                  minWithdraw: item.minWithdraw || 20,
-                });
-              }
-            });
+        const cryptoList: CryptoCurrency[] = [];
+        const seenIds = new Set<string>();
+
+        // Helper to normalize networks from Firebase data
+        const normalizeNetworks = (item: Record<string, any>): CryptoNetwork[] | undefined => {
+          if (item.networks && Array.isArray(item.networks) && item.networks.length > 0) {
+            return item.networks.map((n: Record<string, any>) => ({
+              networkName: n.networkName || '',
+              walletAddress: n.walletAddress || '',
+              isActive: n.isActive !== false,
+            }));
           }
-          // Only show active cryptos
-          setCryptoCurrencies(cryptoList.filter(c => c.isActive));
-        } else {
-          setCryptoCurrencies([]);
+          // Convert legacy single network/walletAddress
+          if (item.network || item.walletAddress || item.address) {
+            return [{
+              networkName: item.network || '',
+              walletAddress: item.walletAddress || item.address || '',
+              isActive: true,
+            }];
+          }
+          return undefined;
+        };
+
+        // First, try reading from adminSettings/currencyCards (admin panel source)
+        try {
+          const cardsRef = ref(database, 'adminSettings/currencyCards');
+          const cardsSnapshot = await get(cardsRef);
+          if (cardsSnapshot.exists()) {
+            const cardsData = cardsSnapshot.val();
+            if (typeof cardsData === 'object') {
+              Object.entries(cardsData).forEach(([key, item]: [string, Record<string, any>]) => {
+                if (item && item.isCrypto && item.isActive !== false) {
+                  const networks = normalizeNetworks(item);
+                  const id = item.id || key;
+                  if (!seenIds.has(id)) {
+                    seenIds.add(id);
+                    cryptoList.push({
+                      id,
+                      name: item.name || '',
+                      symbol: item.symbol || '',
+                      code: item.code || '',
+                      network: item.network || (networks && networks[0]?.networkName) || '',
+                      address: item.walletAddress || (networks && networks[0]?.walletAddress) || '',
+                      icon: item.icon || '',
+                      color: item.color || '#26A17B',
+                      isActive: item.isActive !== false,
+                      minDeposit: item.minDeposit || 10,
+                      minWithdraw: item.minWithdraw || 20,
+                      networks,
+                    });
+                  }
+                }
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching currencyCards:', error);
         }
+
+        // Also read from adminSettings/cryptoCurrencies (legacy source) and merge
+        try {
+          const cryptoRef = ref(database, 'adminSettings/cryptoCurrencies');
+          const snapshot = await get(cryptoRef);
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            const processItems = (items: Record<string, any>, getKey: (idx: number) => string) => {
+              Object.entries(items).forEach(([key, item]: [string, Record<string, any>]) => {
+                if (item && item.name && item.isActive !== false) {
+                  const id = item.id || getKey(parseInt(key) || 0);
+                  if (!seenIds.has(id)) {
+                    seenIds.add(id);
+                    const networks = normalizeNetworks(item);
+                    cryptoList.push({
+                      id,
+                      name: item.name || '',
+                      symbol: item.symbol || '',
+                      network: item.network || '',
+                      address: item.address || '',
+                      icon: item.icon || '',
+                      color: item.color || '#26A17B',
+                      isActive: item.isActive !== false,
+                      minDeposit: item.minDeposit || 10,
+                      minWithdraw: item.minWithdraw || 20,
+                      networks,
+                    });
+                  }
+                }
+              });
+            };
+            if (Array.isArray(data)) {
+              processItems(Object.fromEntries(data.entries()), (i) => String(i));
+            } else if (typeof data === 'object') {
+              processItems(data, (i) => String(i));
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching cryptoCurrencies:', error);
+        }
+
+        // Only show active cryptos
+        setCryptoCurrencies(cryptoList.filter(c => c.isActive));
       } catch (error) {
         console.error('Error fetching crypto currencies:', error);
         setCryptoCurrencies([]);
@@ -271,13 +339,15 @@ export default function DepositScreen() {
     fetchExchangeRates();
   }, []);
 
-  const handleCopyText = useCallback((text: string, type: 'bank' | 'crypto', id: string) => {
+  const handleCopyText = useCallback((text: string, type: 'bank' | 'crypto' | 'network', id: string) => {
     navigator.clipboard.writeText(text).then(() => {
       if (type === 'bank') setCopiedBankId(id);
-      else setCopiedCryptoId(id);
+      else if (type === 'crypto') setCopiedCryptoId(id);
+      else setCopiedNetworkKey(id);
       setTimeout(() => {
         if (type === 'bank') setCopiedBankId(null);
-        else setCopiedCryptoId(null);
+        else if (type === 'crypto') setCopiedCryptoId(null);
+        else setCopiedNetworkKey(null);
       }, 2000);
     }).catch(() => {
       const textArea = document.createElement('textarea');
@@ -287,10 +357,12 @@ export default function DepositScreen() {
       document.execCommand('copy');
       document.body.removeChild(textArea);
       if (type === 'bank') setCopiedBankId(id);
-      else setCopiedCryptoId(id);
+      else if (type === 'crypto') setCopiedCryptoId(id);
+      else setCopiedNetworkKey(id);
       setTimeout(() => {
         if (type === 'bank') setCopiedBankId(null);
-        else setCopiedCryptoId(null);
+        else if (type === 'crypto') setCopiedCryptoId(null);
+        else setCopiedNetworkKey(null);
       }, 2000);
     });
   }, []);
@@ -468,11 +540,15 @@ export default function DepositScreen() {
       // Add crypto-specific fields
       if (depositMethod === 'crypto') {
         const selectedCrypto = cryptoCurrencies.find(c => c.id === selectedCryptoId);
+        const activeNetworkName = selectedCryptoNetwork || selectedCrypto?.network || '';
+        const activeNetworkData = selectedCrypto?.networks?.find(n => n.networkName === activeNetworkName);
+        const depositAddress = activeNetworkData?.walletAddress || selectedCrypto?.address || '';
         request.cryptoId = selectedCryptoId;
         request.cryptoSymbol = selectedCrypto?.symbol || '';
-        request.cryptoNetwork = selectedCrypto?.network || '';
+        request.cryptoNetwork = activeNetworkName;
+        request.cryptoDepositAddress = depositAddress;
         request.cryptoTxHash = cryptoTxHash.trim();
-        request.notes = `إيداع ${selectedCrypto?.symbol || ''} - شبكة: ${selectedCrypto?.network || ''} - Hash: ${cryptoTxHash.trim()}`;
+        request.notes = `إيداع ${selectedCrypto?.symbol || ''} - شبكة: ${activeNetworkName} - العنوان: ${depositAddress} - Hash: ${cryptoTxHash.trim()}`;
       }
 
       // Save to Firebase
@@ -502,6 +578,7 @@ export default function DepositScreen() {
       setPromoDiscount(0);
       setSelectedCryptoId('');
       setCryptoTxHash('');
+      setSelectedCryptoNetwork('');
       setSelectedBankId('');
     } catch (error) {
       console.error('Error submitting deposit:', error);
@@ -540,11 +617,12 @@ export default function DepositScreen() {
       // Add crypto-specific fields
       if (withdrawMethod === 'crypto') {
         const selectedCrypto = cryptoCurrencies.find(c => c.id === selectedWithdrawCryptoId);
+        const activeNetworkName = selectedWithdrawCryptoNetwork || selectedCrypto?.network || '';
         request.cryptoId = selectedWithdrawCryptoId;
         request.cryptoSymbol = selectedCrypto?.symbol || '';
-        request.cryptoNetwork = selectedCrypto?.network || '';
+        request.cryptoNetwork = activeNetworkName;
         request.cryptoWalletAddress = cryptoWalletAddress.trim();
-        request.notes = `سحب ${selectedCrypto?.symbol || ''} - شبكة: ${selectedCrypto?.network || ''} - محفظة: ${cryptoWalletAddress.trim()}`;
+        request.notes = `سحب ${selectedCrypto?.symbol || ''} - شبكة: ${activeNetworkName} - محفظة: ${cryptoWalletAddress.trim()}`;
       }
 
       // Save to Firebase
@@ -571,6 +649,7 @@ export default function DepositScreen() {
       setBankName('');
       setSelectedWithdrawBankId('');
       setSelectedWithdrawCryptoId('');
+      setSelectedWithdrawCryptoNetwork('');
       setCryptoWalletAddress('');
     } catch (error) {
       console.error('Error submitting withdraw:', error);
@@ -591,6 +670,27 @@ export default function DepositScreen() {
   // Get selected crypto for display
   const selectedCrypto = cryptoCurrencies.find(c => c.id === selectedCryptoId);
   const selectedWithdrawCrypto = cryptoCurrencies.find(c => c.id === selectedWithdrawCryptoId);
+
+  // Get active networks for selected crypto
+  const selectedCryptoActiveNetworks = selectedCrypto?.networks?.filter(n => n.isActive && n.walletAddress) || [];
+  // If no networks array, create one from legacy fields
+  const selectedCryptoNetworks = selectedCryptoActiveNetworks.length > 0
+    ? selectedCryptoActiveNetworks
+    : (selectedCrypto?.address || selectedCrypto?.network
+      ? [{ networkName: selectedCrypto.network || '', walletAddress: selectedCrypto.address || '', isActive: true }]
+      : []);
+
+  const selectedWithdrawCryptoActiveNetworks = selectedWithdrawCrypto?.networks?.filter(n => n.isActive) || [];
+  const selectedWithdrawCryptoNetworks = selectedWithdrawCryptoActiveNetworks.length > 0
+    ? selectedWithdrawCryptoActiveNetworks
+    : (selectedWithdrawCrypto?.network
+      ? [{ networkName: selectedWithdrawCrypto.network || '', walletAddress: '', isActive: true }]
+      : []);
+
+  // Get the currently selected network data for deposit
+  const selectedDepositNetworkData = selectedCryptoNetworks.find(n => n.networkName === selectedCryptoNetwork);
+  // Get the currently selected network data for withdraw
+  const selectedWithdrawNetworkData = selectedWithdrawCryptoNetworks.find(n => n.networkName === selectedWithdrawCryptoNetwork);
 
   // Get selected bank for display
   const selectedBank = banks.find(b => b.id === selectedBankId);
@@ -940,79 +1040,137 @@ export default function DepositScreen() {
                       {/* Crypto Currency Selector */}
                       <label className="text-xs font-medium block mb-2" style={{ color: isDark ? '#AAA' : '#666' }}>اختر العملة</label>
                       <div className="space-y-2 mb-4">
-                        {cryptoCurrencies.map((crypto) => (
-                          <button
-                            key={crypto.id}
-                            onClick={() => setSelectedCryptoId(crypto.id)}
-                            className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
-                            style={{
-                              background: selectedCryptoId === crypto.id ? `${crypto.color}15` : (isDark ? '#1A1A1A' : '#F8F8F8'),
-                              border: selectedCryptoId === crypto.id ? `1px solid ${crypto.color}40` : '1px solid transparent',
-                            }}
-                          >
-                            <div
-                              className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-xs font-bold"
-                              style={{ backgroundColor: crypto.color }}
+                        {cryptoCurrencies.map((crypto) => {
+                          const availableNetworks = crypto.networks?.filter(n => n.isActive && n.walletAddress) || [];
+                          const legacyFallback = (crypto.address || crypto.network) ? [{ networkName: crypto.network || '', walletAddress: crypto.address || '', isActive: true }] : [];
+                          const allNetworks = availableNetworks.length > 0 ? availableNetworks : legacyFallback;
+                          return (
+                            <button
+                              key={crypto.id}
+                              onClick={() => { setSelectedCryptoId(crypto.id); setSelectedCryptoNetwork(''); }}
+                              className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
+                              style={{
+                                background: selectedCryptoId === crypto.id ? `${crypto.color}15` : (isDark ? '#1A1A1A' : '#F8F8F8'),
+                                border: selectedCryptoId === crypto.id ? `1px solid ${crypto.color}40` : '1px solid transparent',
+                              }}
                             >
-                              {crypto.icon && crypto.icon.length > 5 ? (
-                                <img src={crypto.icon} alt={crypto.symbol} className="w-6 h-6 rounded object-cover" />
-                              ) : (
-                                <span>{crypto.symbol.substring(0, 2)}</span>
-                              )}
-                            </div>
-                            <div className="text-right flex-1">
-                              <p className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{crypto.name}</p>
-                              <p className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>شبكة: {crypto.network}</p>
-                            </div>
-                            <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center" style={{ borderColor: selectedCryptoId === crypto.id ? crypto.color : (isDark ? '#333' : '#DDD') }}>
-                              {selectedCryptoId === crypto.id && <div className="w-2.5 h-2.5 rounded-full" style={{ background: crypto.color }} />}
-                            </div>
-                          </button>
-                        ))}
+                              <div
+                                className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-xs font-bold"
+                                style={{ backgroundColor: crypto.color }}
+                              >
+                                {crypto.icon && crypto.icon.length > 5 ? (
+                                  <img src={crypto.icon} alt={crypto.symbol} className="w-6 h-6 rounded object-cover" />
+                                ) : (
+                                  <span>{crypto.symbol.substring(0, 2)}</span>
+                                )}
+                              </div>
+                              <div className="text-right flex-1">
+                                <p className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{crypto.name}</p>
+                                <p className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>
+                                  {allNetworks.length > 1
+                                    ? `${allNetworks.length} شبكات متاحة`
+                                    : allNetworks.length === 1
+                                      ? `شبكة: ${allNetworks[0].networkName}`
+                                      : 'لا توجد شبكات'}
+                                </p>
+                              </div>
+                              <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center" style={{ borderColor: selectedCryptoId === crypto.id ? crypto.color : (isDark ? '#333' : '#DDD') }}>
+                                {selectedCryptoId === crypto.id && <div className="w-2.5 h-2.5 rounded-full" style={{ background: crypto.color }} />}
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
 
-                      {/* Show selected crypto address + QR */}
+                      {/* Show networks and QR for selected crypto */}
                       {selectedCrypto && (
                         <motion.div
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="space-y-3"
                         >
-                          {/* Wallet Address */}
-                          <div className="rounded-xl p-3" style={{ background: isDark ? '#1A1A1A' : '#F8F8F8', borderRight: `3px solid ${selectedCrypto.color}` }}>
-                            <div className="flex items-center gap-2 mb-2">
-                              <QrCode size={12} color={selectedCrypto.color} strokeWidth={1.5} />
-                              <span className="text-[10px] font-bold" style={{ color: isDark ? '#AAA' : '#666' }}>
-                                عنوان الإيداع ({selectedCrypto.network})
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-xs font-mono break-all flex-1" style={{ color: isDark ? '#CCC' : '#333' }} dir="ltr">
-                                {selectedCrypto.address}
-                              </p>
-                              <button
-                                onClick={() => handleCopyText(selectedCrypto.address, 'crypto', selectedCrypto.id)}
-                                className="p-2 rounded-lg flex-shrink-0"
-                                style={{ background: isDark ? '#222' : '#F0F0F0' }}
-                              >
-                                {copiedCryptoId === selectedCrypto.id ? (
-                                  <Check size={14} color="#10B981" />
-                                ) : (
-                                  <Copy size={14} color={isDark ? '#666' : '#AAA'} />
-                                )}
-                              </button>
-                            </div>
-                            {/* QR Code placeholder */}
-                            <div className="mt-2 flex justify-center">
-                              <div className="w-32 h-32 rounded-xl flex items-center justify-center" style={{ background: '#FFF' }}>
-                                <img
-                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(selectedCrypto.address)}`}
-                                  alt="QR Code"
-                                  className="w-28 h-28 rounded-lg"
-                                />
+                          {/* Network Selector (if multiple networks) */}
+                          {selectedCryptoNetworks.length > 1 && (
+                            <div>
+                              <label className="text-xs font-medium block mb-2" style={{ color: isDark ? '#AAA' : '#666' }}>اختر الشبكة</label>
+                              <div className="space-y-2 mb-3">
+                                {selectedCryptoNetworks.map((net) => (
+                                  <button
+                                    key={net.networkName}
+                                    onClick={() => setSelectedCryptoNetwork(net.networkName)}
+                                    className="w-full flex items-center gap-3 p-2.5 rounded-xl transition-all"
+                                    style={{
+                                      background: selectedCryptoNetwork === net.networkName ? `${selectedCrypto.color}15` : (isDark ? '#1A1A1A' : '#F8F8F8'),
+                                      border: selectedCryptoNetwork === net.networkName ? `1px solid ${selectedCrypto.color}40` : '1px solid transparent',
+                                    }}
+                                  >
+                                    <div
+                                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[10px] font-bold"
+                                      style={{ backgroundColor: selectedCrypto.color }}
+                                    >
+                                      {net.networkName.substring(0, 3)}
+                                    </div>
+                                    <div className="text-right flex-1">
+                                      <p className="text-xs font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{net.networkName}</p>
+                                    </div>
+                                    <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center" style={{ borderColor: selectedCryptoNetwork === net.networkName ? selectedCrypto.color : (isDark ? '#333' : '#DDD') }}>
+                                      {selectedCryptoNetwork === net.networkName && <div className="w-2 h-2 rounded-full" style={{ background: selectedCrypto.color }} />}
+                                    </div>
+                                  </button>
+                                ))}
                               </div>
                             </div>
-                          </div>
+                          )}
+
+                          {/* Auto-select first network if only one */}
+                          {selectedCryptoNetworks.length === 1 && !selectedCryptoNetwork && (
+                            <></>
+                          )}
+
+                          {/* Wallet Address + QR Code for selected network */}
+                          {(() => {
+                            const displayNetwork = selectedCryptoNetwork || (selectedCryptoNetworks.length === 1 ? selectedCryptoNetworks[0].networkName : '');
+                            const displayNetData = selectedCryptoNetworks.find(n => n.networkName === displayNetwork);
+                            if (!displayNetData || !displayNetData.walletAddress) return null;
+                            return (
+                              <div className="rounded-xl p-3" style={{ background: isDark ? '#1A1A1A' : '#F8F8F8', borderRight: `3px solid ${selectedCrypto.color}` }}>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <QrCode size={12} color={selectedCrypto.color} strokeWidth={1.5} />
+                                  <span className="text-[10px] font-bold" style={{ color: isDark ? '#AAA' : '#666' }}>
+                                    عنوان الإيداع ({displayNetData.networkName})
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-xs font-mono break-all flex-1" style={{ color: isDark ? '#CCC' : '#333' }} dir="ltr">
+                                    {displayNetData.walletAddress}
+                                  </p>
+                                  <button
+                                    onClick={() => handleCopyText(displayNetData.walletAddress, 'network', `${selectedCrypto.id}-${displayNetData.networkName}`)}
+                                    className="p-2 rounded-lg flex-shrink-0"
+                                    style={{ background: isDark ? '#222' : '#F0F0F0' }}
+                                  >
+                                    {copiedNetworkKey === `${selectedCrypto.id}-${displayNetData.networkName}` ? (
+                                      <Check size={14} color="#10B981" />
+                                    ) : (
+                                      <Copy size={14} color={isDark ? '#666' : '#AAA'} />
+                                    )}
+                                  </button>
+                                </div>
+                                {/* QR Code using QRCodeSVG */}
+                                <div className="mt-2 flex justify-center">
+                                  <div className="w-36 h-36 rounded-xl flex items-center justify-center p-2" style={{ background: '#FFFFFF' }}>
+                                    <QRCodeSVG
+                                      value={displayNetData.walletAddress}
+                                      size={128}
+                                      level="M"
+                                      bgColor="#FFFFFF"
+                                      fgColor="#000000"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
 
                           {/* Min deposit info */}
                           {selectedCrypto.minDeposit > 0 && (
@@ -1046,7 +1204,9 @@ export default function DepositScreen() {
                           <div className="flex items-start gap-1.5 p-2 rounded-lg" style={{ background: `${selectedCrypto.color}10` }}>
                             <AlertCircle size={12} color={selectedCrypto.color} className="flex-shrink-0 mt-0.5" />
                             <span className="text-[10px]" style={{ color: isDark ? '#AAA' : '#666' }}>
-                              تأكد من إرسال العملات على شبكة {selectedCrypto.network} فقط. الإرسال على شبكة خاطئة قد يؤدي لفقدان أموالك.
+                              {selectedCryptoNetworks.length > 1
+                                ? 'تأكد من إرسال العملات على الشبكة المحددة فقط. الإرسال على شبكة خاطئة قد يؤدي لفقدان أموالك.'
+                                : `تأكد من إرسال العملات على شبكة ${selectedCryptoNetworks[0]?.networkName || selectedCrypto.network} فقط. الإرسال على شبكة خاطئة قد يؤدي لفقدان أموالك.`}
                             </span>
                           </div>
                         </motion.div>
@@ -1506,35 +1666,46 @@ export default function DepositScreen() {
                       {/* Crypto Currency Selector */}
                       <label className="text-xs font-medium block mb-2" style={{ color: isDark ? '#AAA' : '#666' }}>اختر العملة</label>
                       <div className="space-y-2 mb-4">
-                        {cryptoCurrencies.map((crypto) => (
-                          <button
-                            key={crypto.id}
-                            onClick={() => setSelectedWithdrawCryptoId(crypto.id)}
-                            className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
-                            style={{
-                              background: selectedWithdrawCryptoId === crypto.id ? `${crypto.color}15` : (isDark ? '#1A1A1A' : '#F8F8F8'),
-                              border: selectedWithdrawCryptoId === crypto.id ? `1px solid ${crypto.color}40` : '1px solid transparent',
-                            }}
-                          >
-                            <div
-                              className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-xs font-bold"
-                              style={{ backgroundColor: crypto.color }}
+                        {cryptoCurrencies.map((crypto) => {
+                          const availableNetworks = crypto.networks?.filter(n => n.isActive) || [];
+                          const legacyFallback = crypto.network ? [{ networkName: crypto.network, walletAddress: '', isActive: true }] : [];
+                          const allNetworks = availableNetworks.length > 0 ? availableNetworks : legacyFallback;
+                          return (
+                            <button
+                              key={crypto.id}
+                              onClick={() => { setSelectedWithdrawCryptoId(crypto.id); setSelectedWithdrawCryptoNetwork(''); }}
+                              className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
+                              style={{
+                                background: selectedWithdrawCryptoId === crypto.id ? `${crypto.color}15` : (isDark ? '#1A1A1A' : '#F8F8F8'),
+                                border: selectedWithdrawCryptoId === crypto.id ? `1px solid ${crypto.color}40` : '1px solid transparent',
+                              }}
                             >
-                              {crypto.icon && crypto.icon.length > 5 ? (
-                                <img src={crypto.icon} alt={crypto.symbol} className="w-6 h-6 rounded object-cover" />
-                              ) : (
-                                <span>{crypto.symbol.substring(0, 2)}</span>
-                              )}
-                            </div>
-                            <div className="text-right flex-1">
-                              <p className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{crypto.name}</p>
-                              <p className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>شبكة: {crypto.network}</p>
-                            </div>
-                            <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center" style={{ borderColor: selectedWithdrawCryptoId === crypto.id ? crypto.color : (isDark ? '#333' : '#DDD') }}>
-                              {selectedWithdrawCryptoId === crypto.id && <div className="w-2.5 h-2.5 rounded-full" style={{ background: crypto.color }} />}
-                            </div>
-                          </button>
-                        ))}
+                              <div
+                                className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-xs font-bold"
+                                style={{ backgroundColor: crypto.color }}
+                              >
+                                {crypto.icon && crypto.icon.length > 5 ? (
+                                  <img src={crypto.icon} alt={crypto.symbol} className="w-6 h-6 rounded object-cover" />
+                                ) : (
+                                  <span>{crypto.symbol.substring(0, 2)}</span>
+                                )}
+                              </div>
+                              <div className="text-right flex-1">
+                                <p className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{crypto.name}</p>
+                                <p className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>
+                                  {allNetworks.length > 1
+                                    ? `${allNetworks.length} شبكات متاحة`
+                                    : allNetworks.length === 1
+                                      ? `شبكة: ${allNetworks[0].networkName}`
+                                      : 'لا توجد شبكات'}
+                                </p>
+                              </div>
+                              <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center" style={{ borderColor: selectedWithdrawCryptoId === crypto.id ? crypto.color : (isDark ? '#333' : '#DDD') }}>
+                                {selectedWithdrawCryptoId === crypto.id && <div className="w-2.5 h-2.5 rounded-full" style={{ background: crypto.color }} />}
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
 
                       {/* Wallet Address Input */}
@@ -1544,40 +1715,80 @@ export default function DepositScreen() {
                           animate={{ opacity: 1, y: 0 }}
                           className="space-y-3"
                         >
-                          <div>
-                            <label className="text-xs font-medium block mb-2" style={{ color: isDark ? '#AAA' : '#666' }}>
-                              عنوان محفظتك ({selectedWithdrawCrypto.network})
-                            </label>
-                            <input
-                              type="text"
-                              value={cryptoWalletAddress}
-                              onChange={(e) => setCryptoWalletAddress(e.target.value)}
-                              placeholder={`أدخل عنوان محفظة ${selectedWithdrawCrypto.symbol}`}
-                              className="w-full bg-transparent outline-none text-sm p-2.5 rounded-xl"
-                              style={{
-                                color: isDark ? '#FFF' : '#1a1a1a',
-                                background: isDark ? '#1A1A1A' : '#F8F8F8',
-                              }}
-                              dir="ltr"
-                            />
-                          </div>
-
-                          {/* Min withdraw info */}
-                          {selectedWithdrawCrypto.minWithdraw > 0 && (
-                            <div className="flex items-center gap-1.5">
-                              <Info size={10} color={selectedWithdrawCrypto.color} />
-                              <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>
-                                الحد الأدنى للسحب: {selectedWithdrawCrypto.minWithdraw} {selectedWithdrawCrypto.symbol}
-                              </span>
+                          {/* Network Selector for withdraw (if multiple networks) */}
+                          {selectedWithdrawCryptoNetworks.length > 1 && (
+                            <div>
+                              <label className="text-xs font-medium block mb-2" style={{ color: isDark ? '#AAA' : '#666' }}>اختر الشبكة</label>
+                              <div className="space-y-2 mb-3">
+                                {selectedWithdrawCryptoNetworks.map((net) => (
+                                  <button
+                                    key={net.networkName}
+                                    onClick={() => setSelectedWithdrawCryptoNetwork(net.networkName)}
+                                    className="w-full flex items-center gap-3 p-2.5 rounded-xl transition-all"
+                                    style={{
+                                      background: selectedWithdrawCryptoNetwork === net.networkName ? `${selectedWithdrawCrypto.color}15` : (isDark ? '#1A1A1A' : '#F8F8F8'),
+                                      border: selectedWithdrawCryptoNetwork === net.networkName ? `1px solid ${selectedWithdrawCrypto.color}40` : '1px solid transparent',
+                                    }}
+                                  >
+                                    <div
+                                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[10px] font-bold"
+                                      style={{ backgroundColor: selectedWithdrawCrypto.color }}
+                                    >
+                                      {net.networkName.substring(0, 3)}
+                                    </div>
+                                    <div className="text-right flex-1">
+                                      <p className="text-xs font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{net.networkName}</p>
+                                    </div>
+                                    <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center" style={{ borderColor: selectedWithdrawCryptoNetwork === net.networkName ? selectedWithdrawCrypto.color : (isDark ? '#333' : '#DDD') }}>
+                                      {selectedWithdrawCryptoNetwork === net.networkName && <div className="w-2 h-2 rounded-full" style={{ background: selectedWithdrawCrypto.color }} />}
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           )}
 
-                          <div className="flex items-start gap-1.5 p-2 rounded-lg" style={{ background: `${selectedWithdrawCrypto.color}10` }}>
-                            <AlertCircle size={12} color={selectedWithdrawCrypto.color} className="flex-shrink-0 mt-0.5" />
-                            <span className="text-[10px]" style={{ color: isDark ? '#AAA' : '#666' }}>
-                              تأكد من إدخال عنوان صحيح على شبكة {selectedWithdrawCrypto.network}. الإرسال لعنوان خاطئ قد يؤدي لفقدان أموالك.
-                            </span>
-                          </div>
+                          {(() => {
+                            const withdrawNetwork = selectedWithdrawCryptoNetwork || (selectedWithdrawCryptoNetworks.length === 1 ? selectedWithdrawCryptoNetworks[0].networkName : '') || selectedWithdrawCrypto.network;
+                            return (
+                              <>
+                                <div>
+                                  <label className="text-xs font-medium block mb-2" style={{ color: isDark ? '#AAA' : '#666' }}>
+                                    عنوان محفظتك ({withdrawNetwork})
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={cryptoWalletAddress}
+                                    onChange={(e) => setCryptoWalletAddress(e.target.value)}
+                                    placeholder={`أدخل عنوان محفظة ${selectedWithdrawCrypto.symbol}`}
+                                    className="w-full bg-transparent outline-none text-sm p-2.5 rounded-xl"
+                                    style={{
+                                      color: isDark ? '#FFF' : '#1a1a1a',
+                                      background: isDark ? '#1A1A1A' : '#F8F8F8',
+                                    }}
+                                    dir="ltr"
+                                  />
+                                </div>
+
+                                {/* Min withdraw info */}
+                                {selectedWithdrawCrypto.minWithdraw > 0 && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Info size={10} color={selectedWithdrawCrypto.color} />
+                                    <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>
+                                      الحد الأدنى للسحب: {selectedWithdrawCrypto.minWithdraw} {selectedWithdrawCrypto.symbol}
+                                    </span>
+                                  </div>
+                                )}
+
+                                <div className="flex items-start gap-1.5 p-2 rounded-lg" style={{ background: `${selectedWithdrawCrypto.color}10` }}>
+                                  <AlertCircle size={12} color={selectedWithdrawCrypto.color} className="flex-shrink-0 mt-0.5" />
+                                  <span className="text-[10px]" style={{ color: isDark ? '#AAA' : '#666' }}>
+                                    تأكد من إدخال عنوان صحيح على شبكة {withdrawNetwork}. الإرسال لعنوان خاطئ قد يؤدي لفقدان أموالك.
+                                  </span>
+                                </div>
+                              </>
+                            );
+                          })()}
                         </motion.div>
                       )}
                     </>

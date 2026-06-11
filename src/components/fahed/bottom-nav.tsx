@@ -9,7 +9,7 @@ type TabType = 'home' | 'services' | 'wallet' | 'account';
 
 // Jaib-style bottom nav: 5 items + center FAB
 // الرئيسية | القائمة | [+FAB] | الطلبات | الحساب
-const tabs: { id: TabType; label: string; icon: typeof Home }[] = [
+const allTabs: { id: TabType; label: string; icon: typeof Home }[] = [
   { id: 'home', label: 'الرئيسية', icon: Home },
   { id: 'services', label: 'القائمة', icon: Menu },
   { id: 'wallet', label: 'الطلبات', icon: ShoppingCart },
@@ -19,7 +19,13 @@ const tabs: { id: TabType; label: string; icon: typeof Home }[] = [
 export default function BottomNav() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const { activeTab, setActiveTab, setDrawerOpen } = useAppStore();
+  const { activeTab, setActiveTab, setDrawerOpen, featureFlags } = useAppStore();
+
+  // Filter tabs based on feature flags
+  const tabs = allTabs.filter(tab => {
+    if (tab.id === 'services' && !featureFlags.servicesEnabled) return false;
+    return true;
+  });
 
   return (
     <nav

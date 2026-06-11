@@ -11,6 +11,10 @@ import {
   type InvestmentPlan,
   type ServiceProvider,
   type ProductPackage,
+  type FeatureFlags,
+  type TransactionLimits,
+  defaultFeatureFlags,
+  defaultTransactionLimits,
 } from '@/lib/store';
 
 // ─── Types for settings NOT yet in the Zustand store ───────────────────────
@@ -57,6 +61,8 @@ const PATHS = {
   visibility: 'adminSettings/visibility',
   investmentPlans: 'adminSettings/investmentPlans',
   exchangeRates: 'adminSettings/exchangeRates',
+  features: 'adminSettings/features',
+  limits: 'adminSettings/limits',
   socialLinks: 'adminSettings/socialLinks',
   banners: 'adminSettings/banners',
   sections: 'ownerSettings/sections',
@@ -259,6 +265,56 @@ export function useAdminSettings() {
         store.setPackages(packages);
       }
     });
+
+    // 10. Feature flags (from admin)
+    attachListener('features', PATHS.features, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const flags: Partial<FeatureFlags> = {};
+        // Map Firebase keys to FeatureFlags, defaulting to true for booleans
+        if (data.transfersEnabled !== undefined) flags.transfersEnabled = !!data.transfersEnabled;
+        if (data.depositsEnabled !== undefined) flags.depositsEnabled = !!data.depositsEnabled;
+        if (data.withdrawalsEnabled !== undefined) flags.withdrawalsEnabled = !!data.withdrawalsEnabled;
+        if (data.exchangeEnabled !== undefined) flags.exchangeEnabled = !!data.exchangeEnabled;
+        if (data.servicesEnabled !== undefined) flags.servicesEnabled = !!data.servicesEnabled;
+        if (data.rechargeEnabled !== undefined) flags.rechargeEnabled = !!data.rechargeEnabled;
+        if (data.billsEnabled !== undefined) flags.billsEnabled = !!data.billsEnabled;
+        if (data.investmentEnabled !== undefined) flags.investmentEnabled = !!data.investmentEnabled;
+        if (data.cryptoEnabled !== undefined) flags.cryptoEnabled = !!data.cryptoEnabled;
+        if (data.giftCodesEnabled !== undefined) flags.giftCodesEnabled = !!data.giftCodesEnabled;
+        if (data.qrPaymentsEnabled !== undefined) flags.qrPaymentsEnabled = !!data.qrPaymentsEnabled;
+        if (data.referralEnabled !== undefined) flags.referralEnabled = !!data.referralEnabled;
+        if (data.notificationsEnabled !== undefined) flags.notificationsEnabled = !!data.notificationsEnabled;
+        if (data.biometricEnabled !== undefined) flags.biometricEnabled = !!data.biometricEnabled;
+        if (data.pinEnabled !== undefined) flags.pinEnabled = !!data.pinEnabled;
+        if (data.darkModeEnabled !== undefined) flags.darkModeEnabled = !!data.darkModeEnabled;
+        if (data.maintenanceMode !== undefined) flags.maintenanceMode = !!data.maintenanceMode;
+        if (data.maintenanceMessage !== undefined) flags.maintenanceMessage = String(data.maintenanceMessage || '');
+        if (data.registrationEnabled !== undefined) flags.registrationEnabled = !!data.registrationEnabled;
+        store.setFeatureFlags(flags);
+      } else {
+        // No features data in Firebase — use defaults (all enabled)
+        store.setFeatureFlags(defaultFeatureFlags);
+      }
+    });
+
+    // 11. Transaction limits (from admin)
+    attachListener('limits', PATHS.limits, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const limits: Partial<TransactionLimits> = {};
+        if (data.maxSingleTransfer !== undefined) limits.maxSingleTransfer = Number(data.maxSingleTransfer) || defaultTransactionLimits.maxSingleTransfer;
+        if (data.maxDailyTransfer !== undefined) limits.maxDailyTransfer = Number(data.maxDailyTransfer) || defaultTransactionLimits.maxDailyTransfer;
+        if (data.maxMonthlyTransfer !== undefined) limits.maxMonthlyTransfer = Number(data.maxMonthlyTransfer) || defaultTransactionLimits.maxMonthlyTransfer;
+        if (data.maxSingleDeposit !== undefined) limits.maxSingleDeposit = Number(data.maxSingleDeposit) || defaultTransactionLimits.maxSingleDeposit;
+        if (data.maxDailyDeposit !== undefined) limits.maxDailyDeposit = Number(data.maxDailyDeposit) || defaultTransactionLimits.maxDailyDeposit;
+        if (data.maxBalance !== undefined) limits.maxBalance = Number(data.maxBalance) || defaultTransactionLimits.maxBalance;
+        store.setTransactionLimits(limits);
+      } else {
+        // No limits data in Firebase — use defaults
+        store.setTransactionLimits(defaultTransactionLimits);
+      }
+    });
   }, [attachListener, parseBanners, parseSections]);
 
   // ─── Set up global listeners (always active, even without auth) ────────
@@ -276,6 +332,37 @@ export function useAdminSettings() {
       const data = snapshot.val();
       store.setForceUpdate(data as ForceUpdate | null);
     });
+
+    // Feature flags - ALWAYS listen, even when not authenticated
+    // This ensures maintenance mode from feature flags works immediately
+    attachListener('featuresGlobal', PATHS.features, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const flags: Partial<FeatureFlags> = {};
+        if (data.transfersEnabled !== undefined) flags.transfersEnabled = !!data.transfersEnabled;
+        if (data.depositsEnabled !== undefined) flags.depositsEnabled = !!data.depositsEnabled;
+        if (data.withdrawalsEnabled !== undefined) flags.withdrawalsEnabled = !!data.withdrawalsEnabled;
+        if (data.exchangeEnabled !== undefined) flags.exchangeEnabled = !!data.exchangeEnabled;
+        if (data.servicesEnabled !== undefined) flags.servicesEnabled = !!data.servicesEnabled;
+        if (data.rechargeEnabled !== undefined) flags.rechargeEnabled = !!data.rechargeEnabled;
+        if (data.billsEnabled !== undefined) flags.billsEnabled = !!data.billsEnabled;
+        if (data.investmentEnabled !== undefined) flags.investmentEnabled = !!data.investmentEnabled;
+        if (data.cryptoEnabled !== undefined) flags.cryptoEnabled = !!data.cryptoEnabled;
+        if (data.giftCodesEnabled !== undefined) flags.giftCodesEnabled = !!data.giftCodesEnabled;
+        if (data.qrPaymentsEnabled !== undefined) flags.qrPaymentsEnabled = !!data.qrPaymentsEnabled;
+        if (data.referralEnabled !== undefined) flags.referralEnabled = !!data.referralEnabled;
+        if (data.notificationsEnabled !== undefined) flags.notificationsEnabled = !!data.notificationsEnabled;
+        if (data.biometricEnabled !== undefined) flags.biometricEnabled = !!data.biometricEnabled;
+        if (data.pinEnabled !== undefined) flags.pinEnabled = !!data.pinEnabled;
+        if (data.darkModeEnabled !== undefined) flags.darkModeEnabled = !!data.darkModeEnabled;
+        if (data.maintenanceMode !== undefined) flags.maintenanceMode = !!data.maintenanceMode;
+        if (data.maintenanceMessage !== undefined) flags.maintenanceMessage = String(data.maintenanceMessage || '');
+        if (data.registrationEnabled !== undefined) flags.registrationEnabled = !!data.registrationEnabled;
+        store.setFeatureFlags(flags);
+      } else {
+        store.setFeatureFlags(defaultFeatureFlags);
+      }
+    });
   }, [attachListener]);
 
   // ─── Tear down all listeners ───────────────────────────────────────────
@@ -286,7 +373,7 @@ export function useAdminSettings() {
 
   // ─── Tear down only authenticated listeners ────────────────────────────
   const teardownAuthenticatedListeners = useCallback(() => {
-    const authKeys = ['cardColors', 'visibility', 'investmentPlans', 'exchangeRates', 'socialLinks', 'banners', 'sections', 'providers', 'packages'];
+    const authKeys = ['cardColors', 'visibility', 'investmentPlans', 'exchangeRates', 'features', 'limits', 'socialLinks', 'banners', 'sections', 'providers', 'packages'];
     authKeys.forEach((key) => {
       const unsub = unsubscribersRef.current.get(key);
       if (unsub) {
@@ -302,7 +389,7 @@ export function useAdminSettings() {
 
     return () => {
       // Only tear down global listeners on unmount
-      const globalKeys = ['maintenance', 'forceUpdate'];
+      const globalKeys = ['maintenance', 'forceUpdate', 'featuresGlobal'];
       globalKeys.forEach((key) => {
         const unsub = unsubscribersRef.current.get(key);
         if (unsub) {
@@ -454,6 +541,49 @@ export function useAdminSettings() {
           store.setPackages(packages);
         }
       }),
+
+      // 12. Feature flags
+      get(ref(database, PATHS.features)).then((snap) => {
+        const data = snap.val();
+        if (data) {
+          const flags: Partial<FeatureFlags> = {};
+          if (data.transfersEnabled !== undefined) flags.transfersEnabled = !!data.transfersEnabled;
+          if (data.depositsEnabled !== undefined) flags.depositsEnabled = !!data.depositsEnabled;
+          if (data.withdrawalsEnabled !== undefined) flags.withdrawalsEnabled = !!data.withdrawalsEnabled;
+          if (data.exchangeEnabled !== undefined) flags.exchangeEnabled = !!data.exchangeEnabled;
+          if (data.servicesEnabled !== undefined) flags.servicesEnabled = !!data.servicesEnabled;
+          if (data.rechargeEnabled !== undefined) flags.rechargeEnabled = !!data.rechargeEnabled;
+          if (data.billsEnabled !== undefined) flags.billsEnabled = !!data.billsEnabled;
+          if (data.investmentEnabled !== undefined) flags.investmentEnabled = !!data.investmentEnabled;
+          if (data.cryptoEnabled !== undefined) flags.cryptoEnabled = !!data.cryptoEnabled;
+          if (data.giftCodesEnabled !== undefined) flags.giftCodesEnabled = !!data.giftCodesEnabled;
+          if (data.qrPaymentsEnabled !== undefined) flags.qrPaymentsEnabled = !!data.qrPaymentsEnabled;
+          if (data.referralEnabled !== undefined) flags.referralEnabled = !!data.referralEnabled;
+          if (data.notificationsEnabled !== undefined) flags.notificationsEnabled = !!data.notificationsEnabled;
+          if (data.biometricEnabled !== undefined) flags.biometricEnabled = !!data.biometricEnabled;
+          if (data.pinEnabled !== undefined) flags.pinEnabled = !!data.pinEnabled;
+          if (data.darkModeEnabled !== undefined) flags.darkModeEnabled = !!data.darkModeEnabled;
+          if (data.maintenanceMode !== undefined) flags.maintenanceMode = !!data.maintenanceMode;
+          if (data.maintenanceMessage !== undefined) flags.maintenanceMessage = String(data.maintenanceMessage || '');
+          if (data.registrationEnabled !== undefined) flags.registrationEnabled = !!data.registrationEnabled;
+          store.setFeatureFlags(flags);
+        }
+      }),
+
+      // 13. Transaction limits
+      get(ref(database, PATHS.limits)).then((snap) => {
+        const data = snap.val();
+        if (data) {
+          const limits: Partial<TransactionLimits> = {};
+          if (data.maxSingleTransfer !== undefined) limits.maxSingleTransfer = Number(data.maxSingleTransfer) || defaultTransactionLimits.maxSingleTransfer;
+          if (data.maxDailyTransfer !== undefined) limits.maxDailyTransfer = Number(data.maxDailyTransfer) || defaultTransactionLimits.maxDailyTransfer;
+          if (data.maxMonthlyTransfer !== undefined) limits.maxMonthlyTransfer = Number(data.maxMonthlyTransfer) || defaultTransactionLimits.maxMonthlyTransfer;
+          if (data.maxSingleDeposit !== undefined) limits.maxSingleDeposit = Number(data.maxSingleDeposit) || defaultTransactionLimits.maxSingleDeposit;
+          if (data.maxDailyDeposit !== undefined) limits.maxDailyDeposit = Number(data.maxDailyDeposit) || defaultTransactionLimits.maxDailyDeposit;
+          if (data.maxBalance !== undefined) limits.maxBalance = Number(data.maxBalance) || defaultTransactionLimits.maxBalance;
+          store.setTransactionLimits(limits);
+        }
+      }),
     ];
 
     await Promise.allSettled(fetchPromises);
@@ -470,6 +600,8 @@ export function useAdminSettings() {
   const exchangeRates = useAppStore((s) => s.exchangeRates);
   const providers = useAppStore((s) => s.providers);
   const packages = useAppStore((s) => s.packages);
+  const featureFlags = useAppStore((s) => s.featureFlags);
+  const transactionLimits = useAppStore((s) => s.transactionLimits);
 
   return {
     // Zustand-synced values
@@ -480,6 +612,8 @@ export function useAdminSettings() {
     exchangeRates,
     providers,
     packages,
+    featureFlags,
+    transactionLimits,
 
     // Local state (not in store yet)
     visibilitySettings,

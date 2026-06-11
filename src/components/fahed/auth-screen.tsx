@@ -392,7 +392,7 @@ function SocialLinksBar({ isDark }: { isDark: boolean }) {
 export default function AuthScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const { setUser, setBiometricEnabled } = useAppStore();
+  const { setUser, setBiometricEnabled, featureFlags } = useAppStore();
 
   const [step, setStep] = useState<AuthStep>('login');
   const [isLoading, setIsLoading] = useState(false);
@@ -722,6 +722,7 @@ export default function AuthScreen() {
       {/* Mode Toggle */}
       {step !== 'password-recovery' && (
         <div className="flex items-center justify-center gap-3 pt-3 pb-2 px-6">
+          {featureFlags.registrationEnabled && (
           <button
             onClick={() => { setLoginMode('register'); setStep('register-step1'); setError(''); setSuccess(''); }}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all"
@@ -733,6 +734,7 @@ export default function AuthScreen() {
             <Heart size={16} strokeWidth={1.5} color={loginMode === 'register' ? '#E60000' : (isDark ? '#555' : '#AAA')} fill={loginMode === 'register' ? '#E60000' : 'none'} />
             <span className="text-xs font-medium" style={{ color: loginMode === 'register' ? '#E60000' : (isDark ? '#555' : '#AAA') }}>تسجيل جديد</span>
           </button>
+          )}
           <button
             onClick={() => { setLoginMode('login'); setStep('login'); setError(''); setSuccess(''); }}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all"

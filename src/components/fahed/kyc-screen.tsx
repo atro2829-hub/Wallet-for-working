@@ -16,6 +16,8 @@ import {
   Eye,
   X,
   Loader2,
+  ShieldCheck,
+  BadgeCheck,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { governorates, cardTypes, compressBase64Image } from '@/lib/utils';
@@ -158,6 +160,213 @@ export default function KYCScreen() {
     color: isDark ? '#FFF' : '#1a1a1a',
   };
 
+  // ─── Verified Read-Only View ───
+  if (user?.kycStatus === 'verified') {
+    return (
+      <div
+        className="min-h-screen flex flex-col"
+        style={{ background: isDark ? '#0F0F0F' : '#F5F5F5' }}
+      >
+        {/* Header */}
+        <div className="px-5 pt-4 pb-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveScreen('main')}
+              className="w-8 h-8 rounded-full flex items-center justify-center"
+              style={{ background: isDark ? '#222' : '#F0F0F0' }}
+            >
+              <ArrowRight size={16} strokeWidth={1.5} color={isDark ? '#FFF' : '#666'} />
+            </button>
+            <h1
+              className="text-xl font-bold"
+              style={{ color: isDark ? '#FFF' : '#1a1a1a' }}
+            >
+              بياناتي
+            </h1>
+          </div>
+        </div>
+
+        {/* Verified Content */}
+        <div className="flex-1 px-5 mt-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-col items-center"
+          >
+            {/* Verified Badge */}
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+              className="flex flex-col items-center mb-8"
+            >
+              <div
+                className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
+                style={{
+                  background: 'rgba(16,185,129,0.1)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  border: '2px solid rgba(16,185,129,0.2)',
+                }}
+              >
+                <BadgeCheck size={40} strokeWidth={1.5} color="#10B981" />
+              </div>
+              <div
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full"
+                style={{
+                  background: 'rgba(16,185,129,0.1)',
+                  border: '1px solid rgba(16,185,129,0.2)',
+                }}
+              >
+                <ShieldCheck size={16} strokeWidth={2} color="#10B981" />
+                <span className="text-sm font-bold" style={{ color: '#10B981' }}>
+                  موثق
+                </span>
+              </div>
+              <h2
+                className="text-lg font-bold mt-3"
+                style={{ color: isDark ? '#FFF' : '#1a1a1a' }}
+              >
+                حسابك موثق بالكامل
+              </h2>
+              <p
+                className="text-xs text-center mt-1 max-w-[250px]"
+                style={{ color: isDark ? '#888' : '#AAA' }}
+              >
+                تم التحقق من هويتك بنجاح
+              </p>
+            </motion.div>
+
+            {/* Data Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.4 }}
+              className="w-full rounded-2xl p-5 space-y-0"
+              style={{
+                background: isDark
+                  ? 'rgba(255,255,255,0.06)'
+                  : 'rgba(255,255,255,0.8)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
+              }}
+            >
+              {[
+                {
+                  icon: <CreditCard size={18} strokeWidth={1.5} color="#E60000" />,
+                  label: 'نوع البطاقة',
+                  value: user.cardType || '—',
+                },
+                {
+                  icon: <FileText size={18} strokeWidth={1.5} color="#E60000" />,
+                  label: 'رقم البطاقة',
+                  value: user.cardNumber || '—',
+                  dir: 'ltr' as const,
+                },
+                {
+                  icon: <MapPin size={18} strokeWidth={1.5} color="#E60000" />,
+                  label: 'مكان الإصدار',
+                  value: user.cardIssuedAt || '—',
+                },
+                {
+                  icon: <MapPin size={18} strokeWidth={1.5} color="#E60000" />,
+                  label: 'المحافظة',
+                  value: user.governorate || '—',
+                },
+              ].map((item, i, arr) => (
+                <div key={item.label}>
+                  <div className="flex items-center gap-3 py-3">
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                      style={{
+                        background: 'rgba(230,0,0,0.08)',
+                      }}
+                    >
+                      {item.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="text-[10px] font-medium"
+                        style={{ color: isDark ? '#666' : '#AAA' }}
+                      >
+                        {item.label}
+                      </p>
+                      <p
+                        className="text-sm font-bold truncate"
+                        style={{ color: isDark ? '#FFF' : '#1a1a1a' }}
+                        dir={item.dir}
+                      >
+                        {item.value}
+                      </p>
+                    </div>
+                  </div>
+                  {i < arr.length - 1 && (
+                    <div
+                      className="h-px mr-12"
+                      style={{ background: isDark ? '#2A2A2A' : '#F0F0F0' }}
+                    />
+                  )}
+                </div>
+              ))}
+            </motion.div>
+
+            {/* Status Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35, duration: 0.4 }}
+              className="w-full mt-4 rounded-2xl p-4 flex items-center gap-3"
+              style={{
+                background: 'rgba(16,185,129,0.06)',
+                border: '1px solid rgba(16,185,129,0.15)',
+              }}
+            >
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(16,185,129,0.1)' }}
+              >
+                <ShieldCheck size={20} strokeWidth={1.5} color="#10B981" />
+              </div>
+              <div>
+                <p
+                  className="text-sm font-bold"
+                  style={{ color: '#10B981' }}
+                >
+                  هوية موثقة
+                </p>
+                <p
+                  className="text-[10px]"
+                  style={{ color: isDark ? '#666' : '#AAA' }}
+                >
+                  تم التحقق من بياناتك بنجاح من قبل الإدارة
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+
+        {/* Back Button */}
+        <div className="px-5 pb-8 mt-auto">
+          <button
+            onClick={() => setActiveScreen('main')}
+            className="w-full py-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-white transition-all active:scale-[0.98]"
+            style={{
+              background: 'linear-gradient(135deg, #E60000 0%, #B30000 100%)',
+              boxShadow: '0 4px 16px rgba(230,0,0,0.3)',
+            }}
+          >
+            <ArrowRight size={16} strokeWidth={1.5} />
+            <span>العودة</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Success View (after submission) ───
   if (success) {
     return (
       <div
@@ -229,6 +438,22 @@ export default function KYCScreen() {
             التحقق من الهوية
           </h1>
         </div>
+
+        {/* Rejected status banner */}
+        {user?.kycStatus === 'rejected' && (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2 px-4 py-3 rounded-xl mt-3"
+            style={{ background: 'rgba(230,0,0,0.08)', border: '1px solid rgba(230,0,0,0.15)' }}
+          >
+            <AlertCircle size={18} color="#E60000" />
+            <div>
+              <p className="text-xs font-bold" style={{ color: '#E60000' }}>تم رفض طلبك السابق</p>
+              <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>يمكنك إعادة تقديم الطلب بعد تعديل البيانات</p>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Progress Bar with Step Labels */}

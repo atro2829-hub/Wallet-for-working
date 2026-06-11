@@ -200,6 +200,7 @@ export default function HomeScreen() {
     setOrderOpen,
     savingsGoals,
     cardColors,
+    featureFlags,
   } = useAppStore();
 
   const { refreshAll } = useAdminSettings();
@@ -928,7 +929,19 @@ export default function HomeScreen() {
         </div>
 
         <div className="grid grid-cols-3 gap-3">
-          {homeServices.filter(service => visibilitySettings.sections[service.id] !== false).map((service, index) => {
+          {homeServices.filter(service => {
+            // Hide if visibility settings hide it
+            if (visibilitySettings.sections[service.id] === false) return false;
+            // Hide if feature flag disables it
+            if (service.id === 'transfer' && !featureFlags.transfersEnabled) return false;
+            if (service.id === 'recharge' && !featureFlags.rechargeEnabled) return false;
+            if (service.id === 'crypto' && !featureFlags.cryptoEnabled) return false;
+            if (service.id === 'crypto-invest' && !featureFlags.investmentEnabled) return false;
+            if (service.id === 'currency-exchange' && !featureFlags.exchangeEnabled) return false;
+            if (service.id === 'electricity' && !featureFlags.billsEnabled) return false;
+            if (service.id === 'government' && !featureFlags.billsEnabled) return false;
+            return true;
+          }).map((service, index) => {
             const iconSrc = productIcons[service.iconKey] || serviceIcons[service.iconKey];
             return (
               <motion.button

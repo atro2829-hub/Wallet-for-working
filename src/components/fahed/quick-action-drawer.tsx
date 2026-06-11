@@ -36,7 +36,20 @@ const quickActions = [
 export default function QuickActionDrawer() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const { isDrawerOpen, setDrawerOpen, setTransferOpen, setRequestMoneyOpen } = useAppStore();
+  const { isDrawerOpen, setDrawerOpen, setTransferOpen, setRequestMoneyOpen, featureFlags } = useAppStore();
+
+  // Filter quick actions based on feature flags
+  const filteredActions = quickActions.filter(action => {
+    if (action.id === 'transfer' && !featureFlags.transfersEnabled) return false;
+    if (action.id === 'qr' && !featureFlags.qrPaymentsEnabled) return false;
+    if (action.id === 'recharge' && !featureFlags.rechargeEnabled) return false;
+    if (action.id === 'bills' && !featureFlags.billsEnabled) return false;
+    if (action.id === 'deposit' && !featureFlags.depositsEnabled) return false;
+    if (action.id === 'withdraw' && !featureFlags.withdrawalsEnabled) return false;
+    if (action.id === 'exchange' && !featureFlags.exchangeEnabled) return false;
+    if (action.id === 'promo' && !featureFlags.giftCodesEnabled) return false;
+    return true;
+  });
 
   const handleClose = () => {
     setDrawerOpen(false);
@@ -104,7 +117,7 @@ export default function QuickActionDrawer() {
 
             {/* 4-column Grid */}
             <div className="grid grid-cols-4 gap-3 px-5 pb-8">
-              {quickActions.map((action, index) => {
+              {filteredActions.map((action, index) => {
                 const Icon = action.icon;
                 return (
                   <motion.button

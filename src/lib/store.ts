@@ -265,6 +265,100 @@ export interface SupportChatMessage {
   senderName?: string;
 }
 
+// Feature flags controlled by admin
+export interface FeatureFlags {
+  transfersEnabled: boolean;
+  depositsEnabled: boolean;
+  withdrawalsEnabled: boolean;
+  exchangeEnabled: boolean;
+  servicesEnabled: boolean;
+  rechargeEnabled: boolean;
+  billsEnabled: boolean;
+  investmentEnabled: boolean;
+  cryptoEnabled: boolean;
+  giftCodesEnabled: boolean;
+  qrPaymentsEnabled: boolean;
+  referralEnabled: boolean;
+  notificationsEnabled: boolean;
+  biometricEnabled: boolean;
+  pinEnabled: boolean;
+  darkModeEnabled: boolean;
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+  registrationEnabled: boolean;
+}
+
+// Transaction limits controlled by admin
+export interface TransactionLimits {
+  maxSingleTransfer: number;
+  maxDailyTransfer: number;
+  maxMonthlyTransfer: number;
+  maxSingleDeposit: number;
+  maxDailyDeposit: number;
+  maxBalance: number;
+}
+
+// Default feature flags - all TRUE so the app works even without Firebase
+export const defaultFeatureFlags: FeatureFlags = {
+  transfersEnabled: true,
+  depositsEnabled: true,
+  withdrawalsEnabled: true,
+  exchangeEnabled: true,
+  servicesEnabled: true,
+  rechargeEnabled: true,
+  billsEnabled: true,
+  investmentEnabled: true,
+  cryptoEnabled: true,
+  giftCodesEnabled: true,
+  qrPaymentsEnabled: true,
+  referralEnabled: true,
+  notificationsEnabled: true,
+  biometricEnabled: true,
+  pinEnabled: true,
+  darkModeEnabled: true,
+  maintenanceMode: false,
+  maintenanceMessage: '',
+  registrationEnabled: true,
+};
+
+// Default transaction limits
+export const defaultTransactionLimits: TransactionLimits = {
+  maxSingleTransfer: 500000,
+  maxDailyTransfer: 1000000,
+  maxMonthlyTransfer: 5000000,
+  maxSingleDeposit: 1000000,
+  maxDailyDeposit: 2000000,
+  maxBalance: 10000000,
+};
+
+// Limits by user tier
+export const limitsByTier = {
+  unverified: {
+    maxSingleTransfer: 50000,
+    maxDailyTransfer: 100000,
+    maxMonthlyTransfer: 500000,
+    maxSingleDeposit: 100000,
+    maxDailyDeposit: 200000,
+    maxBalance: 500000,
+  },
+  verified: {
+    maxSingleTransfer: 500000,
+    maxDailyTransfer: 1000000,
+    maxMonthlyTransfer: 5000000,
+    maxSingleDeposit: 1000000,
+    maxDailyDeposit: 2000000,
+    maxBalance: 10000000,
+  },
+  premium: {
+    maxSingleTransfer: 0, // unlimited
+    maxDailyTransfer: 0,
+    maxMonthlyTransfer: 0,
+    maxSingleDeposit: 0,
+    maxDailyDeposit: 0,
+    maxBalance: 0,
+  },
+};
+
 interface AppState {
   // Auth
   user: User | null;
@@ -439,6 +533,14 @@ interface AppState {
   // Exchange rate API URL
   exchangeRateApiUrl: string;
   setExchangeRateApiUrl: (url: string) => void;
+
+  // Feature flags (from admin)
+  featureFlags: FeatureFlags;
+  setFeatureFlags: (flags: Partial<FeatureFlags>) => void;
+
+  // Transaction limits (from admin)
+  transactionLimits: TransactionLimits;
+  setTransactionLimits: (limits: Partial<TransactionLimits>) => void;
 }
 
 // Default service categories
@@ -1284,6 +1386,18 @@ export const useAppStore = create<AppState>()(
         }
         set({ biometricTransactionConfirm });
       },
+
+      // Feature flags
+      featureFlags: defaultFeatureFlags,
+      setFeatureFlags: (flags) => set((state) => ({
+        featureFlags: { ...state.featureFlags, ...flags },
+      })),
+
+      // Transaction limits
+      transactionLimits: defaultTransactionLimits,
+      setTransactionLimits: (limits) => set((state) => ({
+        transactionLimits: { ...state.transactionLimits, ...limits },
+      })),
     }),
     {
       name: 'fahed-net-store',

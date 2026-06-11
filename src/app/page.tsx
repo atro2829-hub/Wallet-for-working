@@ -51,7 +51,7 @@ import { LOGO_BASE64 } from '@/lib/logo';
 type AppPhase = 'splash' | 'pin' | 'main';
 
 function AppContent() {
-  const { user, isAuthenticated, activeTab, activeScreen, setActiveScreen, theme: storeTheme, pinCode, selectedCategory } = useAppStore();
+  const { user, isAuthenticated, activeTab, activeScreen, setActiveScreen, theme: storeTheme, pinCode, selectedCategory, featureFlags } = useAppStore();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { setTheme } = useTheme();
@@ -529,7 +529,9 @@ function AppContent() {
   // locks the entire app even for users who aren't logged in yet.
   // Works in real-time: if admin activates maintenance while a user is in the
   // app, the maintenance screen appears immediately.
-  if (maintenance?.active) {
+  // Check both the legacy maintenance object and the featureFlags.maintenanceMode
+  if (maintenance?.active || featureFlags.maintenanceMode) {
+    const maintenanceMessage = featureFlags.maintenanceMessage || maintenance?.message || '';
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(145deg, #E60000 0%, #8B0000 60%, #5C0000 100%)' }}>
         <div className="flex flex-col items-center px-8 text-center">
@@ -537,8 +539,8 @@ function AppContent() {
             <img src={LOGO_BASE64} alt="الجنوب" className="w-14 h-14 object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-white mb-3">صيانة مجدولة</h1>
-          <p className="text-white/70 text-sm leading-relaxed mb-2">{maintenance.message || 'التطبيق حالياً في وضع الصيانة'}</p>
-          {maintenance.estimatedTime && (
+          <p className="text-white/70 text-sm leading-relaxed mb-2">{maintenanceMessage || 'التطبيق حالياً في وضع الصيانة'}</p>
+          {maintenance?.estimatedTime && (
             <p className="text-white/50 text-xs">الوقت المتوقع للعودة: {maintenance.estimatedTime}</p>
           )}
         </div>

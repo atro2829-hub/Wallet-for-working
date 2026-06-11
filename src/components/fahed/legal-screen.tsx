@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, HelpCircle, Shield, Info, ChevronDown, ChevronUp, ChevronLeft, Users, Eye, Target, Phone, Mail, Globe, Heart, Star } from 'lucide-react';
+import { ArrowRight, HelpCircle, Shield, Info, ChevronDown, ChevronUp, ChevronLeft, Users, Eye, Target, Phone, Mail, Globe, Heart, Star, MessageSquare } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { LOGO_BASE64 } from '@/lib/logo';
+import { database } from '@/lib/firebase';
+import { ref, onValue } from 'firebase/database';
 
 type LegalTab = 'faq' | 'privacy' | 'about';
 
@@ -53,7 +55,7 @@ const faqItems: FaqItem[] = [
   },
   {
     question: 'كيف أتواصل مع الدعم الفني؟',
-    answer: 'يمكنك التواصل مع فريق الدعم الفني بعدة طرق: من خلال قسم الدعم والمساعدة داخل التطبيق حيث يمكنك فتح تذكرة دعم جديدة والرد عليها مباشرة. أيضاً يمكنك التواصل عبر البريد الإلكتروني المخصص للدعم support@alhabaylain.com. فريق الدعم متاح للاستجابة لاستفساراتك وحل مشاكلك في أسرع وقت ممكن، عادةً خلال ساعات قليلة. نحرص على تقديم خدمة عملاء متميزة على مدار الساعة لمساعدتك في أي وقت.',
+    answer: 'يمكنك التواصل مع فريق الدعم الفني بعدة طرق: من خلال قسم الدعم والمساعدة داخل التطبيق حيث يمكنك فتح تذكرة دعم جديدة والرد عليها مباشرة. أيضاً يمكنك التواصل عبر البريد الإلكتروني المخصص للدعم. فريق الدعم متاح للاستجابة لاستفساراتك وحل مشاكلك في أسرع وقت ممكن، عادةً خلال ساعات قليلة. نحرص على تقديم خدمة عملاء متميزة على مدار الساعة لمساعدتك في أي وقت.',
   },
   {
     question: 'ما هو قسم الاستثمار؟',
@@ -178,9 +180,9 @@ const privacySections = [
     icon: '📞',
     content: `إذا كان لديك أي أسئلة أو استفسارات حول سياسة الخصوصية هذه أو كيفية تعاملنا مع بياناتك الشخصية، يمكنك التواصل معنا عبر:
 
-• البريد الإلكتروني: support@alhabaylain.com
-• الموقع الإلكتروني: www.alhabaylain.com
 • صفحة الدعم داخل التطبيق
+• البريد الإلكتروني الرسمي
+• الموقع الإلكتروني
 
 سنبذل قصارى جهدنا للرد على استفساراتك خلال 48 ساعة عمل. في حال رغبتك في تقديم شكوى تتعلق بالخصوصية، يمكنك أيضاً التواصل مع الجهات المختصة في الجمهورية اليمنية.
 
@@ -217,6 +219,38 @@ export default function LegalScreen() {
   const [activeTab, setActiveTab] = useState<LegalTab>('faq');
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
   const [expandedPrivacy, setExpandedPrivacy] = useState<number | null>(null);
+
+  // Support info from Firebase
+  const [supportInfo, setSupportInfo] = useState<{
+    supportEmail: string;
+    supportWebsite: string;
+    supportPhone: string;
+    contactAdmin: string;
+    contactAdminMessage: string;
+  }>({
+    supportEmail: '',
+    supportWebsite: '',
+    supportPhone: '',
+    contactAdmin: '',
+    contactAdminMessage: '',
+  });
+
+  useEffect(() => {
+    const linksRef = ref(database, 'adminSettings/socialLinks');
+    const unsubscribe = onValue(linksRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setSupportInfo({
+          supportEmail: data.supportEmail || '',
+          supportWebsite: data.supportWebsite || '',
+          supportPhone: data.supportPhone || '',
+          contactAdmin: data.contactAdmin || '',
+          contactAdminMessage: data.contactAdminMessage || '',
+        });
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const tabs: { id: LegalTab; label: string; icon: typeof HelpCircle }[] = [
     { id: 'faq', label: 'الأسئلة الشائعة', icon: HelpCircle },
@@ -464,7 +498,20 @@ export default function LegalScreen() {
                           style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}` }}
                         >
                           <div className="text-xs leading-relaxed pt-3 whitespace-pre-line" style={{ color: isDark ? '#AAA' : '#666' }}>
-                            {section.content}
+                            {section.title === 'التواصل معنا' ? (
+                              <>
+                                <p>{`إذا كان لديك أي أسئلة أو استفسارات حول سياسة الخصوصية هذه أو كيفية تعاملنا مع بياناتك الشخصية، يمكنك التواصل معنا عبر:`}</p>
+                                <p className="mt-2">• صفحة الدعم داخل التطبيق</p>
+                                {supportInfo.supportEmail && <p>• البريد الإلكتروني: {supportInfo.supportEmail}</p>}
+                                {supportInfo.supportWebsite && <p>• الموقع الإلكتروني: {supportInfo.supportWebsite}</p>}
+                                {!supportInfo.supportEmail && <p>• البريد الإلكتروني الرسمي</p>}
+                                {!supportInfo.supportWebsite && <p>• الموقع الإلكتروني</p>}
+                                <p className="mt-2">{`سنبذل قصارى جهدنا للرد على استفساراتك خلال 48 ساعة عمل. في حال رغبتك في تقديم شكوى تتعلق بالخصوصية، يمكنك أيضاً التواصل مع الجهات المختصة في الجمهورية اليمنية.`}</p>
+                                <p className="mt-1">{`نحن نقدر ثقتك بنا ونسعى دائماً لتحسين ممارسات حماية البيانات لدينا.`}</p>
+                              </>
+                            ) : (
+                              section.content
+                            )}
                           </div>
                         </div>
                       </motion.div>
@@ -666,7 +713,7 @@ export default function LegalScreen() {
                 </div>
               </motion.div>
 
-              {/* معلومات التواصل */}
+              {/* معلومات التواصل - Dynamic from Firebase */}
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -684,33 +731,52 @@ export default function LegalScreen() {
                   </h3>
                 </div>
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(230,0,0,0.1)' }}>
-                      <Mail size={14} color="#E60000" />
+                  {supportInfo.supportEmail && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(230,0,0,0.1)' }}>
+                        <Mail size={14} color="#E60000" />
+                      </div>
+                      <div>
+                        <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>البريد الإلكتروني</p>
+                        <p className="text-xs font-bold" style={{ color: isDark ? '#CCC' : '#444' }} dir="ltr">{supportInfo.supportEmail}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>البريد الإلكتروني</p>
-                      <p className="text-xs font-bold" style={{ color: isDark ? '#CCC' : '#444' }} dir="ltr">support@alhabaylain.com</p>
+                  )}
+                  {supportInfo.supportWebsite && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.1)' }}>
+                        <Globe size={14} color="#10B981" />
+                      </div>
+                      <div>
+                        <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>الموقع الإلكتروني</p>
+                        <p className="text-xs font-bold" style={{ color: isDark ? '#CCC' : '#444' }} dir="ltr">{supportInfo.supportWebsite}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.1)' }}>
-                      <Globe size={14} color="#10B981" />
+                  )}
+                  {supportInfo.supportPhone && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.1)' }}>
+                        <Phone size={14} color="#8B5CF6" />
+                      </div>
+                      <div>
+                        <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>هاتف الدعم</p>
+                        <p className="text-xs font-bold" style={{ color: isDark ? '#CCC' : '#444' }} dir="ltr">{supportInfo.supportPhone}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>الموقع الإلكتروني</p>
-                      <p className="text-xs font-bold" style={{ color: isDark ? '#CCC' : '#444' }} dir="ltr">www.alhabaylain.com</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.1)' }}>
-                      <Phone size={14} color="#8B5CF6" />
-                    </div>
-                    <div>
-                      <p className="text-[10px]" style={{ color: isDark ? '#888' : '#AAA' }}>هاتف الدعم</p>
-                      <p className="text-xs font-bold" style={{ color: isDark ? '#CCC' : '#444' }} dir="ltr">+967 7XX XXX XXX</p>
-                    </div>
-                  </div>
+                  )}
+                  {supportInfo.contactAdminMessage && (
+                    <p className="text-xs leading-relaxed" style={{ color: isDark ? '#AAA' : '#666' }}>
+                      {supportInfo.contactAdminMessage}
+                    </p>
+                  )}
+                  <button
+                    onClick={() => setActiveScreen('support')}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl active:scale-95 transition-transform"
+                    style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}
+                  >
+                    <MessageSquare size={16} strokeWidth={1.5} color="#10B981" />
+                    <span className="text-sm font-bold" style={{ color: '#10B981' }}>تواصل معنا</span>
+                  </button>
                 </div>
               </motion.div>
 

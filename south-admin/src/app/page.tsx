@@ -53,6 +53,7 @@ import AppVersionPanel from '@/components/admin/app-version-panel';
 import AboutPanel from '@/components/admin/about-panel';
 import EmployeesPanel from '@/components/admin/employees-panel';
 import BrandingPanel from '@/components/admin/branding-panel';
+import OfficesPanel from '@/components/admin/offices-panel';
 import { Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { APP_ICON_BASE64 } from '@/lib/app-icon';
@@ -73,6 +74,7 @@ const panelMap: Record<string, React.ComponentType> = {
   investments: InvestmentsPanel,
   'gift-codes': GiftCodesPanel,
   'promo-codes': PromoCodesPanel,
+  offices: OfficesPanel,
   banks: BanksPanel,
   limits: LimitsPanel,
   'financial-reports': FinancialReportsPanel,
