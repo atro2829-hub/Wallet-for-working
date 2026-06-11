@@ -70,3 +70,24 @@ coverage/
 
 # JDK installations
 .jdks/
+
+# Android SDK
+.android-sdk/
+
+# SQLite databases
+db/*.db
+
+# Keystore files (security)
+*.keystore
+
+# Agent context
+agent-ctx/
+
+# Skills
+skills/
+
+# Download directory
+download/
+
+# Work files
+worklog.md
