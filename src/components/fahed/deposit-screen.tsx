@@ -103,6 +103,9 @@ export default function DepositScreen() {
   const [promoApplied, setPromoApplied] = useState(false);
   const [promoDiscount, setPromoDiscount] = useState(0);
 
+  // Selected bank for deposit
+  const [selectedBankId, setSelectedBankId] = useState('');
+
   // Crypto deposit form
   const [selectedCryptoId, setSelectedCryptoId] = useState('');
   const [cryptoTxHash, setCryptoTxHash] = useState('');
@@ -113,6 +116,9 @@ export default function DepositScreen() {
   const [withdrawMethod, setWithdrawMethod] = useState<WithdrawMethod>('bank_transfer');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [bankName, setBankName] = useState('');
+
+  // Selected bank for withdraw
+  const [selectedWithdrawBankId, setSelectedWithdrawBankId] = useState('');
 
   // Crypto withdraw form
   const [selectedWithdrawCryptoId, setSelectedWithdrawCryptoId] = useState('');
@@ -496,6 +502,7 @@ export default function DepositScreen() {
       setPromoDiscount(0);
       setSelectedCryptoId('');
       setCryptoTxHash('');
+      setSelectedBankId('');
     } catch (error) {
       console.error('Error submitting deposit:', error);
     }
@@ -562,6 +569,7 @@ export default function DepositScreen() {
       setWithdrawAmount('');
       setBankAccountNumber('');
       setBankName('');
+      setSelectedWithdrawBankId('');
       setSelectedWithdrawCryptoId('');
       setCryptoWalletAddress('');
     } catch (error) {
@@ -583,6 +591,20 @@ export default function DepositScreen() {
   // Get selected crypto for display
   const selectedCrypto = cryptoCurrencies.find(c => c.id === selectedCryptoId);
   const selectedWithdrawCrypto = cryptoCurrencies.find(c => c.id === selectedWithdrawCryptoId);
+
+  // Get selected bank for display
+  const selectedBank = banks.find(b => b.id === selectedBankId);
+  const selectedWithdrawBank = banks.find(b => b.id === selectedWithdrawBankId);
+
+  // Auto-select bank when only one exists
+  useEffect(() => {
+    if (!banksLoading && banks.length === 1 && !selectedBankId) {
+      setSelectedBankId(banks[0].id);
+    }
+    if (!banksLoading && banks.length === 1 && !selectedWithdrawBankId) {
+      setSelectedWithdrawBankId(banks[0].id);
+    }
+  }, [banks, banksLoading, selectedBankId, selectedWithdrawBankId]);
 
   return (
     <div className="min-h-screen pb-6" style={{ background: isDark ? '#0F0F0F' : '#F5F5F5' }}>
@@ -773,51 +795,92 @@ export default function DepositScreen() {
                       <p className="text-xs mt-2" style={{ color: isDark ? '#555' : '#AAA' }}>لا توجد بنوك متاحة حالياً</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {banks.map((bank) => {
-                        const bankColor = bank.color || '#E60000';
-                        const bankFirstLetter = bank.bankName ? bank.bankName.charAt(0) : 'B';
-                        return (
-                          <div key={bank.id} className="rounded-xl p-3" style={{ background: isDark ? '#1A1A1A' : '#F8F8F8', borderRight: `3px solid ${bankColor}` }}>
-                            <div className="flex items-center gap-2 mb-2">
-                              {/* Bank icon: uploaded image or first letter fallback */}
+                    <>
+                      {/* Bank Selector */}
+                      <label className="text-xs font-medium block mb-2" style={{ color: isDark ? '#AAA' : '#666' }}>اختر البنك</label>
+                      <div className="space-y-2 mb-4">
+                        {banks.map((bank) => {
+                          const bankColor = bank.color || '#E60000';
+                          const bankFirstLetter = bank.bankName ? bank.bankName.charAt(0) : 'B';
+                          return (
+                            <button
+                              key={bank.id}
+                              onClick={() => setSelectedBankId(bank.id)}
+                              className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
+                              style={{
+                                background: selectedBankId === bank.id ? `${bankColor}15` : (isDark ? '#1A1A1A' : '#F8F8F8'),
+                                border: selectedBankId === bank.id ? `1px solid ${bankColor}40` : '1px solid transparent',
+                              }}
+                            >
                               {bank.icon ? (
-                                <img src={bank.icon} alt={bank.bankName} className="w-8 h-8 rounded-lg object-cover" />
+                                <img src={bank.icon} alt={bank.bankName} className="w-10 h-10 rounded-xl object-cover" />
                               ) : (
                                 <div
-                                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold"
+                                  className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold"
                                   style={{ backgroundColor: bankColor }}
                                 >
                                   {bankFirstLetter}
                                 </div>
                               )}
-                              <span className="text-xs font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{bank.bankName}</span>
+                              <div className="text-right flex-1">
+                                <p className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{bank.bankName}</p>
+                              </div>
+                              <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center" style={{ borderColor: selectedBankId === bank.id ? bankColor : (isDark ? '#333' : '#DDD') }}>
+                                {selectedBankId === bank.id && <div className="w-2.5 h-2.5 rounded-full" style={{ background: bankColor }} />}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Show selected bank details */}
+                      {selectedBank && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="rounded-xl p-3"
+                          style={{
+                            background: isDark ? '#1A1A1A' : '#F8F8F8',
+                            borderRight: `3px solid ${selectedBank.color || '#E60000'}`,
+                          }}
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            {selectedBank.icon ? (
+                              <img src={selectedBank.icon} alt={selectedBank.bankName} className="w-8 h-8 rounded-lg object-cover" />
+                            ) : (
+                              <div
+                                className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold"
+                                style={{ backgroundColor: selectedBank.color || '#E60000' }}
+                              >
+                                {selectedBank.bankName ? selectedBank.bankName.charAt(0) : 'B'}
+                              </div>
+                            )}
+                            <span className="text-xs font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{selectedBank.bankName}</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>اسم الحساب</span>
+                              <span className="text-xs font-medium" style={{ color: isDark ? '#CCC' : '#333' }}>{selectedBank.accountName}</span>
                             </div>
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>اسم الحساب</span>
-                                <span className="text-xs font-medium" style={{ color: isDark ? '#CCC' : '#333' }}>{bank.accountName}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>رقم الحساب</span>
-                                <button
-                                  onClick={() => handleCopyText(bank.accountNumber, 'bank', bank.id)}
-                                  className="flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all"
-                                  style={{ background: isDark ? '#222' : '#F0F0F0' }}
-                                >
-                                  <span className="text-xs font-medium font-mono" style={{ color: isDark ? '#CCC' : '#333' }} dir="ltr">{bank.accountNumber}</span>
-                                  {copiedBankId === bank.id ? (
-                                    <Check size={12} color="#10B981" />
-                                  ) : (
-                                    <Copy size={12} color={isDark ? '#666' : '#AAA'} />
-                                  )}
-                                </button>
-                              </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px]" style={{ color: isDark ? '#666' : '#AAA' }}>رقم الحساب</span>
+                              <button
+                                onClick={() => handleCopyText(selectedBank.accountNumber, 'bank', selectedBank.id)}
+                                className="flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all"
+                                style={{ background: isDark ? '#222' : '#F0F0F0' }}
+                              >
+                                <span className="text-xs font-medium font-mono" style={{ color: isDark ? '#CCC' : '#333' }} dir="ltr">{selectedBank.accountNumber}</span>
+                                {copiedBankId === selectedBank.id ? (
+                                  <Check size={12} color="#10B981" />
+                                ) : (
+                                  <Copy size={12} color={isDark ? '#666' : '#AAA'} />
+                                )}
+                              </button>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
+                        </motion.div>
+                      )}
+                    </>
                   )}
 
                   {/* Receipt Upload */}
@@ -1301,31 +1364,113 @@ export default function DepositScreen() {
                     border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
                   }}
                 >
-                  <label className="text-xs font-medium block mb-2" style={{ color: isDark ? '#AAA' : '#666' }}>اسم البنك</label>
-                  <input
-                    type="text"
-                    value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
-                    placeholder="مثال: بنك الكريمي"
-                    className="w-full bg-transparent outline-none text-sm p-2.5 rounded-xl mb-3"
-                    style={{
-                      color: isDark ? '#FFF' : '#1a1a1a',
-                      background: isDark ? '#1A1A1A' : '#F8F8F8',
-                    }}
-                  />
-                  <label className="text-xs font-medium block mb-2" style={{ color: isDark ? '#AAA' : '#666' }}>رقم الحساب</label>
-                  <input
-                    type="text"
-                    value={bankAccountNumber}
-                    onChange={(e) => setBankAccountNumber(e.target.value)}
-                    placeholder="أدخل رقم الحساب البنكي"
-                    className="w-full bg-transparent outline-none text-sm p-2.5 rounded-xl"
-                    style={{
-                      color: isDark ? '#FFF' : '#1a1a1a',
-                      background: isDark ? '#1A1A1A' : '#F8F8F8',
-                    }}
-                    dir="ltr"
-                  />
+                  <div className="flex items-center gap-2 mb-3">
+                    <Building2 size={14} color="#E60000" strokeWidth={1.5} />
+                    <span className="text-xs font-bold" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>بيانات السحب البنكي</span>
+                  </div>
+
+                  {banksLoading ? (
+                    <div className="flex items-center justify-center py-6">
+                      <div className="w-6 h-6 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
+                    </div>
+                  ) : banks.length === 0 ? (
+                    <>
+                      <label className="text-xs font-medium block mb-2" style={{ color: isDark ? '#AAA' : '#666' }}>اسم البنك</label>
+                      <input
+                        type="text"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        placeholder="مثال: بنك الكريمي"
+                        className="w-full bg-transparent outline-none text-sm p-2.5 rounded-xl mb-3"
+                        style={{
+                          color: isDark ? '#FFF' : '#1a1a1a',
+                          background: isDark ? '#1A1A1A' : '#F8F8F8',
+                        }}
+                      />
+                      <label className="text-xs font-medium block mb-2" style={{ color: isDark ? '#AAA' : '#666' }}>رقم الحساب</label>
+                      <input
+                        type="text"
+                        value={bankAccountNumber}
+                        onChange={(e) => setBankAccountNumber(e.target.value)}
+                        placeholder="أدخل رقم الحساب البنكي"
+                        className="w-full bg-transparent outline-none text-sm p-2.5 rounded-xl"
+                        style={{
+                          color: isDark ? '#FFF' : '#1a1a1a',
+                          background: isDark ? '#1A1A1A' : '#F8F8F8',
+                        }}
+                        dir="ltr"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      {/* Bank Selector for Withdraw */}
+                      <label className="text-xs font-medium block mb-2" style={{ color: isDark ? '#AAA' : '#666' }}>اختر البنك</label>
+                      <div className="space-y-2 mb-4">
+                        {banks.map((bank) => {
+                          const bankColor = bank.color || '#E60000';
+                          const bankFirstLetter = bank.bankName ? bank.bankName.charAt(0) : 'B';
+                          return (
+                            <button
+                              key={bank.id}
+                              onClick={() => {
+                                setSelectedWithdrawBankId(bank.id);
+                                setBankName(bank.bankName);
+                              }}
+                              className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
+                              style={{
+                                background: selectedWithdrawBankId === bank.id ? `${bankColor}15` : (isDark ? '#1A1A1A' : '#F8F8F8'),
+                                border: selectedWithdrawBankId === bank.id ? `1px solid ${bankColor}40` : '1px solid transparent',
+                              }}
+                            >
+                              {bank.icon ? (
+                                <img src={bank.icon} alt={bank.bankName} className="w-10 h-10 rounded-xl object-cover" />
+                              ) : (
+                                <div
+                                  className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold"
+                                  style={{ backgroundColor: bankColor }}
+                                >
+                                  {bankFirstLetter}
+                                </div>
+                              )}
+                              <div className="text-right flex-1">
+                                <p className="text-sm font-medium" style={{ color: isDark ? '#FFF' : '#1a1a1a' }}>{bank.bankName}</p>
+                              </div>
+                              <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center" style={{ borderColor: selectedWithdrawBankId === bank.id ? bankColor : (isDark ? '#333' : '#DDD') }}>
+                                {selectedWithdrawBankId === bank.id && <div className="w-2.5 h-2.5 rounded-full" style={{ background: bankColor }} />}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Bank name (auto-filled from selection, editable) */}
+                      <label className="text-xs font-medium block mb-2" style={{ color: isDark ? '#AAA' : '#666' }}>اسم البنك</label>
+                      <input
+                        type="text"
+                        value={bankName}
+                        onChange={(e) => { setBankName(e.target.value); setSelectedWithdrawBankId(''); }}
+                        placeholder="مثال: بنك الكريمي"
+                        className="w-full bg-transparent outline-none text-sm p-2.5 rounded-xl mb-3"
+                        style={{
+                          color: isDark ? '#FFF' : '#1a1a1a',
+                          background: isDark ? '#1A1A1A' : '#F8F8F8',
+                        }}
+                      />
+                      <label className="text-xs font-medium block mb-2" style={{ color: isDark ? '#AAA' : '#666' }}>رقم الحساب</label>
+                      <input
+                        type="text"
+                        value={bankAccountNumber}
+                        onChange={(e) => setBankAccountNumber(e.target.value)}
+                        placeholder="أدخل رقم الحساب البنكي"
+                        className="w-full bg-transparent outline-none text-sm p-2.5 rounded-xl"
+                        style={{
+                          color: isDark ? '#FFF' : '#1a1a1a',
+                          background: isDark ? '#1A1A1A' : '#F8F8F8',
+                        }}
+                        dir="ltr"
+                      />
+                    </>
+                  )}
                 </motion.div>
               )}
 

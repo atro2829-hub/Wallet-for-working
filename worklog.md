@@ -170,3 +170,69 @@ Stage Summary:
 - south-dev app fully built with all 8 panels working
 - Build compiles and passes successfully
 - Main dev server running on port 3000
+
+---
+Task ID: 2
+Agent: full-stack-developer
+Task: Fix deposit/withdraw screens to use dropdown for banks instead of flat list
+
+Work Log:
+- Added `selectedBankId` state for deposit bank selection
+- Added `selectedWithdrawBankId` state for withdraw bank selection
+- Added `selectedBank` and `selectedWithdrawBank` computed values
+- Added auto-select effect: when only one bank exists, it's auto-selected for both deposit and withdraw
+- Replaced deposit bank flat list with radio-style bank selector (matching method selector style)
+  - Shows bank icon/first-letter, bank name, radio indicator per bank
+  - Only shows selected bank's details card (account name, account number with copy button)
+  - Receipt upload section preserved after bank details
+- Replaced withdraw bank transfer section with bank dropdown selector
+  - When banks available: shows radio-style selector, auto-fills bank name on selection
+  - Bank name field remains editable (deselects dropdown if manually edited)
+  - Account number input preserved
+  - When no banks: falls back to original free-form inputs
+- Both deposit and withdraw reset bank selection state on form submission
+- ESLint passes with no errors
+
+Stage Summary:
+- Deposit screen: flat bank list → dropdown selector + single details card
+- Withdraw screen: free-form inputs → bank dropdown + auto-fill + editable inputs
+- Auto-select when only one bank exists
+- All existing functionality preserved (copy account number, receipt upload, etc.)
+- Visual style matches method selector (glass cards, dark mode support, radio buttons with bank colors)
+
+Task ID: 3
+Agent: Main Agent
+Task: Create GitHub Actions workflow for building all 3 South Wallet Android apps
+
+Work Log:
+- Read worklog.md to review previous task history and context
+- Checked keystore file existence: Found at `/home/z/my-project/south-wallet.keystore` (project root); not found at android/, android/app/, or android/app/keystore/ subdirectories
+- Reviewed all 3 build.gradle files for signing configuration:
+  - User app (android/app/build.gradle): namespace com.qtbm.south, supports CI properties via `-PMYAPP_UPLOAD_*`, local fallback to `../../south-wallet.keystore`
+  - Admin app (south-admin/android/app/build.gradle): namespace com.qtbm.south.admin, same CI property pattern, local fallback to `../../../south-wallet.keystore`
+  - Dev app (south-dev/android/app/build.gradle): namespace com.qtbm.south.dev, same CI property pattern, local fallback to `../../../south-wallet.keystore`, has try-catch for google-services.json
+- Reviewed all 6 existing workflow files (build-android.yml, build-apks.yml, build-apk.yml, build.yml, build-admin-android.yml, build-custom-app.yml) for patterns and best practices
+- Created comprehensive new build-android.yml workflow replacing the previous version (which used Node 24 and lacked Dev app in SHA summary)
+- Key improvements over previous workflow:
+  - Node 22 (stable) instead of Node 24 (not released)
+  - All 3 apps included with proper keystore path references
+  - Keystore credentials centralized in env variables
+  - Workflow dispatch with choice input (all/user/admin/dev)
+  - Android SDK setup with license acceptance and component installation
+  - Keystore verification step before build
+  - Static export and Capacitor sync verification steps
+  - APK signing verification using apksigner
+  - SHA-1 and SHA-256 fingerprint extraction from both keystore and signed APK
+  - Per-app SHA fingerprint extraction with GITHUB_OUTPUT for potential downstream use
+  - Centralized SHA fingerprints summary job that runs always (even on failure)
+  - Firebase configuration guidance in summary output
+  - Build result status display for all 3 apps
+  - User app: includes Prisma generate + API route removal for static export
+  - Dev app: uses npm install (not npm ci) as it may lack package-lock.json
+
+Stage Summary:
+- Created `.github/workflows/build-android.yml` with 4 jobs (3 build + 1 summary)
+- All 3 apps (User, Admin, Dev) build in parallel with signed release APKs
+- Keystore found at project root, all build.gradle files use consistent CI property pattern
+- SHA fingerprint extraction from both keystore and signed APK
+- Workflow triggers on push to main and supports manual dispatch with app selection
