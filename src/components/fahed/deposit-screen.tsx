@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { formatNumber, currencySymbols, currencyBadgeColors, generateReference, compressBase64Image, defaultExchangeRates } from '@/lib/utils';
+import { playTransactionSound } from '@/lib/transaction-sounds';
 import { database } from '@/lib/firebase';
 import { ref, get, set, update } from 'firebase/database';
 
@@ -483,6 +484,9 @@ export default function DepositScreen() {
       // Update local store
       addDepositRequest(request as any);
 
+      // Play deposit sound
+      playTransactionSound('deposit');
+
       // Reset form
       setDepositAmount('');
       setReceiptImage('');
@@ -550,6 +554,9 @@ export default function DepositScreen() {
 
       // Update local store
       addWithdrawRequest(request as any);
+
+      // Play withdraw sound
+      playTransactionSound('withdraw');
 
       // Reset form
       setWithdrawAmount('');

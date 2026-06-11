@@ -69,7 +69,7 @@ interface Section {
 const accountSections: Section[] = [
   {
     id: 'account',
-    title: 'إعدادات الحساب والملف الشخصي',
+    title: 'الملف الشخصي',
     icon: User,
     iconColor: '#E60000',
     items: [
@@ -85,20 +85,19 @@ const accountSections: Section[] = [
     icon: Shield,
     iconColor: '#E60000',
     items: [
-      { id: 'auto-login', label: 'تسجيل الدخول تلقائياً', icon: Shield, color: '#10B981', toggle: true },
       { id: 'change-password', label: 'تغيير كلمة المرور', icon: Lock, color: '#E60000' },
       { id: 'notifications-settings', label: 'الإشعارات والتنبيهات', icon: Bell, color: '#2563EB', screen: 'notifications' },
     ],
   },
   {
     id: 'app-settings',
-    title: 'إعدادات التطبيق',
+    title: 'التطبيق',
     icon: Settings,
     iconColor: '#666',
     items: [
-      { id: 'general-settings', label: 'الإعدادات العامة', icon: Settings, color: '#666' },
-      { id: 'terms', label: 'الشروط والأحكام', icon: FileText, color: '#2563EB' },
-      { id: 'privacy-policy', label: 'سياسة الخصوصية', icon: Shield, color: '#8B5CF6' },
+      { id: 'general-settings', label: 'الإعدادات', icon: Settings, color: '#666', screen: 'settings' },
+      { id: 'terms', label: 'الشروط والأحكام', icon: FileText, color: '#2563EB', screen: 'legal' },
+      { id: 'privacy-policy', label: 'سياسة الخصوصية', icon: Shield, color: '#8B5CF6', screen: 'legal' },
       { id: 'share-app', label: 'مشاركة التطبيق', icon: Share2, color: '#10B981' },
     ],
   },

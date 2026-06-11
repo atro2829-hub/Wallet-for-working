@@ -1,46 +1,119 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Wrench,
-  ToggleLeft,
   Save,
   AlertTriangle,
-  MessageSquare,
   Clock,
+  Check,
+  Loader2,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { database } from '@/lib/firebase';
+import { ref, get, set } from 'firebase/database';
 
 export default function MaintenancePanel() {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('نحن نقوم بتحسين النظام. سنعود قريباً!');
   const [estimatedTime, setEstimatedTime] = useState('30 دقيقة');
   const [allowAdminAccess, setAllowAdminAccess] = useState(true);
-  const [showBanner, setShowBanner] = useState(false);
-  const [bannerMessage, setBannerMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load current maintenance settings from Firebase on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const snapshot = await get(ref(database, 'adminSettings/maintenance'));
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          setMaintenanceMode(data.active === true);
+          setMaintenanceMessage(data.message || 'نحن نقوم بتحسين النظام. سنعود قريباً!');
+          setEstimatedTime(data.estimatedTime || '30 دقيقة');
+          setAllowAdminAccess(data.allowAdminAccess !== false);
+        }
+      } catch (error) {
+        console.error('Error loading maintenance settings:', error);
+      }
+      setIsLoading(false);
+    };
+    loadSettings();
+  }, []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveSuccess(false);
+    try {
+      const maintenanceData = {
+        active: maintenanceMode,
+        message: maintenanceMessage,
+        estimatedTime: estimatedTime,
+        allowAdminAccess: allowAdminAccess,
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'admin',
+      };
+      await set(ref(database, 'adminSettings/maintenance'), maintenanceData);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error('Error saving maintenance settings:', error);
+    }
+    setIsSaving(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-[800px] mx-auto">
       <div>
         <h1 className="ios-large-title text-foreground">وضع الصيانة</h1>
-        <p className="text-muted-foreground text-sm mt-1">إدارة وضع صيانة التطبيق</p>
+        <p className="text-muted-foreground text-sm mt-1">إدارة وضع صيانة التطبيق - عند التفعيل يتم قفل التطبيق على جميع المستخدمين فوراً</p>
       </div>
 
       {/* Warning */}
-      {maintenanceMode && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/20"
-        >
-          <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-red-500">وضع الصيانة مفعّل</p>
-            <p className="text-xs text-red-400">المستخدمون لن يتمكنوا من الوصول للتطبيق</p>
-          </div>
-        </motion.div>
-      )}
+      <AnimatePresence>
+        {maintenanceMode && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-center gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/20"
+          >
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-red-500">وضع الصيانة مفعّل</p>
+              <p className="text-xs text-red-400">المستخدمون لن يتمكنوا من الوصول للتطبيق حتى يتم تعطيل وضع الصيانة</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Success message */}
+      <AnimatePresence>
+        {saveSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-center gap-3 p-4 rounded-2xl bg-green-500/10 border border-green-500/20"
+          >
+            <Check className="w-5 h-5 text-green-500 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-green-500">تم الحفظ بنجاح</p>
+              <p className="text-xs text-green-400">{maintenanceMode ? 'وضع الصيانة مفعّل - التطبيق مقفل للمستخدمين' : 'وضع الصيانة معطّل - التطبيق متاح للجميع'}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Toggle */}
       <div className="ios-card p-5">
@@ -51,7 +124,7 @@ export default function MaintenancePanel() {
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">وضع الصيانة</p>
-              <p className="text-xs text-muted-foreground">{maintenanceMode ? 'التطبيق في وضع الصيانة' : 'التطبيق يعمل بشكل طبيعي'}</p>
+              <p className="text-xs text-muted-foreground">{maintenanceMode ? 'التطبيق في وضع الصيانة - مقفل للمستخدمين' : 'التطبيق يعمل بشكل طبيعي'}</p>
             </div>
           </div>
           <div
@@ -89,7 +162,7 @@ export default function MaintenancePanel() {
         <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-foreground">السماح بوصول المديرين</span>
+            <span className="text-sm text-foreground">السماح بوصول المديرين أثناء الصيانة</span>
           </div>
           <div
             onClick={() => setAllowAdminAccess(!allowAdminAccess)}
@@ -98,33 +171,23 @@ export default function MaintenancePanel() {
         </div>
       </div>
 
-      {/* Banner */}
-      <div className="ios-card p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">بانر إعلاني مؤقت</h3>
-          <div
-            onClick={() => setShowBanner(!showBanner)}
-            className={cn('ios-toggle', showBanner && 'active')}
-          />
-        </div>
-        {showBanner && (
-          <div>
-            <label className="text-xs text-muted-foreground mb-1.5 block">نص البانر</label>
-            <input
-              type="text"
-              value={bannerMessage}
-              onChange={(e) => setBannerMessage(e.target.value)}
-              className="w-full h-11 px-4 rounded-xl bg-muted/30 border border-border/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/30"
-              placeholder="رسالة تظهر في أعلى التطبيق"
-            />
-          </div>
-        )}
-      </div>
-
       {/* Save */}
-      <button className="w-full py-3 rounded-2xl bg-purple-500 text-white font-medium text-sm shadow-lg shadow-purple-500/25 active:scale-[0.98] transition-transform flex items-center justify-center gap-2">
-        <Save className="w-4 h-4" />
-        حفظ الإعدادات
+      <button
+        onClick={handleSave}
+        disabled={isSaving}
+        className={cn(
+          "w-full py-3 rounded-2xl bg-purple-500 text-white font-medium text-sm shadow-lg shadow-purple-500/25 active:scale-[0.98] transition-transform flex items-center justify-center gap-2",
+          isSaving && "opacity-70 cursor-not-allowed"
+        )}
+      >
+        {isSaving ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : saveSuccess ? (
+          <Check className="w-4 h-4" />
+        ) : (
+          <Save className="w-4 h-4" />
+        )}
+        {isSaving ? 'جاري الحفظ...' : saveSuccess ? 'تم الحفظ' : 'حفظ الإعدادات'}
       </button>
     </div>
   );

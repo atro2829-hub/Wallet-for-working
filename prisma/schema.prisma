@@ -7,7 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ====== USER SYSTEM ======
+// ============================================================
+// USER SYSTEM
+// ============================================================
+
 model User {
   id            String   @id @default(cuid())
   email         String   @unique
@@ -16,7 +19,7 @@ model User {
   userId        String   @unique              // 10XXXX format (6 digits), used for transactions
   name          String   @default("")
   avatar        String   @default("")
-  role          String   @default("user")      // user | admin
+  role          String   @default("user")      // user | admin | employee
   kycStatus     String   @default("pending")   // pending | submitted | verified | rejected
   kycIdNumber   String   @default("")
   kycIdPhoto    String   @default("")          // base64
@@ -25,7 +28,7 @@ model User {
   blockReason   String   @default("")
   fcmToken      String   @default("")
   theme         String   @default("light")     // light | dark
-  language      String   @default("ar")
+  language      String   @default("ar")        // ar | en
   balanceYER    Float    @default(0)
   balanceSAR    Float    @default(0)
   balanceUSD    Float    @default(0)
@@ -33,6 +36,7 @@ model User {
   cardNumber    String   @default("")
   cardIssuedAt  String   @default("")           // where the card was issued
   governorate   String   @default("")           // Southern Yemen governorate
+  lastLoginAt   DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -40,6 +44,8 @@ model User {
   transactionsTo   Transaction[] @relation("ToTransaction")
   notifications    Notification[]
   sessions         Session[]
+  auditLogs        AuditLog[]
+  employee         Employee?
 }
 
 model Session {
@@ -47,6 +53,7 @@ model Session {
   userId    String
   token     String   @unique
   device    String   @default("")
+  ip        String   @default("")
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   expiresAt DateTime
@@ -54,25 +61,146 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// ====== TRANSACTIONS ======
+// ============================================================
+// EMPLOYEE & ROLES SYSTEM
+// ============================================================
+
+model Employee {
+  id          String   @id @default(cuid())
+  userId      String   @unique               // Link to User record
+  displayName String   @default("")
+  role        String   @default("employee")   // employee | supervisor | manager
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions EmployeePermission[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmployeePermission {
+  id         String   @id @default(cuid())
+  employeeId String
+  module     String                        // e.g. "users", "deposit", "withdraw", "orders", "services", "settings", "reports", "support"
+  canView    Boolean  @default(false)
+  canCreate  Boolean  @default(false)
+  canEdit    Boolean  @default(false)
+  canDelete  Boolean  @default(false)
+  canApprove Boolean  @default(false)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, module])
+}
+
+// ============================================================
+// TRANSACTIONS
+// ============================================================
+
 model Transaction {
   id          String   @id @default(cuid())
   fromUserId  String
   toUserId    String
   amount      Float
   currency    String   // YER | SAR | USD
-  type        String   // transfer | deposit | withdraw | payment | recharge | bill | purchase
-  status      String   @default("pending") // pending | completed | failed | refunded
+  type        String   // transfer | deposit | withdraw | payment | recharge | bill | purchase | code_redemption
+  status      String   @default("pending") // pending | completed | failed | refunded | cancelled
   description String   @default("")
   reference   String   @default("")        // Transaction reference number
   metadata    String   @default("")        // JSON string for extra data
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   fromUser User @relation("FromTransaction", fields: [fromUserId], references: [id])
   toUser   User @relation("ToTransaction", fields: [toUserId], references: [id])
 }
 
-// ====== NOTIFICATIONS ======
+// ============================================================
+// ENTERTAINMENT SERVICES SYSTEM
+// ============================================================
+
+model ServiceCategory {
+  id          String   @id @default(cuid())
+  name        String
+  nameEn      String   @default("")
+  icon        String   @default("")
+  color       String   @default("#E60000")
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  type        String   @default("wallet")   // wallet | api_provider
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  services Service[]
+}
+
+model Service {
+  id           String   @id @default(cuid())
+  categoryId   String
+  name         String
+  nameEn       String   @default("")
+  icon         String   @default("")
+  color        String   @default("#E60000")
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  type         String   @default("code")    // code | api | manual
+  instructions String   @default("")         // Usage instructions for customers (e.g., how to redeem PUBG code)
+  instructionsEn String @default("")
+  apiEndpoint  String   @default("")         // For API-based services
+  apiMethod    String   @default("POST")
+  apiHeaders   String   @default("")         // JSON
+  apiBodyTemplate String @default("")        // JSON template with {quantity}, {phone}, etc.
+  apiResponseFormat String @default("")      // JSON path to extract code/pin from response
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  category    ServiceCategory @relation(fields: [categoryId], references: [id])
+  packages    ServicePackage[]
+  codes       ProductCode[]
+}
+
+model ServicePackage {
+  id          String   @id @default(cuid())
+  serviceId   String
+  name        String                         // e.g., "60 UC", "325 UC", "660 UC"
+  nameEn      String   @default("")
+  price       Float
+  currency    String   @default("YER")
+  costPrice   Float    @default(0)           // Cost price for admin profit tracking
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  codes   ProductCode[]
+}
+
+model ProductCode {
+  id          String   @id @default(cuid())
+  serviceId   String                         // Direct link to service for quick lookup
+  packageId   String
+  code        String                         // The actual code/pin
+  serial      String   @default("")          // Serial number if applicable
+  status      String   @default("available") // available | sold | reserved | expired
+  soldTo      String   @default("")          // User ID who purchased
+  soldAt      DateTime?
+  orderId     String   @default("")          // Reference to order
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  service Service        @relation(fields: [serviceId], references: [id])
+  package ServicePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@index([packageId, status])
+  @@index([code])
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
 model Notification {
   id        String   @id @default(cuid())
   userId    String
@@ -85,32 +213,10 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// ====== PRODUCTS & SERVICES ======
-model Product {
-  id          String   @id @default(cuid())
-  name        String
-  nameEn      String   @default("")
-  category    String   // recharge | games | bills | internet | tv | cards
-  price       Float
-  currency    String   @default("YER")
-  icon        String   @default("")
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  metadata    String   @default("")   // JSON for extra data
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
+// ============================================================
+// BILLS
+// ============================================================
 
-model ServiceCategory {
-  id        String   @id @default(cuid())
-  name      String
-  nameEn    String   @default("")
-  icon      String   @default("")
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-}
-
-// ====== BILLS ======
 model BillPayment {
   id          String   @id @default(cuid())
   userId      String
@@ -123,14 +229,20 @@ model BillPayment {
   createdAt   DateTime @default(now())
 }
 
-// ====== SYSTEM SETTINGS (Admin) ======
+// ============================================================
+// SYSTEM SETTINGS (Admin)
+// ============================================================
+
 model Setting {
   id    String @id @default(cuid())
   key   String @unique
   value String @default("")
 }
 
-// ====== OTP VERIFICATION ======
+// ============================================================
+// OTP VERIFICATION
+// ============================================================
+
 model OtpCode {
   id        String   @id @default(cuid())
   phone     String
@@ -140,12 +252,30 @@ model OtpCode {
   createdAt DateTime @default(now())
 }
 
-// ====== AUDIT LOG ======
+// ============================================================
+// AUDIT LOG
+// ============================================================
+
 model AuditLog {
   id        String   @id @default(cuid())
   userId    String   @default("")
   action    String
   details   String   @default("")
   ip        String   @default("")
+  module    String   @default("")     // users | transactions | services | settings | security | auth
+  severity  String   @default("info") // info | warning | critical
   createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+}
+
+// ============================================================
+// APP BRANDING & CUSTOMIZATION
+// ============================================================
+
+model AppBranding {
+  id              String   @id @default(cuid())
+  key             String   @unique            // app_icon | splash_image | card_bg_image | primary_color | secondary_color | app_name | app_name_en
+  value           String   @default("")       // base64 image or hex color or text
+  updatedAt       DateTime @updatedAt
 }

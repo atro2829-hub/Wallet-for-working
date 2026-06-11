@@ -408,6 +408,9 @@ export default function OrderBottomSheet() {
       setUser(updatedUser);
       addOrder(newOrder);
       addTransaction(newTx);
+
+      // Play purchase sound
+      try { const { playTransactionSound } = await import('@/lib/transaction-sounds'); playTransactionSound(newOrder.status === 'refunded' ? 'refund' : 'purchase'); } catch {}
       addNotification({
         id: generateReference(),
         title: newOrder.status === 'completed' ? 'تم تنفيذ الطلب' : newOrder.status === 'refunded' ? 'فشل تنفيذ الطلب' : 'تم إنشاء الطلب',

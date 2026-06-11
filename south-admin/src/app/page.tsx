@@ -51,6 +51,8 @@ import APIKeysPanel from '@/components/admin/api-keys-panel';
 import MaintenancePanel from '@/components/admin/maintenance-panel';
 import AppVersionPanel from '@/components/admin/app-version-panel';
 import AboutPanel from '@/components/admin/about-panel';
+import EmployeesPanel from '@/components/admin/employees-panel';
+import BrandingPanel from '@/components/admin/branding-panel';
 import { Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { APP_ICON_BASE64 } from '@/lib/app-icon';
@@ -83,6 +85,7 @@ const panelMap: Record<string, React.ComponentType> = {
   'currency-cards': CurrencyCardsPanel,
   'service-analytics': ServiceAnalyticsPanel,
   // Content
+  branding: BrandingPanel,
   banners: BannersPanel,
   'social-links': SocialLinksPanel,
   'legal-content': LegalContentPanel,
@@ -91,6 +94,8 @@ const panelMap: Record<string, React.ComponentType> = {
   notifications: NotificationsPanel,
   sections: SectionsPanel,
   visibility: VisibilityPanel,
+  // Team
+  employees: EmployeesPanel,
   // Security
   'activity-log': ActivityLogPanel,
   'support-tickets': SupportTicketsPanel,
@@ -391,7 +396,7 @@ export default function AdminApp() {
   }
 
   // Owner-only panels
-  const ownerOnlyPanels = ['card-colors', 'sections', 'visibility', 'api-settings', 'activity-log', 'backup', 'security-dashboard', 'ip-blocking', 'fraud-rules', 'api-keys', 'maintenance', 'app-version'];
+  const ownerOnlyPanels = ['card-colors', 'sections', 'visibility', 'api-settings', 'activity-log', 'backup', 'security-dashboard', 'ip-blocking', 'fraud-rules', 'api-keys', 'maintenance', 'app-version', 'branding', 'employees'];
   const effectivePanel = (adminUser.role !== 'owner' && ownerOnlyPanels.includes(activePanel)) ? 'dashboard' : activePanel;
   const ActivePanelComponent = panelMap[effectivePanel] || Dashboard;
 

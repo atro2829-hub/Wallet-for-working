@@ -372,6 +372,9 @@ export default function TransferModal() {
       setTransferRef(txRef);
       setStep('success');
 
+      // Play transfer success sound
+      try { const { playTransactionSound } = await import('@/lib/transaction-sounds'); playTransactionSound('transfer'); } catch {}
+
       // Update user balance in local store
       const updatedUser = { ...user };
       const userBalanceField = `balance${currency}` as keyof typeof user;

@@ -202,6 +202,9 @@ function GeneralSettingsModal({ isDark, onClose }: { isDark: boolean; onClose: (
   const handleLanguageChange = (lang: string) => {
     setLanguage(lang);
     localStorage.setItem('app-language', lang);
+    // Update the global i18n store so the entire app switches language
+    const { useI18nStore } = require('@/lib/i18n');
+    useI18nStore.getState().setLanguage(lang as 'ar' | 'en');
   };
 
   const handleCurrencyChange = (cur: 'YER' | 'SAR' | 'USD') => {

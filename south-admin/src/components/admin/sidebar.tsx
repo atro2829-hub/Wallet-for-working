@@ -71,6 +71,8 @@ import {
   Webhook,
   Info,
   Heart,
+  Gamepad2,
+  UserCog,
 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -135,8 +137,8 @@ const navSections: NavSection[] = [
   },
   {
     id: 'services',
-    label: 'الخدمات والمنتجات',
-    icon: Boxes,
+    label: 'الخدمات الترفيهية',
+    icon: Gamepad2,
     items: [
       { id: 'providers', label: 'المزودون والباقات', icon: Server, roles: ['admin', 'owner'] },
       { id: 'instant-recharge', label: 'خدمات الشحن الفوري', icon: Zap, roles: ['admin', 'owner'] },
@@ -151,6 +153,7 @@ const navSections: NavSection[] = [
     label: 'المحتوى والتخصيص',
     icon: Paintbrush,
     items: [
+      { id: 'branding', label: 'العلامة التجارية', icon: Palette, roles: ['owner'] },
       { id: 'banners', label: 'البانرات الإعلانية', icon: Image, roles: ['admin', 'owner'] },
       { id: 'social-links', label: 'روابط التواصل', icon: Link2, roles: ['admin', 'owner'] },
       { id: 'legal-content', label: 'المحتوى القانوني', icon: FileText, roles: ['admin', 'owner'] },
@@ -159,6 +162,14 @@ const navSections: NavSection[] = [
       { id: 'notifications', label: 'الإشعارات', icon: Bell, roles: ['admin', 'owner'] },
       { id: 'sections', label: 'إدارة الأقسام', icon: Layers, roles: ['owner'] },
       { id: 'visibility', label: 'إعدادات الظهور', icon: Eye, roles: ['owner'] },
+    ],
+  },
+  {
+    id: 'team',
+    label: 'إدارة الفريق',
+    icon: UserCog,
+    items: [
+      { id: 'employees', label: 'الموظفين والصلاحيات', icon: UserCog, roles: ['owner'] },
     ],
   },
   {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ChevronLeft, Wallet } from 'lucide-react';
+import { Search, ChevronLeft, Wallet, Gamepad2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { productIcons } from '@/lib/product-icons';
 import { serviceIcons } from '@/lib/service-icons';
@@ -11,10 +11,8 @@ import { database } from '@/lib/firebase';
 import { ref, onValue } from 'firebase/database';
 import type { ApiProviderConfig } from '@/lib/api-provider';
 
-// Category display order with display names
+// Category display order with display names (entertainment merges wallet-services + service-providers)
 const categoryOrder = [
-  { id: 'service-providers', name: 'مزودين الخدمات' },
-  { id: 'wallet-services', name: 'خدمات المحفظة الخاصة بنا' },
   { id: 'telecom', name: 'خدمات الاتصالات' },
   { id: 'internet', name: 'الإنترنت' },
   { id: 'electricity', name: 'الكهرباء والماء' },
@@ -33,9 +31,8 @@ const walletPrivateServicesSubSections = [
   { id: 'payment-cards', name: 'بطاقات الدفع', providerIds: ['visa-virtual', 'mastercard-virtual', 'paypal'] },
 ];
 
-// Sub-sections mapping for other categories (non-wallet)
+// Sub-sections mapping for other categories (non-entertainment)
 const categorySubSections: Record<string, { id: string; name: string; providerIds: string[] }[]> = {
-  'service-providers': [],
   telecom: [],
   electricity: [
     { id: 'elec', name: 'الكهرباء', providerIds: ['elec-sanaa', 'elec-aden'] },
@@ -191,15 +188,29 @@ export default function ServicesScreen() {
     }
   };
 
-  // Build Wallet Private Services section (wraps all wallet-services providers)
-  const buildWalletPrivateServices = () => {
+  // Build Entertainment Services section (merges wallet-services + service-providers + API providers)
+  const buildEntertainmentServices = () => {
     const walletProviders = providers.filter(
       p => p.categoryId === 'wallet-services' && p.isActive && visibilityProviders[p.id] !== false
     );
+    const serviceProviderProviders = providers.filter(
+      p => p.categoryId === 'service-providers' && p.isActive && visibilityProviders[p.id] !== false
+    );
 
-    if (walletProviders.length === 0) return null;
+    // API provider sub-sections
+    const apiSubSections = apiProviders
+      .filter(ap => ap.sectionName && ap.sectionId)
+      .map(ap => {
+        const apProviders = providers.filter(
+          p => p.categoryId === `api-${ap.sectionId}` && p.isActive && visibilityProviders[p.id] !== false
+        );
+        if (apProviders.length === 0) return null;
+        return { id: `api-${ap.sectionId}`, name: ap.sectionName!, providers: apProviders };
+      })
+      .filter((s): s is NonNullable<typeof s> => s !== null);
 
-    const subSections = walletPrivateServicesSubSections
+    // Wallet private sub-sections
+    const walletSubSections = walletPrivateServicesSubSections
       .map(sub => {
         const subProviders = sub.providerIds
           .map(pid => walletProviders.find(p => p.id === pid))
@@ -208,40 +219,28 @@ export default function ServicesScreen() {
       })
       .filter(sub => sub.providers.length > 0);
 
+    // Service providers as sub-section
+    const spSubSection = serviceProviderProviders.length > 0
+      ? [{ id: 'service-providers', name: 'خدمات المزودين', providers: serviceProviderProviders }]
+      : [];
+
+    const allEntertainmentProviders = [...walletProviders, ...serviceProviderProviders];
+    const allSubSections = [...walletSubSections, ...spSubSection, ...apiSubSections];
+
+    if (allEntertainmentProviders.length === 0 && allSubSections.length === 0) return null;
+
     return {
-      id: 'wallet-services',
-      name: 'خدمات المحفظة الخاصة بنا',
-      providers: walletProviders,
-      subSections,
+      id: 'entertainment',
+      name: 'الخدمات الترفيهية',
+      providers: allEntertainmentProviders,
+      subSections: allSubSections,
       isWalletSection: true as const,
     };
   };
 
-  // Build API provider sections
-  const buildApiProviderSections = () => {
-    return apiProviders
-      .filter(ap => ap.sectionName && ap.sectionId)
-      .map(ap => {
-        // Find providers associated with this API provider
-        const apProviders = providers.filter(
-          p => p.categoryId === `api-${ap.sectionId}` && p.isActive && visibilityProviders[p.id] !== false
-        );
-        if (apProviders.length === 0) return null;
-        return {
-          id: `api-${ap.sectionId}`,
-          name: ap.sectionName!,
-          providers: apProviders,
-          subSections: null,
-          isWalletSection: false as const,
-        };
-      })
-      .filter((s): s is NonNullable<typeof s> => s !== null);
-  };
-
-  // Build other (non-wallet) sections
+  // Build other (non-entertainment) sections
   const buildOtherSections = () => {
     return categoryOrder
-      .filter(cat => cat.id !== 'wallet-services') // wallet-services is handled by buildWalletPrivateServices
       .filter(cat => visibilitySections[cat.id] !== false)
       .map(cat => {
         const catProviders = providers.filter(p => p.categoryId === cat.id && p.isActive && visibilityProviders[p.id] !== false);
@@ -253,13 +252,12 @@ export default function ServicesScreen() {
           isWalletSection: false as const,
         };
       })
-      .filter(section => section.providers.length > 0 || section.id === 'service-providers'); // show service-providers even if empty
+      .filter(section => section.providers.length > 0);
   };
 
-  // Combine all sections: Wallet Private → API Provider sections → Other sections
+  // Combine all sections: Entertainment → Other sections
   const allSections = [
-    ...(buildWalletPrivateServices() ? [buildWalletPrivateServices()!] : []),
-    ...buildApiProviderSections(),
+    ...(buildEntertainmentServices() ? [buildEntertainmentServices()!] : []),
     ...buildOtherSections(),
   ];
 
@@ -507,9 +505,11 @@ export default function ServicesScreen() {
                   className="text-sm font-bold flex items-center gap-1.5"
                   style={{ color: isDark ? '#FFF' : '#1a1a1a' }}
                 >
-                  {section.isWalletSection && (
+                  {section.id === 'entertainment' ? (
+                    <Gamepad2 size={14} strokeWidth={2} color="#E60000" />
+                  ) : section.isWalletSection ? (
                     <Wallet size={14} strokeWidth={2} color="#E60000" />
-                  )}
+                  ) : null}
                   {section.name}
                 </h3>
               </button>
