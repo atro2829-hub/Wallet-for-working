@@ -43,7 +43,6 @@ Thumbs.db
 # Firebase
 upload-sa.json
 *-firebase-adminsdk*.json
-google-services.json
 
 # Android
 android/.gradle/

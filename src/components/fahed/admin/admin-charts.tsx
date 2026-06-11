@@ -45,11 +45,13 @@ export default function AdminCharts() {
       const catId = provider?.categoryId || 'other';
       if (!cats[catId]) {
         const catNames: Record<string, string> = {
-          telecom: 'الاتصالات', internet: 'الإنترنت', entertainment: 'الألعاب',
+          telecom: 'الاتصالات', internet: 'الإنترنت', 'wallet-services': 'خدمات المحفظة',
+          'service-providers': 'مزودين الخدمات', entertainment: 'الألعاب',
           cards: 'البطاقات', electricity: 'الكهرباء', government: 'حكومية', other: 'أخرى',
         };
         const catColors: Record<string, string> = {
-          telecom: '#E60000', internet: '#3B82F6', entertainment: '#F59E0B',
+          telecom: '#E60000', internet: '#3B82F6', 'wallet-services': '#F59E0B',
+          'service-providers': '#6B7280', entertainment: '#F59E0B',
           cards: '#8B5CF6', electricity: '#10B981', government: '#6B7280', other: '#EC4899',
         };
         cats[catId] = { name: catNames[catId] || 'أخرى', count: 0, color: catColors[catId] || '#EC4899' };

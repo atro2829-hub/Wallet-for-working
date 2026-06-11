@@ -124,7 +124,28 @@ export async function sendNotificationToAll(notification: NotificationPayload): 
 }
 
 /**
- * Send a notification to admin (for admin/owner app)
+ * Get FCM tokens for all admin users (role = admin or owner)
+ */
+async function getAdminFCMTokens(): Promise<string[]> {
+  try {
+    const usersSnapshot = await get(ref(database, 'users'));
+    if (!usersSnapshot.exists()) return [];
+
+    const users = usersSnapshot.val();
+    const tokens: string[] = [];
+    Object.values(users).forEach((userData: any) => {
+      if ((userData.role === 'admin' || userData.role === 'owner') && userData.fcmToken) {
+        tokens.push(userData.fcmToken);
+      }
+    });
+    return tokens;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Send a notification to admin (for admin/owner app) — in-app + FCM push
  */
 export async function sendNotificationToAdmin(notification: NotificationPayload & { category?: string }): Promise<void> {
   const notifId = `admin_notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -136,10 +157,26 @@ export async function sendNotificationToAdmin(notification: NotificationPayload 
     category: notification.category || 'general',
     isRead: false,
     createdAt: new Date().toISOString(),
+    sentAt: new Date().toISOString(),
     data: notification.data || null,
   };
 
+  // 1. Save to Firebase RTDB (in-app notification for admin panel)
   await set(ref(database, `adminNotifications/${notifId}`), notifData);
+
+  // 2. Send FCM push notification to all admin/owner devices
+  try {
+    const adminTokens = await getAdminFCMTokens();
+    if (adminTokens.length > 0) {
+      await sendFCMPush(adminTokens, notification.title, notification.body, notification.type, {
+        ...notification.data,
+        category: notification.category || 'general',
+        target: 'admin',
+      });
+    }
+  } catch (error) {
+    console.warn('Failed to send FCM push to admin:', error);
+  }
 }
 
 /**

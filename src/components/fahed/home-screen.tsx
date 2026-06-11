@@ -81,9 +81,9 @@ function hexToRgb(hex: string): string {
 
 // Services with custom SVG icons - each maps to a category-detail screen
 const homeServices = [
+  { id: 'service-providers', label: 'مزودين الخدمات', iconKey: 'providers-category' },
+  { id: 'wallet-services', label: 'خدمات المحفظة', iconKey: 'wallet-services-category' },
   { id: 'telecom', label: 'الاتصالات', iconKey: 'telecom-category' },
-  { id: 'entertainment', label: 'خدمات ترفيهية', iconKey: 'entertainment-category' },
-  { id: 'cards', label: 'بطاقات رقمية', iconKey: 'cards-category' },
   { id: 'transfer', label: 'تحويل الأموال', iconKey: 'transfer' },
   { id: 'recharge', label: 'شحن رصيد', iconKey: 'recharge' },
   { id: 'electricity', label: 'الكهرباء والماء', iconKey: 'electricity-category' },
@@ -515,7 +515,7 @@ export default function HomeScreen() {
         break;
       default: {
         // Other category services navigate to their dedicated screen
-        const categoryIds = ['telecom', 'entertainment', 'cards', 'electricity', 'government', 'internet'];
+        const categoryIds = ['service-providers', 'wallet-services', 'telecom', 'electricity', 'government', 'internet'];
         if (categoryIds.includes(serviceId)) {
           useAppStore.getState().setSelectedCategory(serviceId);
           useAppStore.getState().setActiveScreen('category-detail');

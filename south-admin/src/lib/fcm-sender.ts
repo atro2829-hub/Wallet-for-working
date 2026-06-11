@@ -197,13 +197,15 @@ export async function sendFCMDirect(
                 title,
                 body,
               },
-              data: {
-                type: type || 'info',
-                title,
-                body,
-                ...(data || {}),
-                click_action: data?.url || '/',
-              },
+              data: Object.fromEntries(
+                Object.entries({
+                  type: type || 'info',
+                  title,
+                  body,
+                  ...(data || {}),
+                  click_action: data?.url || '/',
+                }).map(([k, v]) => [k, String(v ?? '')])
+              ),
               android: {
                 priority: 'high' as const,
                 notification: {
@@ -213,12 +215,7 @@ export async function sendFCMDirect(
                   sound: soundFile,
                   tag: type || 'info',
                   default_sound: false,
-                  default_vibrate_timings: false,
-                  vibrate_timings: type === 'transaction'
-                    ? [0.0, 0.1, 0.05, 0.1, 0.05, 0.1]
-                    : type === 'security'
-                    ? [0.0, 0.2, 0.1, 0.2, 0.1, 0.2]
-                    : [0.0, 0.1, 0.05, 0.1],
+                  default_vibrate_timings: true,
                   visibility: 'private' as const,
                   notification_priority: 'PRIORITY_HIGH' as const,
                   sticky: false,

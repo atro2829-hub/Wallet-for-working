@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ref, onValue, push, update, off, set, get } from 'firebase/database';
+import { ref, onValue, push, update, off } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useAdminStore } from '@/lib/store';
-import { sendFCMDirect } from '@/lib/fcm-sender';
+
 import { timeAgo } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -159,6 +159,18 @@ function TicketsPanel({ adminUser, showToast }: { adminUser: any; showToast: (ms
       await update(ref(database, `support-tickets/${selectedTicketId}`), {
         messages: updatedMessages,
       });
+
+      // Notify user about ticket reply
+      try {
+        const { sendNotificationToUser } = await import('@/lib/notifications');
+        await sendNotificationToUser(ticket.userId, {
+          title: 'رد على تذكرتك',
+          body: messageText.trim().substring(0, 100),
+          type: 'info',
+          data: { action: 'ticket_reply', ticketId: ticket.id },
+        });
+      } catch (e) { console.warn('Ticket reply notification failed:', e); }
+
       setMessageText('');
     } catch (e) {
       showToast('حدث خطأ في إرسال الرسالة', 'error');
@@ -452,32 +464,16 @@ function LiveChatPanel({ adminUser, showToast }: { adminUser: any; showToast: (m
         unreadUser: currentUnreadUser + 1,
       });
 
-      // Send push notification to the user about admin reply
+      // Notify user about admin chat reply
       try {
-        const userFcmToken = (await get(ref(database, `users/${selectedUserId}/fcmToken`))).val();
-        if (userFcmToken) {
-          await sendFCMDirect(
-            [userFcmToken],
-            'رد من الدعم',
-            replyText.substring(0, 100),
-            'general',
-            { action: 'support_chat_reply', adminName: adminUser?.displayName || 'المدير' },
-          );
-        }
-        // Also write in-app notification
-        const notifId = `chat_reply_${Date.now()}`;
-        await set(ref(database, `notifications/${selectedUserId}/${notifId}`), {
-          id: notifId,
-          title: 'رد من الدعم',
-          body: replyText.substring(0, 100),
+        const { sendNotificationToUser } = await import('@/lib/notifications');
+        await sendNotificationToUser(selectedUserId, {
+          title: 'رسالة جديدة من الدعم الفني',
+          body: replyText.substring(0, 50),
           type: 'info',
-          isRead: false,
-          createdAt: new Date().toISOString(),
-          data: { action: 'support_chat_reply' },
+          data: { action: 'support_chat', userId: selectedUserId },
         });
-      } catch (notifErr) {
-        console.warn('Failed to notify user about chat reply:', notifErr);
-      }
+      } catch (e) { console.warn('Chat notification failed:', e); }
 
       setMessageText('');
     } catch (e) {
@@ -493,6 +489,18 @@ function LiveChatPanel({ adminUser, showToast }: { adminUser: any; showToast: (m
         resolvedAt: new Date().toISOString(),
         resolvedBy: adminUser?.displayName || 'المدير',
       });
+
+      // Notify user about conversation resolved
+      try {
+        const { sendNotificationToUser } = await import('@/lib/notifications');
+        await sendNotificationToUser(selectedUserId, {
+          title: 'تم إغلاق المحادثة',
+          body: 'تم حل مشكلتك. شكراً لتواصلك معنا!',
+          type: 'info',
+          data: { action: 'chat_status', status: 'resolved', userId: selectedUserId },
+        });
+      } catch (e) { console.warn('Chat status notification failed:', e); }
+
       showToast('تم إغلاق المحادثة', 'success');
     } catch (e) {
       showToast('حدث خطأ', 'error');
@@ -507,6 +515,18 @@ function LiveChatPanel({ adminUser, showToast }: { adminUser: any; showToast: (m
         resolvedAt: null,
         resolvedBy: null,
       });
+
+      // Notify user about conversation reopened
+      try {
+        const { sendNotificationToUser } = await import('@/lib/notifications');
+        await sendNotificationToUser(selectedUserId, {
+          title: 'تم إعادة فتح المحادثة',
+          body: 'تم إعادة فتح محادثتك مع الدعم الفني',
+          type: 'info',
+          data: { action: 'chat_status', status: 'reopened', userId: selectedUserId },
+        });
+      } catch (e) { console.warn('Chat status notification failed:', e); }
+
       showToast('تم إعادة فتح المحادثة', 'success');
     } catch (e) {
       showToast('حدث خطأ', 'error');

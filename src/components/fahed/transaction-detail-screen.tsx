@@ -118,30 +118,84 @@ export default function TransactionDetailScreen() {
   };
 
   const handleShareReceipt = () => {
-    const receiptText = `
-إيصال معاملة - محفظة الجنوب
-═══════════════════════
-النوع: ${txLabel}
-المبلغ: ${tx.amount.toLocaleString()} ${currencySymbols[tx.currency]}
-الحالة: ${statusConfig.label}
-التاريخ: ${new Date(tx.createdAt).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-رقم المرجع: ${tx.id}
-الوصف: ${tx.description || '-'}
-═══════════════════════
-    `.trim();
+    const receiptHtml = `
+      <html dir="rtl">
+      <head><meta charset="utf-8"><title>إيصال معاملة</title>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: rtl; padding: 20px; background: #f5f5f5; }
+        .receipt { max-width: 400px; margin: 0 auto; background: #fff; border: 2px solid #E60000; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px dashed #E60000; padding-bottom: 16px; }
+        .header h2 { color: #E60000; margin: 0 0 4px; font-size: 20px; }
+        .header p { color: #666; margin: 0; font-size: 13px; }
+        .amount { text-align: center; font-size: 32px; font-weight: bold; margin: 20px 0; padding: 16px; background: ${isIncoming ? 'rgba(16,185,129,0.08)' : 'rgba(230,0,0,0.08)'}; border-radius: 12px; }
+        .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #eee; }
+        .label { color: #666; font-size: 13px; }
+        .value { font-weight: bold; font-size: 13px; color: #1a1a1a; }
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .footer { text-align: center; margin-top: 24px; color: #999; font-size: 11px; border-top: 2px dashed #E60000; padding-top: 16px; }
+        .dev-credit { color: #bbb; font-size: 10px; margin-top: 8px; }
+      </style></head>
+      <body>
+        <div class="receipt">
+          <div class="header">
+            <h2>محفظة الجنوب</h2>
+            <p>إيصال معاملة مالية</p>
+          </div>
+          <div class="amount" style="color: ${isIncoming ? '#10B981' : '#E60000'}">
+            ${isIncoming ? '+' : '-'}${tx.amount.toLocaleString()} ${currencySymbols[tx.currency]}
+          </div>
+          <div style="text-align:center; margin-bottom:16px;">
+            <span class="status-badge" style="background:${statusConfig.bg}; color:${statusConfig.color}">${statusConfig.label}</span>
+          </div>
+          <div class="row"><span class="label">النوع</span><span class="value">${txLabel}</span></div>
+          <div class="row"><span class="label">التاريخ</span><span class="value">${new Date(tx.createdAt).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
+          <div class="row"><span class="label">الوقت</span><span class="value">${new Date(tx.createdAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</span></div>
+          <div class="row"><span class="label">رقم المرجع</span><span class="value" style="font-family:monospace; direction:ltr">${tx.id}</span></div>
+          ${tx.description ? `<div class="row"><span class="label">الوصف</span><span class="value">${tx.description}</span></div>` : ''}
+          <div class="row"><span class="label">الحساب</span><span class="value" style="direction:ltr">${user?.userId || '-'}</span></div>
+          <div class="footer">
+            <p>تم إنشاء هذا الإيصال بتاريخ ${new Date().toLocaleDateString('ar-SA')}</p>
+            <p class="dev-credit">تم التطوير بواسطة: مؤسسة QTBM DEV</p>
+          </div>
+        </div>
+      </body></html>
+    `;
 
-    if (navigator.share) {
-      navigator.share({ title: 'إيصال معاملة', text: receiptText });
-    } else {
-      navigator.clipboard.writeText(receiptText);
+    // Try to download as HTML file that can be opened and printed
+    try {
+      const blob = new Blob([receiptHtml], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `إيصال-${tx.id}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
       addNotification({
-        id: `share-${Date.now()}`,
-        title: 'تم نسخ الإيصال',
-        body: 'تم نسخ نص الإيصال إلى الحافظة',
+        id: `receipt-${Date.now()}`,
+        title: 'تم تنزيل الإيصال',
+        body: 'تم حفظ الإيصال في مجلد التنزيلات',
         type: 'info',
         isRead: false,
         createdAt: new Date().toISOString(),
       });
+    } catch {
+      // Fallback: share or copy
+      if (navigator.share) {
+        navigator.share({ title: 'إيصال معاملة', text: `إيصال ${txLabel} - ${tx.amount} ${currencySymbols[tx.currency]}` });
+      } else {
+        navigator.clipboard?.writeText(`إيصال ${txLabel} - ${tx.amount} ${currencySymbols[tx.currency]} - مرجع: ${tx.id}`);
+        addNotification({
+          id: `receipt-copy-${Date.now()}`,
+          title: 'تم نسخ الإيصال',
+          body: 'تم نسخ نص الإيصال إلى الحافظة',
+          type: 'info',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+        });
+      }
     }
   };
 

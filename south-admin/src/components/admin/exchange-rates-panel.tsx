@@ -14,7 +14,7 @@ import { motion } from 'framer-motion';
 
 export default function ExchangeRatesPanel() {
   const { adminUser, showToast } = useAdminStore();
-  const [rates, setRates] = useState({ YER: 1, SAR: 410, USD: 1550 });
+  const [rates, setRates] = useState({ YER: 1, SAR: 410, USD: 1558 });
   const [commission, setCommission] = useState({ percentage: 2, minAmount: 100, maxAmount: 500000 });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -23,7 +23,7 @@ export default function ExchangeRatesPanel() {
     const ratesRef = ref(database, 'adminSettings/exchangeRates');
     const unsub1 = onValue(ratesRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) setRates({ YER: data.YER || 1, SAR: data.SAR || 410, USD: data.USD || 1550 });
+      if (data) setRates({ YER: data.YER || 1, SAR: data.SAR || 410, USD: data.USD || 1558 });
     });
     const commRef = ref(database, 'adminSettings/commissions');
     const unsub2 = onValue(commRef, (snapshot) => {

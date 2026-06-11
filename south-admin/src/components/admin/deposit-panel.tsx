@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ref, onValue, update, push, get } from 'firebase/database';
+import { useState } from 'react';
+import { ref, update, push, get } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useAdminStore } from '@/lib/store';
 import { formatNumber, currencySymbols, generateId } from '@/lib/utils';
@@ -11,35 +11,21 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, CheckCircle, XCircle, Clock, Image as ImageIcon } from 'lucide-react';
+import { Search, CheckCircle, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function DepositPanel() {
-  const { adminUser, showToast } = useAdminStore();
-  const [deposits, setDeposits] = useState<any[]>([]);
+  const { adminUser, showToast, depositRequests, dataLoaded } = useAdminStore();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('pending');
-  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [notes, setNotes] = useState('');
 
-  useEffect(() => {
-    const depRef = ref(database, 'depositRequests');
-    const unsub = onValue(depRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      const list = Object.entries(data).map(([id, val]: [string, any]) => ({ id, ...val }));
-      list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-      setDeposits(list);
-      setLoading(false);
-    });
-    return () => unsub();
-  }, []);
-
-  const filtered = deposits.filter((d) => {
+  const filtered = depositRequests.filter((d) => {
     const ms = !search || (d.userName && d.userName.includes(search)) || (d.userId && d.userId.includes(search));
     const mf = statusFilter === 'all' || d.status === statusFilter;
     return ms && mf;
@@ -126,13 +112,13 @@ export default function DepositPanel() {
     rejected: 'bg-red-500/20 text-red-600 dark:text-red-400',
   };
 
-  if (loading) return <div className="flex items-center justify-center min-h-[400px]"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>;
+  if (!dataLoaded) return <div className="flex items-center justify-center min-h-[400px]"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">طلبات الإيداع</h1>
-        <p className="text-muted-foreground text-sm mt-1">{formatNumber(deposits.filter(d => d.status === 'pending').length)} طلب معلق</p>
+        <p className="text-muted-foreground text-sm mt-1">{formatNumber(depositRequests.filter(d => d.status === 'pending').length)} طلب معلق</p>
       </div>
 
       <div className="flex gap-3">

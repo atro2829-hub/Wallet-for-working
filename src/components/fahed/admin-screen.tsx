@@ -1833,7 +1833,7 @@ export default function AdminScreen() {
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="rounded-2xl p-4 space-y-3 overflow-hidden" style={cardStyle}>
                       <select value={newProduct.providerId} onChange={(e) => setNewProduct({ ...newProduct, providerId: e.target.value })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
                         <option value="">اختر المزود</option>
-                        {providers.filter(p => p.categoryId === 'entertainment' || p.categoryId === 'cards').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        {providers.filter(p => p.categoryId === 'wallet-services' || p.categoryId === 'entertainment' || p.categoryId === 'cards').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
                       <input type="text" placeholder="اسم المنتج" value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} />
                       <div className="flex gap-2">
@@ -1858,8 +1858,8 @@ export default function AdminScreen() {
                 {['games', 'cards', 'subscriptions'].map((subType) => {
                   const subTypeLabel = subType === 'games' ? 'ألعاب' : subType === 'cards' ? 'بطاقات رقمية' : 'اشتراكات';
                   const subProviders = providers.filter(p => {
-                    if (subType === 'games') return p.categoryId === 'entertainment';
-                    if (subType === 'cards') return p.categoryId === 'cards';
+                    if (subType === 'games') return p.categoryId === 'wallet-services' || p.categoryId === 'entertainment';
+                    if (subType === 'cards') return p.categoryId === 'wallet-services' || p.categoryId === 'cards';
                     return false;
                   });
                   const subsForType = entertainmentSubs.filter(s => s.parentId === subType);
@@ -1996,7 +1996,7 @@ export default function AdminScreen() {
                   );
                 })}
 
-                {providers.filter(p => p.categoryId === 'entertainment' || p.categoryId === 'cards').length === 0 && (
+                {providers.filter(p => p.categoryId === 'wallet-services' || p.categoryId === 'entertainment' || p.categoryId === 'cards').length === 0 && (
                   <div className="flex flex-col items-center py-8"><Gamepad2 size={40} strokeWidth={1.5} color={isDark ? '#333' : '#DDD'} /><p className="text-sm mt-2" style={{ color: isDark ? '#666' : '#AAA' }}>لا توجد خدمات ترفيهية</p></div>
                 )}
               </motion.div>

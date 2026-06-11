@@ -246,16 +246,8 @@ export default function RechargeScreen() {
       }
 
       try {
-        const adminNotifId = generateReference();
-        const adminNotifRef = ref(database, `admin-notifications/${adminNotifId}`);
-        await set(adminNotifRef, {
-          id: adminNotifId,
-          type: 'new_order',
-          orderId: orderId,
-          message: `العميل ${user.name} طلب ${packageName} من ${selectedCompany.name} للرقم ${customerInput.trim()}`,
-          createdAt: new Date().toISOString(),
-          isRead: false,
-        });
+        // Admin notification is sent via notifyOrderCreated() below
+        // No need to write to a separate path — it goes to adminNotifications/
       } catch {
         // Non-critical
       }
@@ -271,6 +263,14 @@ export default function RechargeScreen() {
         isRead: false,
         createdAt: new Date().toISOString(),
       });
+
+      // Send FCM push notification for recharge order
+      try {
+        const { notifyOrderCreated } = await import('@/lib/notifications');
+        await notifyOrderCreated(user.id, packageName, amount, CURRENCY);
+      } catch (notifErr) {
+        console.warn('Recharge notification failed:', notifErr);
+      }
 
       setCompletedOrderId(orderId);
       setOrderResult('success');

@@ -65,8 +65,8 @@ const filterTabs: { id: FilterTab; label: string }[] = [
 const spendingCategories = [
   { key: 'recharge', label: 'شحن', color: '#8B5CF6', icon: Smartphone },
   { key: 'internet', label: 'إنترنت', color: '#3B82F6', icon: Wifi },
-  { key: 'games', label: 'ألعاب', color: '#F59E0B', icon: Gamepad2 },
-  { key: 'cards', label: 'بطاقات', color: '#14B8A6', icon: CreditCard },
+  { key: 'wallet-services', label: 'خدمات المحفظة', color: '#F59E0B', icon: Gamepad2 },
+  { key: 'service-providers', label: 'مزودين', color: '#14B8A6', icon: CreditCard },
 ];
 
 // Animated counter hook
@@ -231,17 +231,17 @@ export default function WalletScreen() {
           return oDate.getMonth() === now.getMonth() && oDate.getFullYear() === now.getFullYear();
         })
         .reduce((sum, o) => sum + (o.currency === 'YER' ? o.amount : 0), 0);
-    } else if (cat.key === 'games') {
+    } else if (cat.key === 'wallet-services') {
       amount = orders
-        .filter(o => (o.status === 'completed' || o.status === 'pending') && ['pubg', 'freefire', 'call-of-duty', 'fortnite', 'valorant', 'roblox', 'minecraft', 'clash-royale', 'clash-of-clans', 'apex-legends', 'ea-fc', 'steam', 'genshin-impact', 'honkai-star', 'league-legends'].includes(o.providerId))
+        .filter(o => (o.status === 'completed' || o.status === 'pending') && ['pubg', 'freefire', 'call-of-duty', 'fortnite', 'valorant', 'roblox', 'minecraft', 'clash-royale', 'clash-of-clans', 'apex-legends', 'ea-fc', 'steam', 'genshin-impact', 'honkai-star', 'league-legends', 'netflix', 'spotify', 'youtube-premium', 'google-play', 'apple-itunes', 'amazon-gift', 'psn-card', 'xbox-card', 'nintendo-card', 'visa-virtual', 'mastercard-virtual', 'paypal'].includes(o.providerId))
         .filter(o => {
           const oDate = new Date(o.createdAt);
           return oDate.getMonth() === now.getMonth() && oDate.getFullYear() === now.getFullYear();
         })
         .reduce((sum, o) => sum + (o.currency === 'YER' ? o.amount : 0), 0);
-    } else if (cat.key === 'cards') {
+    } else if (cat.key === 'service-providers') {
       amount = orders
-        .filter(o => (o.status === 'completed' || o.status === 'pending') && ['google-play', 'apple-itunes', 'amazon-gift', 'psn-card', 'xbox-card', 'nintendo-card', 'visa-virtual', 'mastercard-virtual', 'paypal'].includes(o.providerId))
+        .filter(o => (o.status === 'completed' || o.status === 'pending') && o.providerId?.startsWith('api-'))
         .filter(o => {
           const oDate = new Date(o.createdAt);
           return oDate.getMonth() === now.getMonth() && oDate.getFullYear() === now.getFullYear();

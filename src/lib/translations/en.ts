@@ -122,6 +122,8 @@ const en: Translations = {
     telecom: 'Telecom',
     entertainment: 'Entertainment',
     digitalCards: 'Digital Cards',
+    serviceProviders: 'Service Providers',
+    walletServices: 'Our Wallet Services',
     moneyTransfer: 'Money Transfer',
     rechargeBalance: 'Recharge Balance',
     payBills: 'Pay Bills',

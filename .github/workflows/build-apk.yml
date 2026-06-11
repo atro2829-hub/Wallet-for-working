@@ -1,0 +1,188 @@
+name: Build South Wallet APKs
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  JAVA_VERSION: '21'
+  GRADLE_VERSION: '8.11'
+
+jobs:
+  build-user-apk:
+    name: Build User APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build Next.js static export
+        run: npx next build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build Debug APK (with debug keystore for SHA)
+        run: |
+          cd android
+          ./gradlew assembleDebug -PMYAPP_UPLOAD_STORE_FILE=../../south-wallet.keystore \
+            -PMYAPP_UPLOAD_STORE_PASSWORD=southwallet123 \
+            -PMYAPP_UPLOAD_KEY_ALIAS=southwallet \
+            -PMYAPP_UPLOAD_KEY_PASSWORD=southwallet123
+
+      - name: Build Release APK
+        run: |
+          cd android
+          ./gradlew assembleRelease -PMYAPP_UPLOAD_STORE_FILE=../../south-wallet.keystore \
+            -PMYAPP_UPLOAD_STORE_PASSWORD=southwallet123 \
+            -PMYAPP_UPLOAD_KEY_ALIAS=southwallet \
+            -PMYAPP_UPLOAD_KEY_PASSWORD=southwallet123
+
+      - name: Extract SHA fingerprints from debug keystore
+        run: |
+          echo "=== SHA1 & SHA256 from south-wallet.keystore ==="
+          keytool -list -v -keystore south-wallet.keystore -storepass southwallet123 -alias southwallet 2>&1 | grep -E "SHA1:|SHA256:"
+          echo ""
+          echo "=== SHA1 & SHA256 from debug.keystore ==="
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey 2>&1 | grep -E "SHA1:|SHA256:" || true
+
+      - name: Upload User Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: south-wallet-user-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload User Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: south-wallet-user-release
+          path: android/app/build/outputs/apk/release/app-release.apk
+
+  build-admin-apk:
+    name: Build Admin APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install admin dependencies
+        run: cd south-admin && npm ci --legacy-peer-deps
+
+      - name: Build Next.js static export (Admin)
+        run: cd south-admin && npx next build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Sync Capacitor (Admin)
+        run: cd south-admin && npx cap sync android
+
+      - name: Build Debug APK (Admin)
+        run: |
+          cd south-admin/android
+          ./gradlew assembleDebug -PMYAPP_UPLOAD_STORE_FILE=../../../south-wallet.keystore \
+            -PMYAPP_UPLOAD_STORE_PASSWORD=southwallet123 \
+            -PMYAPP_UPLOAD_KEY_ALIAS=southwallet \
+            -PMYAPP_UPLOAD_KEY_PASSWORD=southwallet123
+
+      - name: Build Release APK (Admin)
+        run: |
+          cd south-admin/android
+          ./gradlew assembleRelease -PMYAPP_UPLOAD_STORE_FILE=../../../south-wallet.keystore \
+            -PMYAPP_UPLOAD_STORE_PASSWORD=southwallet123 \
+            -PMYAPP_UPLOAD_KEY_ALIAS=southwallet \
+            -PMYAPP_UPLOAD_KEY_PASSWORD=southwallet123
+
+      - name: Extract SHA fingerprints from admin keystore
+        run: |
+          echo "=== Admin APK SHA1 & SHA256 ==="
+          keytool -list -v -keystore south-wallet.keystore -storepass southwallet123 -alias southwallet 2>&1 | grep -E "SHA1:|SHA256:"
+
+      - name: Upload Admin Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: south-wallet-admin-debug
+          path: south-admin/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload Admin Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: south-wallet-admin-release
+          path: south-admin/android/app/build/outputs/apk/release/app-release.apk
+
+  print-sha-keys:
+    name: Print SHA Fingerprints
+    runs-on: ubuntu-latest
+    needs: [build-user-apk, build-admin-apk]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Extract and display SHA keys
+        run: |
+          echo "=========================================="
+          echo "  SOUTH WALLET - SHA FINGERPRINTS"
+          echo "=========================================="
+          echo ""
+          echo "--- Release Keystore (south-wallet.keystore) ---"
+          echo "Used by BOTH apps (User + Admin)"
+          echo ""
+          keytool -list -v -keystore south-wallet.keystore -storepass southwallet123 -alias southwallet 2>&1 | grep -E "SHA1:|SHA256:"
+          echo ""
+          echo "--- Debug Keystore (auto-generated) ---"
+          echo "Used for debug builds only"
+          echo ""
+          keytool -genkeypair -v -keystore /tmp/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null
+          keytool -list -v -keystore /tmp/debug.keystore -storepass android -alias androiddebugkey 2>&1 | grep -E "SHA1:|SHA256:"
+          echo ""
+          echo "=========================================="
+          echo "  ADD THESE TO FIREBASE:"
+          echo "=========================================="
+          echo ""
+          echo "App: com.qtbm.south (User)"
+          echo "App: com.qtbm.south.admin (Admin)"
+          echo ""
+          echo "Both apps use the SAME keystore, so same SHA keys"
+          echo "=========================================="

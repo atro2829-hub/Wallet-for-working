@@ -12,6 +12,8 @@ import { ref, onValue } from 'firebase/database';
 
 // ─── Category display names ─────────────────────────────────────────
 const categoryNames: Record<string, string> = {
+  'service-providers': 'مزودين الخدمات',
+  'wallet-services': 'خدمات المحفظة الخاصة بنا',
   entertainment: 'خدمات ترفيهية',
   cards: 'بطاقات رقمية',
   telecom: 'خدمات الاتصالات',
@@ -54,6 +56,17 @@ interface SubSection {
 }
 
 const categorySubSections: Record<string, SubSection[]> = {
+  'service-providers': [],
+  'wallet-services': [
+    { id: 'shooting', name: 'ألعاب إطلاق النار', description: 'ببجي، فري فاير، فالورانت والمزيد', providerIds: ['pubg', 'freefire', 'call-of-duty', 'fortnite', 'valorant', 'apex-legends'], iconKey: 'pubg', color: '#F59E0B' },
+    { id: 'strategy', name: 'ألعاب الاستراتيجية', description: 'كلاش رويال، كلاش اوف كلانس والمزيد', providerIds: ['clash-royale', 'clash-of-clans', 'league-legends'], iconKey: 'clash-royale', color: '#3B82F6' },
+    { id: 'adventure', name: 'ألعاب المغامرات', description: 'روبلوكس، ماينكرافت، جينشين والمزيد', providerIds: ['roblox', 'minecraft', 'genshin-impact', 'honkai-star'], iconKey: 'roblox', color: '#E60000' },
+    { id: 'platforms', name: 'منصات الألعاب', description: 'ستيم، EA FC والمزيد', providerIds: ['steam', 'ea-fc'], iconKey: 'steam', color: '#1B2838' },
+    { id: 'streaming', name: 'خدمات البث', description: 'نتفلكس، سبوتيفاي، يوتيوب بريميوم', providerIds: ['netflix', 'spotify', 'youtube-premium'], iconKey: 'netflix', color: '#E50914' },
+    { id: 'store-cards', name: 'بطاقات المتاجر', description: 'جوجل بلاي، آيتونز، امازون', providerIds: ['google-play', 'apple-itunes', 'amazon-gift'], iconKey: 'google-play', color: '#34A853' },
+    { id: 'gaming-cards', name: 'بطاقات الألعاب', description: 'بلايستيشن، اكسبوكس، نينتندو', providerIds: ['psn-card', 'xbox-card', 'nintendo-card'], iconKey: 'psn-card', color: '#00439C' },
+    { id: 'payment-cards', name: 'بطاقات الدفع', description: 'فيزا، ماستركارد، بايبال', providerIds: ['visa-virtual', 'mastercard-virtual', 'paypal'], iconKey: 'visa-virtual', color: '#1A1F71' },
+  ],
   entertainment: [
     { id: 'shooting', name: 'ألعاب إطلاق النار', description: 'ببجي، فري فاير، فالورانت والمزيد', providerIds: ['pubg', 'freefire', 'call-of-duty', 'fortnite', 'valorant', 'apex-legends'], iconKey: 'pubg', color: '#F59E0B' },
     { id: 'strategy', name: 'ألعاب الاستراتيجية', description: 'كلاش رويال، كلاش اوف كلانس والمزيد', providerIds: ['clash-royale', 'clash-of-clans', 'league-legends'], iconKey: 'clash-royale', color: '#3B82F6' },

@@ -41,6 +41,8 @@ interface SearchGroup {
 
 // ─── Category icons map ───
 const categoryIconMap: Record<string, string> = {
+  'service-providers': 'providers-category',
+  'wallet-services': 'wallet-services-category',
   'telecom': 'telecom-category',
   'entertainment': 'entertainment-category',
   'cards': 'cards-category',
@@ -50,6 +52,8 @@ const categoryIconMap: Record<string, string> = {
 };
 
 const categoryLabels: Record<string, string> = {
+  'service-providers': 'مزودين الخدمات',
+  'wallet-services': 'خدمات المحفظة',
   telecom: 'الاتصالات',
   entertainment: 'خدمات ترفيهية',
   cards: 'بطاقات رقمية',

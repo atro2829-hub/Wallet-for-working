@@ -43,8 +43,10 @@ import RequestMoneyModal from '@/components/fahed/request-money-modal';
 import OrderBottomSheet from '@/components/fahed/order-bottom-sheet';
 import SplashScreen from '@/components/fahed/splash-screen';
 import PinScreen from '@/components/fahed/pin-screen';
+import PinSetupScreen from '@/components/fahed/pin-setup-screen';
 import { useFirebaseSync } from '@/lib/use-firebase-sync';
 import { useAdminSettings } from '@/lib/use-admin-settings';
+import { LOGO_BASE64 } from '@/lib/logo';
 
 type AppPhase = 'splash' | 'pin' | 'main';
 
@@ -65,6 +67,66 @@ function AppContent() {
   // Sync user data from Firebase (real-time + on focus + on mount)
   useFirebaseSync();
   const { maintenance, forceUpdate } = useAdminSettings();
+
+  // Android back button handler via @capacitor/app
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let backPressedCount = 0;
+    let listener: any = null;
+
+    const setupBackButton = async () => {
+      try {
+        const win = window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } };
+        const isNative = win.Capacitor && win.Capacitor.isNativePlatform && win.Capacitor.isNativePlatform();
+        if (!isNative) return;
+
+        const { App } = await import('@capacitor/app');
+        listener = await App.addListener('backButton', () => {
+          const state = useAppStore.getState();
+
+          // If any modal is open, close it first
+          if (state.isTransferOpen) { state.setTransferOpen(false); return; }
+          if (state.isOrderOpen) { state.setOrderOpen(false); return; }
+          if (state.isDrawerOpen) { state.setDrawerOpen(false); return; }
+          if (state.isRequestMoneyOpen) { state.setRequestMoneyOpen(false); return; }
+
+          // If on an overlay screen, go back to main
+          if (state.activeScreen && state.activeScreen !== 'main') {
+            state.setActiveScreen('main');
+            return;
+          }
+
+          // If on a non-home tab, go to home tab
+          if (state.activeTab !== 'home') {
+            state.setActiveTab('home');
+            return;
+          }
+
+          // On home tab - double press to exit
+          if (backPressedCount === 0) {
+            backPressedCount = 1;
+            showToast('info', 'اضغط مرة أخرى للخروج', '');
+            setTimeout(() => { backPressedCount = 0; }, 2000);
+          } else if (backPressedCount === 1) {
+            App.exitApp();
+          }
+        });
+      } catch (e) {
+        // Not running in Capacitor native - ignore
+      }
+    };
+
+    setupBackButton();
+
+    return () => {
+      if (listener && typeof listener.then === 'function') {
+        listener.then((l: any) => l?.remove?.()).catch(() => {});
+      } else if (listener?.remove) {
+        listener.remove();
+      }
+    };
+  }, [isAuthenticated, showToast]);
 
   // Show KYC verification toast as a floating notification
   useEffect(() => {
@@ -462,11 +524,11 @@ function AppContent() {
     );
   }
 
-  if (!isAuthenticated || !user) {
-    return <AuthScreen />;
-  }
-
-  // Maintenance mode check
+  // ─── Maintenance mode check (BEFORE auth check — locks ALL users) ──────
+  // This must come before the authentication check so that maintenance mode
+  // locks the entire app even for users who aren't logged in yet.
+  // Works in real-time: if admin activates maintenance while a user is in the
+  // app, the maintenance screen appears immediately.
   if (maintenance?.active) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(145deg, #E60000 0%, #8B0000 60%, #5C0000 100%)' }}>
@@ -484,7 +546,7 @@ function AppContent() {
     );
   }
 
-  // Force update check
+  // ─── Force update check (BEFORE auth check — applies to ALL users) ─────
   if (forceUpdate?.active) {
     const currentVersion = '0.4.6.5';
     const minVersion = forceUpdate.minVersion || '0.0.0';
@@ -515,6 +577,10 @@ function AppContent() {
     }
   }
 
+  if (!isAuthenticated || !user) {
+    return <AuthScreen />;
+  }
+
   // Full-screen overlays
   const overlayScreens: Record<string, React.ComponentType> = {
     notifications: NotificationsScreen,
@@ -536,6 +602,7 @@ function AppContent() {
     legal: LegalScreen,
     investment: InvestmentScreen,
     'gift-vouchers': GiftVoucherScreen,
+    'pin-setup': PinSetupScreen,
   };
 
   if (activeScreen in overlayScreens) {

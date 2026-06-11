@@ -200,6 +200,19 @@ export default function InvestmentScreen() {
     try {
       await update(ref(database), updates);
 
+      // Send FCM push notification for investment completion
+      try {
+        const { sendNotificationToUser } = await import('@/lib/notifications');
+        await sendNotificationToUser(user.id, {
+          title: 'اكتمل الاستثمار!',
+          body: `تم استرداد ${formatAmount(totalReturn, investment.currency)} ${currencySymbols[investment.currency]} من خطة ${investment.planName}`,
+          type: 'transaction',
+          data: { action: 'investment_completed', amount: String(totalReturn), currency: investment.currency },
+        });
+      } catch (notifErr) {
+        console.warn('Investment completion notification failed:', notifErr);
+      }
+
       // Update local state
       updateInvestment(investmentId, { status: 'completed', completedAt: new Date().toISOString() });
       setUser({
@@ -285,6 +298,26 @@ export default function InvestmentScreen() {
       };
 
       await update(ref(database), updates);
+
+      // Send FCM push notification for investment
+      try {
+        const { sendNotificationToUser, sendNotificationToAdmin } = await import('@/lib/notifications');
+        await sendNotificationToUser(user.id, {
+          title: 'تم الاستثمار بنجاح',
+          body: `تم استثمار ${formatAmount(amount, currency)} ${currencySymbols[currency]} في خطة ${selectedPlan.name} بعائد ${selectedPlan.profitRate}%`,
+          type: 'transaction',
+          data: { action: 'investment', amount: String(amount), currency },
+        });
+        await sendNotificationToAdmin({
+          title: 'استثمار جديد',
+          body: `${user.name} استثمر ${formatAmount(amount, currency)} ${currencySymbols[currency]} في ${selectedPlan.name}`,
+          type: 'transaction',
+          category: 'investments',
+          data: { action: 'new_investment', userId: user.id },
+        });
+      } catch (notifErr) {
+        console.warn('Investment notification failed:', notifErr);
+      }
 
       addInvestment(newInvestment);
       setUser({ ...user, [balanceField]: currentBalance - amount });

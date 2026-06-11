@@ -144,10 +144,19 @@
   background: #444;
 }
 
-/* Prevent overscroll bounce */
+/* Prevent overscroll bounce + Native feel */
 html, body {
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection only in input fields and chat messages */
+input, textarea, .chat-message {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* Safe area support */

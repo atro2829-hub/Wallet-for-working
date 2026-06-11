@@ -2,6 +2,8 @@
 
 import { useAdminStore, AdminRole } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { database } from '@/lib/firebase';
+import { ref, onValue } from 'firebase/database';
 import {
   LayoutDashboard,
   Users,
@@ -35,6 +37,40 @@ import {
   Palette,
   Zap,
   Package,
+  Ticket,
+  SlidersHorizontal,
+  Coins,
+  FileCode,
+  ChevronDown,
+  ChevronLeft,
+  ShieldCheck,
+  Lock,
+  Fingerprint,
+  Globe,
+  Smartphone,
+  KeyRound,
+  ScanEye,
+  BarChart3,
+  Wallet,
+  CreditCard,
+  Receipt,
+  PiggyBank,
+  ArrowRightLeft,
+  CircleDollarSign,
+  Wrench,
+  Boxes,
+  Cog,
+  Megaphone,
+  Mail,
+  Flag,
+  TestTube,
+  AppWindow,
+  RefreshCw,
+  Paintbrush,
+  HardDrive,
+  Webhook,
+  Info,
+  Heart,
 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -42,60 +78,165 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from 'next-themes';
 import { APP_ICON_BASE64 } from '@/lib/app-icon';
+import { useMemo, useState, useEffect } from 'react';
 
 interface NavItem {
   id: string;
   label: string;
   icon: React.ElementType;
   roles: AdminRole[];
-  badge?: number;
+  badge?: string;
 }
 
-const navItems: NavItem[] = [
-  // Admin + Owner sections
-  { id: 'dashboard', label: 'لوحة المعلومات', icon: LayoutDashboard, roles: ['admin', 'owner'] },
-  { id: 'users', label: 'إدارة المستخدمين', icon: Users, roles: ['admin', 'owner'] },
-  { id: 'orders', label: 'إدارة الطلبات', icon: ShoppingCart, roles: ['admin', 'owner'] },
-  { id: 'deposit', label: 'طلبات الإيداع', icon: ArrowDownCircle, roles: ['admin', 'owner'] },
-  { id: 'withdraw', label: 'طلبات السحب', icon: ArrowUpCircle, roles: ['admin', 'owner'] },
-  { id: 'kyc', label: 'التحقق من الهوية', icon: Shield, roles: ['admin', 'owner'] },
-  { id: 'providers', label: 'المزودون والباقات', icon: Server, roles: ['admin', 'owner'] },
-  { id: 'instant-recharge', label: 'خدمات الشحن الفوري', icon: Zap, roles: ['admin', 'owner'] },
-  { id: 'packages', label: 'إدارة الباقات', icon: Package, roles: ['admin', 'owner'] },
-  { id: 'exchange-rates', label: 'أسعار الصرف', icon: DollarSign, roles: ['admin', 'owner'] },
-  { id: 'commissions', label: 'ضبط العمولات', icon: Percent, roles: ['admin', 'owner'] },
-  { id: 'investments', label: 'إدارة الاستثمار', icon: TrendingUp, roles: ['admin', 'owner'] },
-  { id: 'gift-codes', label: 'أكواد الهدايا', icon: Gift, roles: ['admin', 'owner'] },
-  { id: 'user-gift-codes', label: 'قسائم الهدايا بين المستخدمين', icon: Gift, roles: ['admin', 'owner'] },
-  { id: 'promo-codes', label: 'أكواد الخصم', icon: Tag, roles: ['admin', 'owner'] },
-  { id: 'banners', label: 'البانرات الإعلانية', icon: Image, roles: ['admin', 'owner'] },
-  { id: 'banks', label: 'الحسابات البنكية', icon: Building2, roles: ['admin', 'owner'] },
-  { id: 'support-chat', label: 'شات الدعم', icon: MessageCircle, roles: ['admin', 'owner'] },
-  { id: 'social-links', label: 'روابط التواصل', icon: Link2, roles: ['admin', 'owner'] },
-  { id: 'legal-content', label: 'المحتوى القانوني', icon: FileText, roles: ['admin', 'owner'] },
-  { id: 'notifications', label: 'الإشعارات', icon: Bell, roles: ['admin', 'owner'] },
-  { id: 'push-notifications', label: 'إرسال إشعارات', icon: Send, roles: ['admin', 'owner'] },
-  { id: 'settings', label: 'الإعدادات', icon: Settings, roles: ['admin', 'owner'] },
-  // Owner-only sections - admin CANNOT see these at all
-  { id: 'card-colors', label: 'ألوان البطائق', icon: Palette, roles: ['owner'] },
-  { id: 'sections', label: 'إدارة الأقسام', icon: Layers, roles: ['owner'] },
-  { id: 'visibility', label: 'إعدادات الظهور', icon: Eye, roles: ['owner'] },
-  { id: 'api-settings', label: 'إعدادات API', icon: Code, roles: ['owner'] },
-  { id: 'activity-log', label: 'سجل النشاط', icon: Activity, roles: ['owner'] },
-  { id: 'backup', label: 'النسخ الاحتياطي', icon: Database, roles: ['owner'] },
+interface NavSection {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  items: NavItem[];
+}
+
+const navSections: NavSection[] = [
+  {
+    id: 'dashboard',
+    label: 'لوحة التحكم',
+    icon: LayoutDashboard,
+    items: [
+      { id: 'dashboard', label: 'الرئيسية', icon: LayoutDashboard, roles: ['admin', 'owner'] },
+    ],
+  },
+  {
+    id: 'users',
+    label: 'إدارة المستخدمين',
+    icon: Users,
+    items: [
+      { id: 'users', label: 'قائمة المستخدمين', icon: Users, roles: ['admin', 'owner'] },
+      { id: 'kyc', label: 'التحقق من الهوية', icon: Shield, roles: ['admin', 'owner'] },
+      { id: 'user-gift-codes', label: 'قسائم الهدايا بين المستخدمين', icon: Gift, roles: ['admin', 'owner'] },
+    ],
+  },
+  {
+    id: 'financial',
+    label: 'العمليات المالية',
+    icon: Wallet,
+    items: [
+      { id: 'deposit', label: 'طلبات الإيداع', icon: ArrowDownCircle, roles: ['admin', 'owner'], badge: 'deposit' },
+      { id: 'withdraw', label: 'طلبات السحب', icon: ArrowUpCircle, roles: ['admin', 'owner'], badge: 'withdraw' },
+      { id: 'orders', label: 'إدارة الطلبات', icon: ShoppingCart, roles: ['admin', 'owner'], badge: 'orders' },
+      { id: 'commissions', label: 'ضبط العمولات', icon: Percent, roles: ['admin', 'owner'] },
+      { id: 'exchange-rates', label: 'أسعار الصرف', icon: DollarSign, roles: ['admin', 'owner'] },
+      { id: 'investments', label: 'إدارة الاستثمار', icon: TrendingUp, roles: ['admin', 'owner'] },
+      { id: 'gift-codes', label: 'أكواد الهدايا', icon: Gift, roles: ['admin', 'owner'] },
+      { id: 'promo-codes', label: 'أكواد الخصم', icon: Tag, roles: ['admin', 'owner'] },
+      { id: 'banks', label: 'الحسابات البنكية', icon: Building2, roles: ['admin', 'owner'] },
+      { id: 'limits', label: 'إدارة السقوف والحدود', icon: SlidersHorizontal, roles: ['admin', 'owner'] },
+      { id: 'financial-reports', label: 'التقارير المالية', icon: BarChart3, roles: ['admin', 'owner'] },
+      { id: 'settlements', label: 'إدارة التسويات', icon: CircleDollarSign, roles: ['admin', 'owner'] },
+    ],
+  },
+  {
+    id: 'services',
+    label: 'الخدمات والمنتجات',
+    icon: Boxes,
+    items: [
+      { id: 'providers', label: 'المزودون والباقات', icon: Server, roles: ['admin', 'owner'] },
+      { id: 'instant-recharge', label: 'خدمات الشحن الفوري', icon: Zap, roles: ['admin', 'owner'] },
+      { id: 'packages', label: 'إدارة الباقات', icon: Package, roles: ['admin', 'owner'] },
+      { id: 'bulk-codes', label: 'أكواد المنتجات بالجملة', icon: FileCode, roles: ['admin', 'owner'] },
+      { id: 'currency-cards', label: 'بطاقات العملات', icon: Coins, roles: ['admin', 'owner'] },
+      { id: 'service-analytics', label: 'تحليلات الخدمات', icon: BarChart3, roles: ['admin', 'owner'] },
+    ],
+  },
+  {
+    id: 'content',
+    label: 'المحتوى والتخصيص',
+    icon: Paintbrush,
+    items: [
+      { id: 'banners', label: 'البانرات الإعلانية', icon: Image, roles: ['admin', 'owner'] },
+      { id: 'social-links', label: 'روابط التواصل', icon: Link2, roles: ['admin', 'owner'] },
+      { id: 'legal-content', label: 'المحتوى القانوني', icon: FileText, roles: ['admin', 'owner'] },
+      { id: 'card-colors', label: 'ألوان البطائق', icon: Palette, roles: ['owner'] },
+      { id: 'push-notifications', label: 'إرسال إشعارات', icon: Send, roles: ['admin', 'owner'] },
+      { id: 'notifications', label: 'الإشعارات', icon: Bell, roles: ['admin', 'owner'] },
+      { id: 'sections', label: 'إدارة الأقسام', icon: Layers, roles: ['owner'] },
+      { id: 'visibility', label: 'إعدادات الظهور', icon: Eye, roles: ['owner'] },
+    ],
+  },
+  {
+    id: 'security',
+    label: 'الأمان والحماية',
+    icon: ShieldCheck,
+    items: [
+      { id: 'activity-log', label: 'سجل النشاط', icon: Activity, roles: ['owner'] },
+      { id: 'support-tickets', label: 'تذاكر الدعم', icon: Ticket, roles: ['admin', 'owner'] },
+      { id: 'support-livechat', label: 'المحادثات المباشرة', icon: MessageCircle, roles: ['admin', 'owner'] },
+      { id: 'security-dashboard', label: 'لوحة الأمان', icon: ShieldCheck, roles: ['owner'] },
+      { id: 'ip-blocking', label: 'حظر عناوين IP', icon: Globe, roles: ['owner'] },
+      { id: 'fraud-rules', label: 'قواعد كشف الاحتيال', icon: ScanEye, roles: ['owner'] },
+      { id: 'api-keys', label: 'مفاتيح API', icon: KeyRound, roles: ['owner'] },
+    ],
+  },
+
+  {
+    id: 'settings',
+    label: 'الإعدادات',
+    icon: Cog,
+    items: [
+      { id: 'settings', label: 'الإعدادات العامة', icon: Settings, roles: ['admin', 'owner'] },
+      { id: 'api-settings', label: 'إعدادات API', icon: Code, roles: ['owner'] },
+      { id: 'backup', label: 'النسخ الاحتياطي', icon: Database, roles: ['owner'] },
+      { id: 'maintenance', label: 'وضع الصيانة', icon: Wrench, roles: ['owner'] },
+      { id: 'app-version', label: 'إصدار التطبيق', icon: Smartphone, roles: ['owner'] },
+      { id: 'about', label: 'حول النظام', icon: Info, roles: ['admin', 'owner'] },
+    ],
+  },
 ];
 
 export default function Sidebar() {
-  const { activePanel, setActivePanel, sidebarOpen, setSidebarOpen, adminUser, logout } = useAdminStore();
+  const {
+    activePanel, setActivePanel, sidebarOpen, setSidebarOpen,
+    adminUser, logout,
+    depositRequests, withdrawRequests, kycPendingUsers, orders,
+  } = useAdminStore();
   const { theme, setTheme } = useTheme();
+  const [appName, setAppName] = useState('لوحة الإدارة');
 
-  // Filter based on user role - owner-only items completely hidden for admin
-  const filteredItems = navItems.filter(
-    (item) => adminUser && item.roles.includes(adminUser.role)
-  );
+  // Listen for app name from Firebase
+  useEffect(() => {
+    const configRef = ref(database, 'ownerSettings/projectConfig/appName');
+    const unsub = onValue(configRef, (snapshot) => {
+      if (snapshot.val()) setAppName(snapshot.val());
+    });
+    return () => unsub();
+  }, []);
 
-  const adminItems = filteredItems.filter((item) => item.roles.includes('admin'));
-  const ownerOnlyItems = filteredItems.filter((item) => !item.roles.includes('admin'));
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    dashboard: true,
+    users: true,
+    financial: true,
+    services: false,
+    content: false,
+    security: false,
+
+    settings: false,
+  });
+
+  const badges = useMemo(() => {
+    const pendingDeposits = depositRequests.filter(d => d.status === 'pending').length;
+    const pendingWithdrawals = withdrawRequests.filter(w => w.status === 'pending').length;
+    const pendingKYC = kycPendingUsers.filter(u => u.kycStatus === 'submitted').length;
+    const pendingOrders = orders.filter(o => o.status === 'pending').length;
+
+    return {
+      deposit: pendingDeposits,
+      withdraw: pendingWithdrawals,
+      kyc: pendingKYC,
+      orders: pendingOrders,
+    };
+  }, [depositRequests, withdrawRequests, kycPendingUsers, orders]);
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
+  };
 
   const handleLogout = async () => {
     try {
@@ -109,33 +250,32 @@ export default function Sidebar() {
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
-    // Also update zustand store for consistency
     useAdminStore.getState().setTheme(newTheme as 'light' | 'dark');
   };
 
-  const NavButton = ({ item }: { item: NavItem }) => {
-    const isActive = activePanel === item.id;
-    const Icon = item.icon;
-    return (
-      <button
-        onClick={() => setActivePanel(item.id)}
-        className={cn(
-          'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
-          isActive
-            ? 'bg-purple-600/20 text-purple-400 dark:text-purple-300 border border-purple-500/30'
-            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-        )}
-      >
-        <Icon className={cn('w-5 h-5 shrink-0', isActive && 'text-purple-500')} />
-        <span className="flex-1 text-right">{item.label}</span>
-        {item.badge && item.badge > 0 && (
-          <Badge className="bg-red-500 text-white text-xs h-5 min-w-5 flex items-center justify-center">
-            {item.badge}
-          </Badge>
-        )}
-      </button>
-    );
-  };
+  // Filter sections based on role
+  const filteredSections = useMemo(() => {
+    if (!adminUser) return [];
+    return navSections.map(section => ({
+      ...section,
+      items: section.items.filter(item => item.roles.includes(adminUser.role)),
+    })).filter(section => section.items.length > 0);
+  }, [adminUser]);
+
+  // Compute section badge counts
+  const sectionBadges = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredSections.forEach(section => {
+      let count = 0;
+      section.items.forEach(item => {
+        if (item.badge && badges[item.badge as keyof typeof badges]) {
+          count += badges[item.badge as keyof typeof badges];
+        }
+      });
+      counts[section.id] = count;
+    });
+    return counts;
+  }, [filteredSections, badges]);
 
   return (
     <>
@@ -146,7 +286,7 @@ export default function Sidebar() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -155,16 +295,16 @@ export default function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed top-0 right-0 h-full w-72 z-50 flex flex-col transition-transform duration-300 ease-in-out',
-          'bg-background border-l border-border shadow-xl',
+          'fixed top-0 right-0 h-full w-[280px] z-50 flex flex-col transition-transform duration-300 ease-in-out',
+          'glass-sidebar',
           sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
         )}
       >
-        {/* Header */}
-        <div className="p-4 border-b border-border admin-gradient">
-          <div className="flex items-center justify-between">
+        {/* Header - iOS style */}
+        <div className="p-5 pb-4">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-600/30 border border-purple-500/40 flex items-center justify-center overflow-hidden">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center overflow-hidden shadow-lg shadow-purple-500/20">
                 <img
                   src={APP_ICON_BASE64}
                   alt="الإدارة"
@@ -172,69 +312,164 @@ export default function Sidebar() {
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
-                    if (target.parentElement) {
-                      target.parentElement.innerHTML = '<svg class="w-5 h-5 text-purple-300" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
-                    }
                   }}
                 />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-white">الإدارة</h2>
-                <p className="text-xs text-purple-300/70">{adminUser?.displayName}</p>
+                <h2 className="text-base font-bold text-foreground">{appName}</h2>
+                <p className="text-xs text-muted-foreground">{adminUser?.displayName}</p>
               </div>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-white/70 hover:text-white p-1"
+              className="lg:hidden p-2 rounded-xl hover:bg-muted/50 transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5 text-muted-foreground" />
             </button>
           </div>
+
+          {/* Role badge */}
           {adminUser && (
-            <div className="mt-2 flex items-center gap-2">
-              <Badge className="bg-purple-600/50 text-purple-100 border-purple-500/50 text-xs">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-500/10 border border-purple-500/15">
+              <div className="w-2 h-2 rounded-full bg-green-500 pulse-dot" />
+              <span className="text-xs font-medium text-purple-600 dark:text-purple-400">
                 {adminUser.role === 'owner' ? 'المالك' : 'مدير'}
-              </Badge>
+              </span>
+              <span className="text-xs text-muted-foreground mr-auto">متصل</span>
             </div>
           )}
         </div>
 
-        {/* Nav items */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-1">
-          {adminItems.map((item) => (
-            <NavButton key={item.id} item={item} />
-          ))}
+        {/* Nav sections */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin px-3 pb-4 space-y-1">
+          {filteredSections.map((section) => {
+            const isExpanded = expandedSections[section.id];
+            const isDashboard = section.id === 'dashboard';
+            const SectionIcon = section.icon;
+            const sectionBadgeCount = sectionBadges[section.id] || 0;
+            const hasActiveItem = section.items.some(item => item.id === activePanel);
 
-          {ownerOnlyItems.length > 0 && (
-            <>
-              <div className="flex items-center gap-2 px-4 py-2 mt-4 mb-1">
-                <div className="h-px flex-1 bg-border" />
-                <span className="text-xs text-muted-foreground font-medium">صلاحيات المالك فقط</span>
-                <div className="h-px flex-1 bg-border" />
+            if (isDashboard) {
+              // Dashboard is always shown as a single item
+              return (
+                <div key={section.id}>
+                  {section.items.map(item => {
+                    const Icon = item.icon;
+                    const isActive = activePanel === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setActivePanel(item.id)}
+                        className={cn(
+                          'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200 active:scale-[0.98]',
+                          isActive
+                            ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
+                            : 'text-foreground hover:bg-muted/60'
+                        )}
+                      >
+                        <Icon className={cn('w-5 h-5 shrink-0')} />
+                        <span className="flex-1 text-right">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            }
+
+            return (
+              <div key={section.id}>
+                {/* Section Header */}
+                <button
+                  onClick={() => toggleSection(section.id)}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200',
+                    hasActiveItem ? 'text-purple-600 dark:text-purple-400' : 'text-muted-foreground'
+                  )}
+                >
+                  <SectionIcon className="w-4 h-4 shrink-0" />
+                  <span className="flex-1 text-right">{section.label}</span>
+                  {sectionBadgeCount > 0 && (
+                    <span className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1">
+                      {sectionBadgeCount}
+                    </span>
+                  )}
+                  <ChevronDown className={cn(
+                    'w-3.5 h-3.5 transition-transform duration-200',
+                    isExpanded ? 'rotate-180' : ''
+                  )} />
+                </button>
+
+                {/* Section Items */}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-0.5 pr-2">
+                        {section.items.map(item => {
+                          const Icon = item.icon;
+                          const isActive = activePanel === item.id;
+                          const badgeCount = item.badge ? badges[item.badge as keyof typeof badges] || 0 : 0;
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => setActivePanel(item.id)}
+                              className={cn(
+                                'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.98]',
+                                isActive
+                                  ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                                  : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                              )}
+                            >
+                              <Icon className={cn('w-4 h-4 shrink-0', isActive && 'text-purple-500')} />
+                              <span className="flex-1 text-right">{item.label}</span>
+                              {badgeCount > 0 && (
+                                <span className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1">
+                                  {badgeCount}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              {ownerOnlyItems.map((item) => (
-                <NavButton key={item.id} item={item} />
-              ))}
-            </>
-          )}
+            );
+          })}
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-border space-y-2">
+        <div className="p-3 border-t border-border/50">
+          {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted/50 transition-all active:scale-[0.98]"
           >
             {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             <span>{theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}</span>
           </button>
+
+          {/* Logout */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-500/10 transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-500/10 transition-all active:scale-[0.98]"
           >
             <LogOut className="w-5 h-5" />
             <span>تسجيل الخروج</span>
           </button>
+
+          {/* QTBM DEV Credit */}
+          <div className="mt-3 pt-3 border-t border-border/30 text-center">
+            <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
+              تم التطوير بواسطة: مؤسسة QTBM DEV
+            </p>
+          </div>
         </div>
       </aside>
     </>

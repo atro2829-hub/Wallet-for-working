@@ -208,6 +208,18 @@ export default function UsersPanel() {
     if (!selectedUser || !newRole) return;
     try {
       await update(ref(database, `users/${selectedUser.uid}`), { role: newRole });
+
+      // Notify user about role change
+      try {
+        const { sendNotificationToUser } = await import('@/lib/notifications');
+        await sendNotificationToUser(selectedUser.uid, {
+          title: 'تحديث الصلاحيات',
+          body: `تم تحديث صلاحيات حسابك إلى: ${newRole}`,
+          type: 'security',
+          data: { action: 'role_change', role: newRole },
+        });
+      } catch (e) { console.warn('Role change notification failed:', e); }
+
       showToast('تم تغيير الصلاحية', 'success');
       setRoleDialog(false);
       setNewRole('');
@@ -275,6 +287,18 @@ export default function UsersPanel() {
         pin: null,
         pinResetAt: new Date().toISOString(),
       });
+
+      // Notify user about PIN reset
+      try {
+        const { sendNotificationToUser } = await import('@/lib/notifications');
+        await sendNotificationToUser(selectedUser.uid, {
+          title: 'تم إعادة تعيين الرقم السري',
+          body: 'تم إعادة تعيين الرقم السري لحسابك. يرجى تسجيل الدخول وإعداد رقم سري جديد.',
+          type: 'security',
+          data: { action: 'pin_reset' },
+        });
+      } catch (e) { console.warn('PIN reset notification failed:', e); }
+
       showToast('تم إعادة تعيين رمز PIN', 'success');
       setPinDialog(false);
     } catch (e) {

@@ -1,17 +1,18 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LOGO_BASE64 } from '@/lib/logo';
 import { useAppStore } from '@/lib/store';
 import { Fingerprint, Delete } from 'lucide-react';
+import { authenticateWithBiometricDetailed, isBiometricAvailable, isBiometricEnabledForUser } from '@/lib/biometric';
 
 interface PinScreenProps {
   onUnlock: () => void;
 }
 
 export default function PinScreen({ onUnlock }: PinScreenProps) {
-  const { pinCode, setPinCode } = useAppStore();
+  const { pinCode, setPinCode, biometricEnabled, setBiometricEnabled, user } = useAppStore();
   const isSettingPin = !pinCode;
 
   const [enteredPin, setEnteredPin] = useState('');
@@ -19,6 +20,33 @@ export default function PinScreen({ onUnlock }: PinScreenProps) {
   const [isConfirmStep, setIsConfirmStep] = useState(false);
   const [error, setError] = useState('');
   const [shakeKey, setShakeKey] = useState(0);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+  const [shouldShowBiometric, setShouldShowBiometric] = useState(false);
+
+  // On mount, check if biometric is enabled for this user from localStorage
+  // This ensures biometric persists even after logout/re-login
+  useEffect(() => {
+    if (user?.id && pinCode) {
+      const enabled = isBiometricEnabledForUser(user.id);
+      if (enabled && !biometricEnabled) {
+        setBiometricEnabled(true);
+      }
+      setShouldShowBiometric(enabled);
+    } else {
+      setShouldShowBiometric(biometricEnabled);
+    }
+  }, [user?.id, pinCode, biometricEnabled, setBiometricEnabled]);
+
+  // Auto-trigger biometric on mount if enabled
+  useEffect(() => {
+    if (shouldShowBiometric && pinCode && !isSettingPin && !biometricLoading) {
+      const timer = setTimeout(() => {
+        handleBiometric();
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldShowBiometric, pinCode, isSettingPin]);
 
   const pinLength = 4;
   const currentPin = isConfirmStep ? confirmPin : enteredPin;
@@ -82,13 +110,37 @@ export default function PinScreen({ onUnlock }: PinScreenProps) {
     }
   }, [currentPin, isConfirmStep]);
 
-  const handleBiometric = useCallback(() => {
-    // In a real app, this would use Web Authentication API or a native biometric bridge
-    // For now, just unlock directly if PIN exists
-    if (pinCode) {
-      onUnlock();
+  const handleBiometric = useCallback(async () => {
+    if (biometricLoading) return;
+    setBiometricLoading(true);
+    try {
+      // Check if biometric is available and enabled
+      const available = await isBiometricAvailable();
+      if (!available) {
+        setError('البصمة غير متاحة على هذا الجهاز');
+        return;
+      }
+
+      // Check biometric from both store and localStorage (per-user)
+      const isPerUserEnabled = user?.id ? isBiometricEnabledForUser(user.id) : biometricEnabled;
+      if (!isPerUserEnabled && !biometricEnabled) {
+        setError('البصمة غير مفعّلة. فعّلها من الإعدادات');
+        return;
+      }
+
+      // Authenticate with biometric — use detailed version for better error messages
+      const result = await authenticateWithBiometricDetailed('يرجى التحقق بالبصمة للدخول');
+      if (result.success) {
+        onUnlock();
+      } else {
+        setError(result.errorMessage || 'فشل التحقق بالبصمة');
+      }
+    } catch {
+      setError('حدث خطأ في التحقق بالبصمة');
+    } finally {
+      setBiometricLoading(false);
     }
-  }, [pinCode, onUnlock]);
+  }, [pinCode, onUnlock, biometricEnabled, biometricLoading, user?.id]);
 
   const title = isSettingPin
     ? isConfirmStep
@@ -251,19 +303,28 @@ export default function PinScreen({ onUnlock }: PinScreenProps) {
         })}
       </motion.div>
 
-      {/* Biometric button */}
-      {pinCode && (
+      {/* Biometric button — show if biometric is enabled for this user (from localStorage or store) */}
+      {pinCode && (biometricEnabled || shouldShowBiometric) && (
         <motion.button
           className="mt-6 flex items-center gap-2 px-5 py-3 rounded-2xl relative z-10"
-          style={{ background: 'rgba(255,255,255,0.05)' }}
+          style={{ background: (biometricEnabled || shouldShowBiometric) ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.05)' }}
           onClick={handleBiometric}
+          disabled={biometricLoading}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
           whileTap={{ scale: 0.95 }}
         >
-          <Fingerprint size={20} strokeWidth={1.5} color="#E60000" />
-          <span className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          {biometricLoading ? (
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+              className="w-5 h-5 border-2 border-purple-300 border-t-purple-600 rounded-full"
+            />
+          ) : (
+            <Fingerprint size={20} strokeWidth={1.5} color={(biometricEnabled || shouldShowBiometric) ? '#8B5CF6' : '#E60000'} />
+          )}
+          <span className="text-sm" style={{ color: (biometricEnabled || shouldShowBiometric) ? '#8B5CF6' : 'rgba(255,255,255,0.5)' }}>
             بصمة الإصبع
           </span>
         </motion.button>

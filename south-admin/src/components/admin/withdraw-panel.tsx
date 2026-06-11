@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ref, onValue, update, push, get } from 'firebase/database';
+import { useState } from 'react';
+import { ref, update, push, get } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useAdminStore } from '@/lib/store';
 import { formatNumber, currencySymbols, generateId } from '@/lib/utils';
@@ -18,28 +18,14 @@ import { Search, CheckCircle, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function WithdrawPanel() {
-  const { adminUser, showToast } = useAdminStore();
-  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const { adminUser, showToast, withdrawRequests, dataLoaded } = useAdminStore();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('pending');
-  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [notes, setNotes] = useState('');
 
-  useEffect(() => {
-    const wdRef = ref(database, 'withdrawRequests');
-    const unsub = onValue(wdRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      const list = Object.entries(data).map(([id, val]: [string, any]) => ({ id, ...val }));
-      list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-      setWithdrawals(list);
-      setLoading(false);
-    });
-    return () => unsub();
-  }, []);
-
-  const filtered = withdrawals.filter((w) => {
+  const filtered = withdrawRequests.filter((w) => {
     const ms = !search || (w.userName && w.userName.includes(search)) || (w.userId && w.userId.includes(search));
     const mf = statusFilter === 'all' || w.status === statusFilter;
     return ms && mf;
@@ -126,13 +112,13 @@ export default function WithdrawPanel() {
     rejected: 'bg-red-500/20 text-red-600 dark:text-red-400',
   };
 
-  if (loading) return <div className="flex items-center justify-center min-h-[400px]"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>;
+  if (!dataLoaded) return <div className="flex items-center justify-center min-h-[400px]"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">طلبات السحب</h1>
-        <p className="text-muted-foreground text-sm mt-1">{formatNumber(withdrawals.filter(w => w.status === 'pending').length)} طلب معلق</p>
+        <p className="text-muted-foreground text-sm mt-1">{formatNumber(withdrawRequests.filter(w => w.status === 'pending').length)} طلب معلق</p>
       </div>
 
       <div className="flex gap-3">

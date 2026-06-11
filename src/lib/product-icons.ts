@@ -578,6 +578,29 @@ export const productIcons: Record<string, string> = {
   'y-net-internet': svgToDataUrl(yNetInternetSvg),
   'sabafon-internet': svgToDataUrl(sabafonInternetSvg),
   'gift-cards': svgToDataUrl(giftCardsProductSvg),
+
+  // New Category Icons
+  'providers-category': svgToDataUrl(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
+  <rect x="2" y="2" width="44" height="44" rx="12" fill="white"/>
+  <rect x="8" y="12" width="32" height="24" rx="3" stroke="#1a1a1a" stroke-width="1.8" fill="none"/>
+  <circle cx="18" cy="22" r="4" stroke="#1a1a1a" stroke-width="1.5" fill="none"/>
+  <path d="M12 32C12 28 14.5 26 18 26C21.5 26 24 28 24 32" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+  <circle cx="30" cy="22" r="4" stroke="#E60000" stroke-width="1.5" fill="none"/>
+  <path d="M24 32C24 28 26.5 26 30 26C33.5 26 36 28 36 32" stroke="#E60000" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+  <path d="M18 10V14" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M30 10V14" stroke="#E60000" stroke-width="1.5" stroke-linecap="round"/>
+</svg>`),
+  'wallet-services-category': svgToDataUrl(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
+  <rect x="2" y="2" width="44" height="44" rx="12" fill="white"/>
+  <rect x="8" y="16" width="28" height="20" rx="3" stroke="#1a1a1a" stroke-width="1.8" fill="none"/>
+  <path d="M8 22H36" stroke="#1a1a1a" stroke-width="1.5"/>
+  <rect x="28" y="24" width="8" height="6" rx="2" stroke="#1a1a1a" stroke-width="1.5" fill="none"/>
+  <circle cx="32" cy="27" r="1.2" fill="#1a1a1a"/>
+  <path d="M12 10H20" stroke="#E60000" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M16 7V13" stroke="#E60000" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="36" cy="12" r="3" stroke="#E60000" stroke-width="1.5" fill="none"/>
+  <path d="M35 12H37" stroke="#E60000" stroke-width="1.2" stroke-linecap="round"/>
+</svg>`),
 };
 
 /**

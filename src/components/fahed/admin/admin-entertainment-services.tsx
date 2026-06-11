@@ -27,8 +27,8 @@ const defaultEntertainmentSubSections: SubSection[] = [
   { id: 'sub-streaming', name: 'المنصات والبث', icon: '', order: 2, categoryIds: ['streaming'] },
 ];
 
-// Category IDs that belong to entertainment section
-const entertainmentCategoryIds = ['games', 'cards', 'streaming'];
+// Category IDs that belong to wallet services section
+const walletServicesCategoryIds = ['wallet-services', 'games', 'cards', 'streaming'];
 
 // Provider name patterns for streaming services
 const streamingProviderNames = ['netflix', 'spotify', 'youtube', 'steam', 'apple', 'google play', 'playstation', 'xbox', 'nintendo', 'twitch', 'disney', 'hulu', 'crunchyroll', 'roblox', 'fortnite', 'epic'];
@@ -84,11 +84,11 @@ export default function AdminEntertainmentServices() {
     return () => unsubscribe();
   }, []);
 
-  // Filter providers that belong to entertainment categories
-  // This includes providers with categoryId in entertainment list,
-  // plus providers whose names match streaming patterns but have 'games' categoryId
+  // Filter providers that belong to wallet services categories
+  // This includes providers with categoryId in wallet services list,
+  // plus providers whose names match streaming patterns
   const entertainmentProviders = providers.filter(p => {
-    if (entertainmentCategoryIds.includes(p.categoryId)) return true;
+    if (walletServicesCategoryIds.includes(p.categoryId)) return true;
     // Also include providers with 'games' categoryId whose name matches streaming patterns
     const nameLower = p.name.toLowerCase();
     if (streamingProviderNames.some(sp => nameLower.includes(sp))) return true;
@@ -222,6 +222,7 @@ export default function AdminEntertainmentServices() {
 
   const getCategoryIdLabel = (categoryId: string) => {
     switch (categoryId) {
+      case 'wallet-services': return 'خدمات المحفظة';
       case 'games': return 'ألعاب';
       case 'cards': return 'بطاقات';
       case 'streaming': return 'بث';

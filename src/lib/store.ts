@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
+import { isBiometricEnabledForUser } from '@/lib/biometric';
 
 interface User {
   id: string;
@@ -53,7 +54,7 @@ interface Notification {
 export interface ServiceCategory {
   id: string;
   name: string;
-  type: 'telecom' | 'internet' | 'games' | 'cards' | 'electricity' | 'government' | 'crypto';
+  type: 'telecom' | 'internet' | 'games' | 'cards' | 'electricity' | 'government' | 'crypto' | 'providers' | 'wallet-services';
   icon: string; // Base64 or icon key
 }
 
@@ -77,6 +78,10 @@ export interface ProductPackage {
   currency: 'YER' | 'SAR' | 'USD';
   executionType: 'manual' | 'auto';
   isActive: boolean;
+  apiProvider?: string;       // Name of the external API provider company
+  productIdInApi?: string;    // Product ID in the external API system
+  costPrice?: number;         // Cost price from the provider
+  commission?: number;        // Profit margin (selling price - cost price)
 }
 
 export interface Order {
@@ -103,12 +108,16 @@ export interface DepositRequest {
   userName: string;
   amount: number;
   currency: 'YER' | 'SAR' | 'USD';
-  method: 'bank_transfer' | 'cash' | 'card';
+  method: 'bank_transfer' | 'cash' | 'card' | 'crypto';
   receiptImage: string;
   status: 'pending' | 'approved' | 'rejected';
   notes: string;
   createdAt: string;
   reviewedAt?: string;
+  cryptoId?: string;
+  cryptoSymbol?: string;
+  cryptoNetwork?: string;
+  cryptoTxHash?: string;
 }
 
 export interface WithdrawRequest {
@@ -117,12 +126,16 @@ export interface WithdrawRequest {
   userName: string;
   amount: number;
   currency: 'YER' | 'SAR' | 'USD';
-  method: 'bank_transfer' | 'cash';
+  method: 'bank_transfer' | 'cash' | 'crypto';
   bankDetails: string;
   status: 'pending' | 'approved' | 'rejected';
   notes: string;
   createdAt: string;
   reviewedAt?: string;
+  cryptoId?: string;
+  cryptoSymbol?: string;
+  cryptoNetwork?: string;
+  cryptoWalletAddress?: string;
 }
 
 export interface SupportTicket {
@@ -209,6 +222,8 @@ export interface MaintenanceMode {
   active: boolean;
   message: string;
   estimatedTime: string;
+  activatedAt?: string;
+  activatedBy?: string;
 }
 
 export interface ForceUpdate {
@@ -417,6 +432,10 @@ interface AppState {
   biometricEnabled: boolean;
   setBiometricEnabled: (enabled: boolean) => void;
 
+  // Biometric transaction confirmation (optional)
+  biometricTransactionConfirm: boolean;
+  setBiometricTransactionConfirm: (enabled: boolean) => void;
+
   // Exchange rate API URL
   exchangeRateApiUrl: string;
   setExchangeRateApiUrl: (url: string) => void;
@@ -424,10 +443,10 @@ interface AppState {
 
 // Default service categories
 const defaultCategories: ServiceCategory[] = [
+  { id: 'service-providers', name: 'مزودين الخدمات', type: 'providers', icon: 'providers' },
+  { id: 'wallet-services', name: 'خدمات المحفظة الخاصة بنا', type: 'wallet-services', icon: 'wallet-services' },
   { id: 'telecom', name: 'الاتصالات', type: 'telecom', icon: 'telecom' },
   { id: 'internet', name: 'الإنترنت', type: 'internet', icon: 'internet' },
-  { id: 'entertainment', name: 'خدمات ترفيهية', type: 'games', icon: 'entertainment' },
-  { id: 'cards', name: 'بطاقات الرقمية', type: 'cards', icon: 'cards' },
   { id: 'electricity', name: 'الكهرباء والماء', type: 'electricity', icon: 'electricity' },
   { id: 'government', name: 'خدمات حكومية', type: 'government', icon: 'government' },
   { id: 'crypto', name: 'الكريبتو', type: 'crypto', icon: 'crypto' },
@@ -447,36 +466,39 @@ const defaultProviders: ServiceProvider[] = [
   { id: 'y-net-internet', categoryId: 'internet', name: 'واي نت', color: '#059669', icon: '', isActive: true, inputLabel: 'رقم الهاتف', inputType: 'phone', inputPrefix: '+967' },
   { id: 'sabafon-internet', categoryId: 'internet', name: 'سبأفون نت', color: '#2563EB', icon: '', isActive: true, inputLabel: 'رقم الهاتف', inputType: 'phone', inputPrefix: '+967' },
 
-  // خدمات ترفيهية
-  { id: 'pubg', categoryId: 'entertainment', name: 'ببجي موبايل', color: '#F59E0B', icon: '', isActive: true, inputLabel: 'Player ID', inputType: 'text' },
-  { id: 'freefire', categoryId: 'entertainment', name: 'فري فاير', color: '#EC4899', icon: '', isActive: true, inputLabel: 'Player ID', inputType: 'text' },
-  { id: 'call-of-duty', categoryId: 'entertainment', name: 'كال اوف ديوتي', color: '#1a1a1a', icon: '', isActive: true, inputLabel: 'Player ID', inputType: 'text' },
-  { id: 'clash-royale', categoryId: 'entertainment', name: 'كلاش رويال', color: '#3B82F6', icon: '', isActive: true, inputLabel: 'Player Tag', inputType: 'text' },
-  { id: 'clash-of-clans', categoryId: 'entertainment', name: 'كلاش اوف كلانس', color: '#F59E0B', icon: '', isActive: true, inputLabel: 'Player Tag', inputType: 'text' },
-  { id: 'roblox', categoryId: 'entertainment', name: 'روبلوكس', color: '#E60000', icon: '', isActive: true, inputLabel: 'Username', inputType: 'text' },
-  { id: 'fortnite', categoryId: 'entertainment', name: 'فورتنايت', color: '#6D28D9', icon: '', isActive: true, inputLabel: 'Epic ID', inputType: 'text' },
-  { id: 'minecraft', categoryId: 'entertainment', name: 'ماينكرافت', color: '#4ADE80', icon: '', isActive: true, inputLabel: 'Username', inputType: 'text' },
-  { id: 'valorant', categoryId: 'entertainment', name: 'فالورانت', color: '#FF4655', icon: '', isActive: true, inputLabel: 'Riot ID', inputType: 'text' },
-  { id: 'league-legends', categoryId: 'entertainment', name: 'ليق اوف ليجندز', color: '#C8AA6E', icon: '', isActive: true, inputLabel: 'Riot ID', inputType: 'text' },
-  { id: 'apex-legends', categoryId: 'entertainment', name: 'ابيكس ليجندز', color: '#DA292A', icon: '', isActive: true, inputLabel: 'EA Account', inputType: 'text' },
-  { id: 'genshin-impact', categoryId: 'entertainment', name: 'جينشين امباكت', color: '#FFD700', icon: '', isActive: true, inputLabel: 'UID', inputType: 'text' },
-  { id: 'honkai-star', categoryId: 'entertainment', name: 'هنكاي ستار ريل', color: '#7C3AED', icon: '', isActive: true, inputLabel: 'UID', inputType: 'text' },
-  { id: 'ea-fc', categoryId: 'entertainment', name: 'EA FC 25', color: '#22C55E', icon: '', isActive: true, inputLabel: 'EA Account', inputType: 'text' },
-  { id: 'steam', categoryId: 'entertainment', name: 'ستيم', color: '#1B2838', icon: '', isActive: true, inputLabel: 'Steam ID', inputType: 'text' },
-  { id: 'netflix', categoryId: 'entertainment', name: 'نتفلكس', color: '#E50914', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
-  { id: 'spotify', categoryId: 'entertainment', name: 'سبوتيفاي', color: '#1DB954', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
-  { id: 'youtube-premium', categoryId: 'entertainment', name: 'يوتيوب بريميوم', color: '#FF0000', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
+  // مزودين الخدمات (placeholder - admin will add API providers later)
+  { id: 'api-provider-placeholder', categoryId: 'service-providers', name: 'مزود خدمات (قريباً)', color: '#6B7280', icon: '', isActive: false, inputLabel: 'رقم العميل', inputType: 'text' },
 
-  // بطاقات رقمية
-  { id: 'google-play', categoryId: 'cards', name: 'بطاقة جوجل بلاي', color: '#34A853', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
-  { id: 'apple-itunes', categoryId: 'cards', name: 'بطاقة آيتونز', color: '#007AFF', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
-  { id: 'amazon-gift', categoryId: 'cards', name: 'بطاقة امازون', color: '#FF9900', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
-  { id: 'psn-card', categoryId: 'cards', name: 'بطاقة بلايستيشن', color: '#00439C', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
-  { id: 'xbox-card', categoryId: 'cards', name: 'بطاقة اكسبوكس', color: '#107C10', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
-  { id: 'nintendo-card', categoryId: 'cards', name: 'بطاقة نينتندو', color: '#E60012', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
-  { id: 'visa-virtual', categoryId: 'cards', name: 'بطاقة فيزا افتراضية', color: '#1A1F71', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
-  { id: 'mastercard-virtual', categoryId: 'cards', name: 'بطاقة ماستركارد افتراضية', color: '#EB001B', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
-  { id: 'paypal', categoryId: 'cards', name: 'شحن بايبال', color: '#003087', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
+  // خدمات المحفظة الخاصة بنا - ألعاب
+  { id: 'pubg', categoryId: 'wallet-services', name: 'ببجي موبايل', color: '#F59E0B', icon: '', isActive: true, inputLabel: 'Player ID', inputType: 'text' },
+  { id: 'freefire', categoryId: 'wallet-services', name: 'فري فاير', color: '#EC4899', icon: '', isActive: true, inputLabel: 'Player ID', inputType: 'text' },
+  { id: 'call-of-duty', categoryId: 'wallet-services', name: 'كال اوف ديوتي', color: '#1a1a1a', icon: '', isActive: true, inputLabel: 'Player ID', inputType: 'text' },
+  { id: 'clash-royale', categoryId: 'wallet-services', name: 'كلاش رويال', color: '#3B82F6', icon: '', isActive: true, inputLabel: 'Player Tag', inputType: 'text' },
+  { id: 'clash-of-clans', categoryId: 'wallet-services', name: 'كلاش اوف كلانس', color: '#F59E0B', icon: '', isActive: true, inputLabel: 'Player Tag', inputType: 'text' },
+  { id: 'roblox', categoryId: 'wallet-services', name: 'روبلوكس', color: '#E60000', icon: '', isActive: true, inputLabel: 'Username', inputType: 'text' },
+  { id: 'fortnite', categoryId: 'wallet-services', name: 'فورتنايت', color: '#6D28D9', icon: '', isActive: true, inputLabel: 'Epic ID', inputType: 'text' },
+  { id: 'minecraft', categoryId: 'wallet-services', name: 'ماينكرافت', color: '#4ADE80', icon: '', isActive: true, inputLabel: 'Username', inputType: 'text' },
+  { id: 'valorant', categoryId: 'wallet-services', name: 'فالورانت', color: '#FF4655', icon: '', isActive: true, inputLabel: 'Riot ID', inputType: 'text' },
+  { id: 'league-legends', categoryId: 'wallet-services', name: 'ليق اوف ليجندز', color: '#C8AA6E', icon: '', isActive: true, inputLabel: 'Riot ID', inputType: 'text' },
+  { id: 'apex-legends', categoryId: 'wallet-services', name: 'ابيكس ليجندز', color: '#DA292A', icon: '', isActive: true, inputLabel: 'EA Account', inputType: 'text' },
+  { id: 'genshin-impact', categoryId: 'wallet-services', name: 'جينشين امباكت', color: '#FFD700', icon: '', isActive: true, inputLabel: 'UID', inputType: 'text' },
+  { id: 'honkai-star', categoryId: 'wallet-services', name: 'هنكاي ستار ريل', color: '#7C3AED', icon: '', isActive: true, inputLabel: 'UID', inputType: 'text' },
+  { id: 'ea-fc', categoryId: 'wallet-services', name: 'EA FC 25', color: '#22C55E', icon: '', isActive: true, inputLabel: 'EA Account', inputType: 'text' },
+  { id: 'steam', categoryId: 'wallet-services', name: 'ستيم', color: '#1B2838', icon: '', isActive: true, inputLabel: 'Steam ID', inputType: 'text' },
+  { id: 'netflix', categoryId: 'wallet-services', name: 'نتفلكس', color: '#E50914', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
+  { id: 'spotify', categoryId: 'wallet-services', name: 'سبوتيفاي', color: '#1DB954', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
+  { id: 'youtube-premium', categoryId: 'wallet-services', name: 'يوتيوب بريميوم', color: '#FF0000', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
+
+  // خدمات المحفظة الخاصة بنا - بطاقات رقمية
+  { id: 'google-play', categoryId: 'wallet-services', name: 'بطاقة جوجل بلاي', color: '#34A853', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
+  { id: 'apple-itunes', categoryId: 'wallet-services', name: 'بطاقة آيتونز', color: '#007AFF', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
+  { id: 'amazon-gift', categoryId: 'wallet-services', name: 'بطاقة امازون', color: '#FF9900', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
+  { id: 'psn-card', categoryId: 'wallet-services', name: 'بطاقة بلايستيشن', color: '#00439C', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
+  { id: 'xbox-card', categoryId: 'wallet-services', name: 'بطاقة اكسبوكس', color: '#107C10', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
+  { id: 'nintendo-card', categoryId: 'wallet-services', name: 'بطاقة نينتندو', color: '#E60012', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
+  { id: 'visa-virtual', categoryId: 'wallet-services', name: 'بطاقة فيزا افتراضية', color: '#1A1F71', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
+  { id: 'mastercard-virtual', categoryId: 'wallet-services', name: 'بطاقة ماستركارد افتراضية', color: '#EB001B', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
+  { id: 'paypal', categoryId: 'wallet-services', name: 'شحن بايبال', color: '#003087', icon: '', isActive: true, inputLabel: 'البريد الإلكتروني', inputType: 'text' },
 
   // الكهرباء والماء
   { id: 'elec-sanaa', categoryId: 'electricity', name: 'كهرباء صنعاء', color: '#F59E0B', icon: '', isActive: true, inputLabel: 'رقم العداد', inputType: 'text' },
@@ -813,10 +835,38 @@ export const useAppStore = create<AppState>()(
       // Auth
       user: null,
       isAuthenticated: false,
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
+      setUser: (user) => {
+        // Restore pinCode from per-user localStorage if available
+        if (user?.id && typeof window !== 'undefined') {
+          const savedPin = localStorage.getItem(`pin_code_${user.id}`);
+          if (savedPin && !get().pinCode) {
+            set({ user, isAuthenticated: !!user, pinCode: savedPin });
+            return;
+          }
+        }
+        set({ user, isAuthenticated: !!user });
+      },
       logout: () => {
+        const currentUser = get().user;
+        // Save pinCode per-user in localStorage before clearing
+        if (currentUser?.id && get().pinCode) {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(`pin_code_${currentUser.id}`, get().pinCode);
+          }
+        }
         signOut(auth).catch(() => {});
-        set({ user: null, isAuthenticated: false, activeTab: 'home', pinCode: '', isPinLocked: false });
+        // Keep biometricEnabled as-is so it persists per-user via localStorage
+        // The actual per-user flag (biometric_enabled_<uid>) is never cleared on logout
+        set({
+          user: null,
+          isAuthenticated: false,
+          activeTab: 'home',
+          pinCode: '',
+          isPinLocked: false,
+          // Reset biometricEnabled to false in store; it will be re-evaluated
+          // from localStorage on next login based on the user's UID
+          biometricEnabled: false,
+        });
       },
 
       // Theme
@@ -985,8 +1035,8 @@ export const useAppStore = create<AppState>()(
         )
       })),
 
-      // Exchange rates: 1 USD = 1550 YER, 1 SAR = 410 YER
-      exchangeRates: { YER: 1, SAR: 410, USD: 1550 },
+      // Exchange rates: 1 USD = 1558 YER (sell), 1 SAR = 410 YER (sell) - synced from yemenrates.com API
+      exchangeRates: { YER: 1, SAR: 410, USD: 1558 },
       setExchangeRates: (exchangeRates) => set({ exchangeRates }),
 
       // Promo codes
@@ -1205,6 +1255,35 @@ export const useAppStore = create<AppState>()(
         USD: { primary: '#2563EB', gradient: '#0D47A1' },
       },
       setCardColors: (cardColors) => set({ cardColors }),
+
+      // Biometric enabled — initialize from localStorage if a user is already logged in
+      biometricEnabled: (() => {
+        if (typeof window === 'undefined') return false;
+        try {
+          const storeStr = localStorage.getItem('fahed-net-store');
+          if (storeStr) {
+            const parsed = JSON.parse(storeStr);
+            const uid = parsed?.state?.user?.id;
+            if (uid && isBiometricEnabledForUser(uid)) return true;
+          }
+        } catch { /* ignore */ }
+        return false;
+      })(),
+      setBiometricEnabled: (biometricEnabled) => set({ biometricEnabled }),
+
+      // Biometric transaction confirmation
+      biometricTransactionConfirm: (() => {
+        if (typeof window !== 'undefined') {
+          return localStorage.getItem('biometricTransactionConfirm') !== 'false';
+        }
+        return true;
+      })(),
+      setBiometricTransactionConfirm: (biometricTransactionConfirm) => {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('biometricTransactionConfirm', String(biometricTransactionConfirm));
+        }
+        set({ biometricTransactionConfirm });
+      },
     }),
     {
       name: 'fahed-net-store',
@@ -1214,6 +1293,7 @@ export const useAppStore = create<AppState>()(
         theme: state.theme,
         balanceVisible: state.balanceVisible,
         pinCode: state.pinCode,
+        biometricEnabled: state.biometricEnabled,
         favorites: state.favorites,
         recentServices: state.recentServices,
         savingsGoals: state.savingsGoals,

@@ -1,77 +1,160 @@
-name: Build Android APK & AAB
+name: Build Android Apps
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
-  build:
+  build-main-app:
+    name: Build Main App (محفظة الجنوب)
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
 
-      - name: Setup Java 21
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android SDK Licenses
-        run: yes | sdkmanager --licenses 2>/dev/null || true
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
-      - name: Build Next.js static export
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Build Next.js
         run: npm run build
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          DATABASE_URL: "file::memory:"
 
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Decode keystore from secrets
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/south-wallet.keystore
-
-      - name: Build Release APK
+      - name: Build Android APK
         working-directory: android
         run: |
+          chmod +x gradlew
           ./gradlew assembleRelease \
-            -PMYAPP_UPLOAD_STORE_FILE=south-wallet.keystore \
-            -PMYAPP_UPLOAD_STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }} \
-            -PMYAPP_UPLOAD_KEY_ALIAS=${{ secrets.KEY_ALIAS }} \
-            -PMYAPP_UPLOAD_KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
+            -PMYAPP_UPLOAD_STORE_FILE=../../south-wallet.keystore \
+            -PMYAPP_UPLOAD_STORE_PASSWORD=southwallet123 \
+            -PMYAPP_UPLOAD_KEY_ALIAS=southwallet \
+            -PMYAPP_UPLOAD_KEY_PASSWORD=southwallet123
 
-      - name: Build Release AAB
-        working-directory: android
-        run: |
-          ./gradlew bundleRelease \
-            -PMYAPP_UPLOAD_STORE_FILE=south-wallet.keystore \
-            -PMYAPP_UPLOAD_STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }} \
-            -PMYAPP_UPLOAD_KEY_ALIAS=${{ secrets.KEY_ALIAS }} \
-            -PMYAPP_UPLOAD_KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
-
-      - name: Upload Release APK
+      - name: Upload Main App APK
         uses: actions/upload-artifact@v4
         with:
-          name: south-wallet-user-apk
+          name: main-app-apk
           path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
 
-      - name: Upload Release AAB
+  build-admin-app:
+    name: Build Admin App (الإدارة)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        working-directory: south-admin
+        run: npm ci
+
+      - name: Build Next.js
+        working-directory: south-admin
+        run: npm run build
+
+      - name: Sync Capacitor
+        working-directory: south-admin
+        run: npx cap sync android
+
+      - name: Build Android APK
+        working-directory: south-admin/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -PMYAPP_UPLOAD_STORE_FILE=../../../south-wallet.keystore \
+            -PMYAPP_UPLOAD_STORE_PASSWORD=southwallet123 \
+            -PMYAPP_UPLOAD_KEY_ALIAS=southwallet \
+            -PMYAPP_UPLOAD_KEY_PASSWORD=southwallet123
+
+      - name: Upload Admin App APK
         uses: actions/upload-artifact@v4
         with:
-          name: south-wallet-user-aab
-          path: android/app/build/outputs/bundle/release/app-release.aab
+          name: admin-app-apk
+          path: south-admin/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+  build-dev-app:
+    name: Build Dev App (مركز النسخ)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        working-directory: south-dev
+        run: npm install
+
+      - name: Build Next.js
+        working-directory: south-dev
+        run: npm run build
+
+      - name: Sync Capacitor
+        working-directory: south-dev
+        run: npx cap sync android
+
+      - name: Build Android APK
+        working-directory: south-dev/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -PMYAPP_UPLOAD_STORE_FILE=../../../south-wallet.keystore \
+            -PMYAPP_UPLOAD_STORE_PASSWORD=southwallet123 \
+            -PMYAPP_UPLOAD_KEY_ALIAS=southwallet \
+            -PMYAPP_UPLOAD_KEY_PASSWORD=southwallet123
+
+      - name: Upload Dev App APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-app-apk
+          path: south-dev/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30

@@ -22,6 +22,7 @@ import { ref, push, set, get, update } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useToast } from '@/components/fahed/toast-provider';
 import { allProducts } from '@/lib/products-data';
+import { executeApiOrder, type ApiProviderConfig } from '@/lib/api-provider';
 
 export default function OrderBottomSheet() {
   const { theme } = useTheme();
@@ -120,6 +121,76 @@ export default function OrderBottomSheet() {
     }
   };
 
+  // ─── API Auto-Processing ──────────────────────────────────────────
+  // When a package has executionType='auto' and an apiProvider configured,
+  // this function will call the external API and handle the result.
+  const processApiOrder = async (
+    orderId: string,
+    pkg: ProductPackage,
+    orderCustomerInput: string
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      // Find the API provider config from Firebase
+      const apiProvidersRef = ref(database, 'adminSettings/apiProviders');
+      const snapshot = await get(apiProvidersRef);
+      
+      if (!snapshot.exists()) {
+        return { success: false, message: 'لا يوجد مزود API مُكوّن' };
+      }
+      
+      const providersData = snapshot.val();
+      let matchedProvider: ApiProviderConfig | null = null;
+      
+      // Find the provider that matches the package's apiProvider field
+      for (const [, provider] of Object.entries(providersData)) {
+        const p = provider as any;
+        if (p.isActive && (
+          p.id === pkg.apiProvider ||
+          p.name === pkg.apiProvider ||
+          // Also match if the provider's sectionId matches the package's providerId category
+          (p.sectionId && pkg.providerId && pkg.providerId.startsWith(`api-${p.sectionId}`))
+        )) {
+          matchedProvider = {
+            id: p.id || '',
+            name: p.name || '',
+            baseUrl: p.baseUrl || '',
+            apiKey: p.apiKey || '',
+            apiSecret: p.apiSecret || '',
+            method: p.method || 'POST',
+            headers: p.headers || {},
+            bodyTemplate: p.bodyTemplate || '',
+            responseFormat: p.responseFormat || 'json',
+            fieldMappings: p.fieldMappings || undefined,
+            isActive: p.isActive !== false,
+            createdAt: p.createdAt || '',
+          };
+          break;
+        }
+      }
+      
+      if (!matchedProvider) {
+        return { success: false, message: 'لم يتم العثور على مزود API مطابق' };
+      }
+      
+      // Execute the order via API
+      const apiResult = await executeApiOrder(matchedProvider, {
+        customerId: orderCustomerInput,
+        packageId: pkg.productIdInApi || pkg.id,
+        amount: effectivePrice,
+        currency: pkg.currency,
+        phone: orderCustomerInput,
+        playerName: orderCustomerInput,
+      });
+      
+      return {
+        success: apiResult.success,
+        message: apiResult.message || (apiResult.success ? 'تم تنفيذ الطلب بنجاح' : 'فشل تنفيذ الطلب'),
+      };
+    } catch (error: any) {
+      return { success: false, message: error.message || 'حدث خطأ في الاتصال بمزود API' };
+    }
+  };
+
   const handleConfirm = async () => {
     if (!user || !selectedPackage || !customerInput.trim()) {
       setErrorMessage('يرجى ملء جميع البيانات');
@@ -144,6 +215,9 @@ export default function OrderBottomSheet() {
         [balanceField]: newBalance,
       };
 
+      // Determine if this is an auto-execution order
+      const isAutoExecution = selectedPackage.executionType === 'auto' && !!selectedPackage.apiProvider;
+
       const orderId = generateReference();
       const newOrder: Order = {
         id: orderId,
@@ -157,23 +231,25 @@ export default function OrderBottomSheet() {
         customerInput: customerInput.trim(),
         amount: effectivePrice,
         currency: selectedPackage.currency,
-        status: 'pending',
+        status: isAutoExecution ? 'pending' : 'pending',
         executionType: selectedPackage.executionType,
         createdAt: new Date().toISOString(),
       };
 
-      try {
-        const orderRef = ref(database, `orders/${orderId}`);
-        await set(orderRef, newOrder);
-      } catch {
-        // Continue locally even if Firebase fails
-      }
-
+      // Deduct balance
       try {
         const userRef = ref(database, `users/${user.id}`);
         await update(userRef, { [balanceField]: newBalance });
       } catch {
         // Continue locally
+      }
+
+      // Save the order
+      try {
+        const orderRef = ref(database, `orders/${orderId}`);
+        await set(orderRef, newOrder);
+      } catch {
+        // Continue locally even if Firebase fails
       }
 
       const txId = generateReference();
@@ -196,27 +272,137 @@ export default function OrderBottomSheet() {
         // Continue locally
       }
 
-      try {
-        const adminNotifId = generateReference();
-        const adminNotifRef = ref(database, `admin-notifications/${adminNotifId}`);
-        await set(adminNotifRef, {
-          id: adminNotifId,
-          type: 'new_order',
-          orderId: orderId,
-          message: `العميل ${user.name} طلب ${selectedPackage.name} من ${selectedProvider.name} للرقم ${customerInput.trim()}`,
-          createdAt: new Date().toISOString(),
-          isRead: false,
-        });
-      } catch {
-        // Non-critical
-      }
-
-      // Send proper admin notification with FCM push
-      try {
-        const { notifyOrderCreated } = await import('@/lib/notifications');
-        await notifyOrderCreated(user.id, selectedPackage.name, effectivePrice, selectedPackage.currency);
-      } catch {
-        // Non-critical - admin-notifications already written above
+      // ─── API Auto-Processing ──────────────────────────────────
+      if (isAutoExecution) {
+        try {
+          const apiResult = await processApiOrder(orderId, selectedPackage, customerInput.trim());
+          
+          if (apiResult.success) {
+            // API success → mark order complete
+            const completedAt = new Date().toISOString();
+            const updatedOrder = { ...newOrder, status: 'completed' as const, completedAt };
+            try {
+              await update(ref(database, `orders/${orderId}`), { status: 'completed', completedAt });
+            } catch {}
+            newOrder.status = 'completed';
+            newOrder.completedAt = completedAt;
+            
+            // Send FCM notification to user - SUCCESS
+            try {
+              const { sendFCMDirect } = await import('@/lib/fcm-sender');
+              const fcmTokenRef = ref(database, `users/${user.id}/fcmToken`);
+              const tokenSnapshot = await get(fcmTokenRef);
+              const fcmToken = tokenSnapshot.val();
+              if (fcmToken) {
+                await sendFCMDirect(
+                  [fcmToken],
+                  'تم تنفيذ الطلب',
+                  `تم تنفيذ طلب ${selectedPackage.name} بنجاح`,
+                  'transaction',
+                  {
+                    orderId: String(orderId),
+                    status: String('completed'),
+                    providerName: String(selectedProvider.name),
+                    packageName: String(selectedPackage.name),
+                    amount: String(effectivePrice),
+                    currency: String(selectedPackage.currency),
+                  }
+                );
+              }
+            } catch (notifErr) {
+              console.warn('FCM notification failed:', notifErr);
+            }
+          } else {
+            // API failure → refund balance + mark order as refunded
+            const refundedBalance = newBalance + effectivePrice;
+            try {
+              await update(ref(database, `users/${user.id}`), { [balanceField]: refundedBalance });
+            } catch {}
+            
+            const updatedOrder = { ...newOrder, status: 'refunded' as const };
+            try {
+              await update(ref(database, `orders/${orderId}`), { status: 'refunded' });
+            } catch {}
+            newOrder.status = 'refunded';
+            
+            // Update local user balance (refund)
+            updatedUser[balanceField] = refundedBalance;
+            
+            // Send FCM notification to user - FAILURE/REFUND
+            try {
+              const { sendFCMDirect } = await import('@/lib/fcm-sender');
+              const fcmTokenRef = ref(database, `users/${user.id}/fcmToken`);
+              const tokenSnapshot = await get(fcmTokenRef);
+              const fcmToken = tokenSnapshot.val();
+              if (fcmToken) {
+                await sendFCMDirect(
+                  [fcmToken],
+                  'فشل تنفيذ الطلب',
+                  `${apiResult.message} - تم إرجاع المبلغ`,
+                  'transaction',
+                  {
+                    orderId: String(orderId),
+                    status: String('refunded'),
+                    providerName: String(selectedProvider.name),
+                    packageName: String(selectedPackage.name),
+                    amount: String(effectivePrice),
+                    currency: String(selectedPackage.currency),
+                    errorMessage: String(apiResult.message),
+                  }
+                );
+              }
+            } catch (notifErr) {
+              console.warn('FCM notification failed:', notifErr);
+            }
+          }
+        } catch (apiError: any) {
+          // API call itself threw an error → refund
+          const refundedBalance = newBalance + effectivePrice;
+          try {
+            await update(ref(database, `users/${user.id}`), { [balanceField]: refundedBalance });
+          } catch {}
+          
+          try {
+            await update(ref(database, `orders/${orderId}`), { status: 'refunded' });
+          } catch {}
+          newOrder.status = 'refunded';
+          updatedUser[balanceField] = refundedBalance;
+          
+          // Send FCM notification
+          try {
+            const { sendFCMDirect } = await import('@/lib/fcm-sender');
+            const fcmTokenRef = ref(database, `users/${user.id}/fcmToken`);
+            const tokenSnapshot = await get(fcmTokenRef);
+            const fcmToken = tokenSnapshot.val();
+            if (fcmToken) {
+              await sendFCMDirect(
+                [fcmToken],
+                'فشل تنفيذ الطلب',
+                'حدث خطأ في الاتصال بمزود الخدمة - تم إرجاع المبلغ',
+                'transaction',
+                {
+                  orderId: String(orderId),
+                  status: String('refunded'),
+                  providerName: String(selectedProvider.name),
+                  packageName: String(selectedPackage.name),
+                  amount: String(effectivePrice),
+                  currency: String(selectedPackage.currency),
+                  errorMessage: String(apiError.message || 'API connection error'),
+                }
+              );
+            }
+          } catch (notifErr) {
+            console.warn('FCM notification failed:', notifErr);
+          }
+        }
+      } else {
+        // Manual execution - send admin notification with FCM push
+        try {
+          const { notifyOrderCreated } = await import('@/lib/notifications');
+          await notifyOrderCreated(user.id, selectedPackage.name, effectivePrice, selectedPackage.currency);
+        } catch {
+          // Non-critical
+        }
       }
 
       setUser(updatedUser);
@@ -224,8 +410,12 @@ export default function OrderBottomSheet() {
       addTransaction(newTx);
       addNotification({
         id: generateReference(),
-        title: 'تم إنشاء الطلب',
-        body: `طلب ${selectedPackage.name} من ${selectedProvider.name} قيد المعالجة`,
+        title: newOrder.status === 'completed' ? 'تم تنفيذ الطلب' : newOrder.status === 'refunded' ? 'فشل تنفيذ الطلب' : 'تم إنشاء الطلب',
+        body: newOrder.status === 'completed'
+          ? `تم تنفيذ طلب ${selectedPackage.name} بنجاح`
+          : newOrder.status === 'refunded'
+          ? `فشل تنفيذ طلب ${selectedPackage.name} - تم إرجاع المبلغ`
+          : `طلب ${selectedPackage.name} من ${selectedProvider.name} قيد المعالجة`,
         type: 'transaction',
         isRead: false,
         createdAt: new Date().toISOString(),

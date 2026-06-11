@@ -1,0 +1,378 @@
+name: Build Custom Wallet App
+
+on:
+  repository_dispatch:
+    types: [build-custom-app]
+  workflow_dispatch:
+    inputs:
+      instanceId:
+        description: 'App Instance ID from Firebase'
+        required: true
+      appType:
+        description: 'Which app to build (user, admin, both)'
+        required: true
+        default: 'both'
+      appName:
+        description: 'App Name'
+        required: true
+      userAppPackageName:
+        description: 'User App Package Name'
+        required: true
+      adminAppPackageName:
+        description: 'Admin App Package Name'
+        required: true
+      primaryColor:
+        description: 'Primary Color (hex)'
+        required: true
+        default: '#6C3CE1'
+
+env:
+  JAVA_VERSION: '21'
+  NODE_VERSION: '22'
+  ANDROID_COMPILE_SDK: '36'
+  ANDROID_BUILD_TOOLS: '36.0.0'
+
+jobs:
+  build-user-app:
+    if: ${{ github.event.client_payload.appType == 'user' || github.event.client_payload.appType == 'both' || github.event.inputs.appType == 'user' || github.event.inputs.appType == 'both' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK Licenses
+        run: yes | sdkmanager --licenses 2>/dev/null || true
+
+      - name: Install Android SDK components
+        run: |
+          sdkmanager --install "platforms;android-${{ env.ANDROID_COMPILE_SDK }}" "build-tools;${{ env.ANDROID_BUILD_TOOLS }}" || true
+          sdkmanager --install "platform-tools" || true
+
+      - name: Verify keystore exists
+        run: |
+          ls -la south-wallet.keystore
+          keytool -list -keystore south-wallet.keystore -storepass southwallet123 -alias southwallet -rfc 2>/dev/null | head -5 || echo "Keystore verification issue"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Get client payload
+        id: payload
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "instance_id=${{ github.event.client_payload.instanceId }}" >> $GITHUB_OUTPUT
+            echo "app_name=${{ github.event.client_payload.appName }}" >> $GITHUB_OUTPUT
+            echo "user_package=${{ github.event.client_payload.userAppPackageName }}" >> $GITHUB_OUTPUT
+            echo "admin_package=${{ github.event.client_payload.adminAppPackageName }}" >> $GITHUB_OUTPUT
+            echo "primary_color=${{ github.event.client_payload.primaryColor }}" >> $GITHUB_OUTPUT
+            echo "secondary_color=${{ github.event.client_payload.secondaryColor }}" >> $GITHUB_OUTPUT
+            echo "app_logo_url=${{ github.event.client_payload.appLogoUrl }}" >> $GITHUB_OUTPUT
+            echo "app_transparent_icon_url=${{ github.event.client_payload.appTransparentIconUrl }}" >> $GITHUB_OUTPUT
+            echo "firebase_api_key=${{ github.event.client_payload.firebaseApiKey }}" >> $GITHUB_OUTPUT
+            echo "firebase_project_id=${{ github.event.client_payload.firebaseProjectId }}" >> $GITHUB_OUTPUT
+            echo "firebase_database_url=${{ github.event.client_payload.firebaseDatabaseUrl }}" >> $GITHUB_OUTPUT
+            echo "firebase_storage_bucket=${{ github.event.client_payload.firebaseStorageBucket }}" >> $GITHUB_OUTPUT
+            echo "firebase_messaging_sender_id=${{ github.event.client_payload.firebaseMessagingSenderId }}" >> $GITHUB_OUTPUT
+            echo "firebase_app_id=${{ github.event.client_payload.firebaseAppId }}" >> $GITHUB_OUTPUT
+            echo "google_services_json=${{ github.event.client_payload.googleServicesJson }}" >> $GITHUB_OUTPUT
+            echo "firebase_admin_sdk=${{ github.event.client_payload.firebaseAdminSdk }}" >> $GITHUB_OUTPUT
+            echo "social_links=${{ github.event.client_payload.socialLinks }}" >> $GITHUB_OUTPUT
+            echo "version=${{ github.event.client_payload.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "instance_id=${{ github.event.inputs.instanceId }}" >> $GITHUB_OUTPUT
+            echo "app_name=${{ github.event.inputs.appName }}" >> $GITHUB_OUTPUT
+            echo "user_package=${{ github.event.inputs.userAppPackageName }}" >> $GITHUB_OUTPUT
+            echo "admin_package=${{ github.event.inputs.adminAppPackageName }}" >> $GITHUB_OUTPUT
+            echo "primary_color=${{ github.event.inputs.primaryColor }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Replace package name
+        run: |
+          chmod +x .github/scripts/replace-package-name.sh
+          .github/scripts/replace-package-name.sh \
+            "${{ steps.payload.outputs.user_package }}" \
+            "user"
+
+      - name: Replace Firebase config
+        run: |
+          # Replace google-services.json
+          if [ -n "${{ steps.payload.outputs.google_services_json }}" ]; then
+            echo '${{ steps.payload.outputs.google_services_json }}' > android/app/google-services.json
+          fi
+          
+          # Update Firebase config in source files
+          if [ -n "${{ steps.payload.outputs.firebase_api_key }}" ]; then
+            find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i "s/AIzaSyBY9UTcryFEoq8VA1zD7OVnku-fjLxw-p4/${{ steps.payload.outputs.firebase_api_key }}/g"
+          fi
+          
+          if [ -n "${{ steps.payload.outputs.firebase_project_id }}" ]; then
+            find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i "s/southern-portfolio/${{ steps.payload.outputs.firebase_project_id }}/g"
+          fi
+          
+          if [ -n "${{ steps.payload.outputs.firebase_database_url }}" ]; then
+            find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i "s|https://southern-portfolio-default-rtdb.firebaseio.com|${{ steps.payload.outputs.firebase_database_url }}|g"
+          fi
+          
+          if [ -n "${{ steps.payload.outputs.firebase_storage_bucket }}" ]; then
+            find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i "s/southern-portfolio.firebasestorage.app/${{ steps.payload.outputs.firebase_storage_bucket }}/g"
+          fi
+          
+          if [ -n "${{ steps.payload.outputs.firebase_messaging_sender_id }}" ]; then
+            find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i "s/501045825605/${{ steps.payload.outputs.firebase_messaging_sender_id }}/g"
+          fi
+          
+          if [ -n "${{ steps.payload.outputs.firebase_app_id }}" ]; then
+            find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i "s/1:501045825605:android:a0b11c5db57c9831d3932c/${{ steps.payload.outputs.firebase_app_id }}/g"
+          fi
+
+      - name: Replace branding
+        run: |
+          # Update app name in Capacitor config
+          if [ -n "${{ steps.payload.outputs.app_name }}" ]; then
+            sed -i "s/محفظة الجنوب/${{ steps.payload.outputs.app_name }}/g" capacitor.config.ts
+            sed -i "s/محفظة الجنوب/${{ steps.payload.outputs.app_name }}/g" android/app/src/main/res/values/strings.xml 2>/dev/null || true
+          fi
+          
+          # Update primary color
+          if [ -n "${{ steps.payload.outputs.primary_color }}" ]; then
+            sed -i "s/#E60000/${{ steps.payload.outputs.primary_color }}/g" capacitor.config.ts
+            sed -i "s/#E60000/${{ steps.payload.outputs.primary_color }}/g" src/components/fahed/splash-screen.tsx 2>/dev/null || true
+          fi
+
+      - name: Download and generate app icons
+        if: ${{ steps.payload.outputs.app_logo_url != '' }}
+        run: |
+          chmod +x .github/scripts/generate-icons.sh
+          .github/scripts/generate-icons.sh \
+            "${{ steps.payload.outputs.app_logo_url }}"
+
+      - name: Build Next.js
+        run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Verify static export
+        run: |
+          echo "Checking out/ directory..."
+          ls -la out/ | head -20
+          find out/ -type f | wc -l
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build Android APK (Debug + Release)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug assembleRelease \
+            -PMYAPP_UPLOAD_STORE_FILE=../../south-wallet.keystore \
+            -PMYAPP_UPLOAD_STORE_PASSWORD=southwallet123 \
+            -PMYAPP_UPLOAD_KEY_ALIAS=southwallet \
+            -PMYAPP_UPLOAD_KEY_PASSWORD=southwallet123 \
+            --stacktrace
+
+      - name: Rename APKs
+        run: |
+          APP_NAME_SAFE=$(echo "${{ steps.payload.outputs.app_name }}" | tr ' ' '_' | sed 's/[^a-zA-Z0-9_]//g')
+          INSTANCE_ID="${{ steps.payload.outputs.instance_id }}"
+          mkdir -p download
+          cp android/app/build/outputs/apk/release/app-release.apk "download/${APP_NAME_SAFE}_user_${INSTANCE_ID}.apk" 2>/dev/null || \
+          cp android/app/build/outputs/apk/release/*.apk "download/${APP_NAME_SAFE}_user_${INSTANCE_ID}.apk" 2>/dev/null || true
+          cp android/app/build/outputs/apk/debug/app-debug.apk "download/${APP_NAME_SAFE}_user_debug_${INSTANCE_ID}.apk" 2>/dev/null || true
+
+      - name: Upload User APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: user-app-apk-${{ steps.payload.outputs.instance_id }}
+          path: download/*.apk
+          retention-days: 30
+
+  build-admin-app:
+    if: ${{ github.event.client_payload.appType == 'admin' || github.event.client_payload.appType == 'both' || github.event.inputs.appType == 'admin' || github.event.inputs.appType == 'both' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: south-admin/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK Licenses
+        run: yes | sdkmanager --licenses 2>/dev/null || true
+
+      - name: Install Android SDK components
+        run: |
+          sdkmanager --install "platforms;android-${{ env.ANDROID_COMPILE_SDK }}" "build-tools;${{ env.ANDROID_BUILD_TOOLS }}" || true
+          sdkmanager --install "platform-tools" || true
+
+      - name: Verify keystore exists
+        run: |
+          ls -la south-wallet.keystore
+          keytool -list -keystore south-wallet.keystore -storepass southwallet123 -alias southwallet -rfc 2>/dev/null | head -5 || echo "Keystore verification issue"
+
+      - name: Install dependencies
+        working-directory: south-admin
+        run: npm ci --legacy-peer-deps
+
+      - name: Get client payload
+        id: payload
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "instance_id=${{ github.event.client_payload.instanceId }}" >> $GITHUB_OUTPUT
+            echo "app_name=${{ github.event.client_payload.appName }}" >> $GITHUB_OUTPUT
+            echo "admin_package=${{ github.event.client_payload.adminAppPackageName }}" >> $GITHUB_OUTPUT
+            echo "primary_color=${{ github.event.client_payload.primaryColor }}" >> $GITHUB_OUTPUT
+            echo "secondary_color=${{ github.event.client_payload.secondaryColor }}" >> $GITHUB_OUTPUT
+            echo "app_logo_url=${{ github.event.client_payload.appLogoUrl }}" >> $GITHUB_OUTPUT
+            echo "firebase_api_key=${{ github.event.client_payload.firebaseApiKey }}" >> $GITHUB_OUTPUT
+            echo "firebase_project_id=${{ github.event.client_payload.firebaseProjectId }}" >> $GITHUB_OUTPUT
+            echo "firebase_database_url=${{ github.event.client_payload.firebaseDatabaseUrl }}" >> $GITHUB_OUTPUT
+            echo "firebase_storage_bucket=${{ github.event.client_payload.firebaseStorageBucket }}" >> $GITHUB_OUTPUT
+            echo "firebase_messaging_sender_id=${{ github.event.client_payload.firebaseMessagingSenderId }}" >> $GITHUB_OUTPUT
+            echo "firebase_app_id=${{ github.event.client_payload.firebaseAppId }}" >> $GITHUB_OUTPUT
+            echo "google_services_json=${{ github.event.client_payload.googleServicesJson }}" >> $GITHUB_OUTPUT
+            echo "version=${{ github.event.client_payload.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "instance_id=${{ github.event.inputs.instanceId }}" >> $GITHUB_OUTPUT
+            echo "app_name=${{ github.event.inputs.appName }}" >> $GITHUB_OUTPUT
+            echo "admin_package=${{ github.event.inputs.adminAppPackageName }}" >> $GITHUB_OUTPUT
+            echo "primary_color=${{ github.event.inputs.primaryColor }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Replace package name for admin app
+        run: |
+          chmod +x .github/scripts/replace-package-name.sh
+          .github/scripts/replace-package-name.sh \
+            "${{ steps.payload.outputs.admin_package }}" \
+            "admin"
+
+      - name: Replace Firebase config for admin
+        working-directory: south-admin
+        run: |
+          # Replace google-services.json
+          if [ -n "${{ steps.payload.outputs.google_services_json }}" ]; then
+            echo '${{ steps.payload.outputs.google_services_json }}' > android/app/google-services.json
+          fi
+          
+          # Update Firebase config in source files
+          if [ -n "${{ steps.payload.outputs.firebase_api_key }}" ]; then
+            find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i "s/AIzaSyBY9UTcryFEoq8VA1zD7OVnku-fjLxw-p4/${{ steps.payload.outputs.firebase_api_key }}/g"
+          fi
+          
+          if [ -n "${{ steps.payload.outputs.firebase_project_id }}" ]; then
+            find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i "s/southern-portfolio/${{ steps.payload.outputs.firebase_project_id }}/g"
+          fi
+          
+          if [ -n "${{ steps.payload.outputs.firebase_database_url }}" ]; then
+            find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i "s|https://southern-portfolio-default-rtdb.firebaseio.com|${{ steps.payload.outputs.firebase_database_url }}|g"
+          fi
+
+      - name: Replace branding for admin
+        working-directory: south-admin
+        run: |
+          # Update app name
+          if [ -n "${{ steps.payload.outputs.app_name }}" ]; then
+            sed -i "s/محفظة الجنوب - الإدارة/${{ steps.payload.outputs.app_name }} - الإدارة/g" capacitor.config.ts
+            sed -i "s/محفظة الجنوب/${{ steps.payload.outputs.app_name }}/g" capacitor.config.ts
+            sed -i "s/محفظة الجنوب/${{ steps.payload.outputs.app_name }}/g" src/components/admin/sidebar.tsx
+            sed -i "s/محفظة الجنوب/${{ steps.payload.outputs.app_name }}/g" src/components/admin/login-screen.tsx
+            sed -i "s/محفظة الجنوب/${{ steps.payload.outputs.app_name }}/g" src/components/admin/about-panel.tsx
+            sed -i "s/محفظة الجنوب/${{ steps.payload.outputs.app_name }}/g" src/app/layout.tsx
+            sed -i "s/محفظة الجنوب/${{ steps.payload.outputs.app_name }}/g" android/app/src/main/res/values/strings.xml 2>/dev/null || true
+          fi
+          
+          # Update primary color (purple → client color)
+          if [ -n "${{ steps.payload.outputs.primary_color }}" ]; then
+            sed -i "s/#1A0A2E/${{ steps.payload.outputs.primary_color }}/g" capacitor.config.ts
+          fi
+
+      - name: Remove App Store section from client admin
+        working-directory: south-admin
+        run: |
+          # Remove app-store from sidebar navigation
+          sed -i '/id: .app-store/,/},/d' src/components/admin/sidebar.tsx || true
+          # Remove AppStorePanel import and reference from page.tsx
+          sed -i "/import AppStorePanel/d" src/app/page.tsx || true
+          sed -i "/'app-store': AppStorePanel/d" src/app/page.tsx || true
+          sed -i "/'app-store'/d" src/app/page.tsx || true
+          # Remove from ownerOnlyPanels array
+          sed -i "s/'app-store', //g" src/app/page.tsx || true
+          sed -i "s/, 'app-store'//g" src/app/page.tsx || true
+
+      - name: Build Next.js for admin
+        working-directory: south-admin
+        run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Verify static export
+        run: |
+          echo "Checking south-admin/out/ directory..."
+          ls -la south-admin/out/ | head -20
+          find south-admin/out/ -type f | wc -l
+
+      - name: Sync Capacitor for admin
+        working-directory: south-admin
+        run: npx cap sync android
+
+      - name: Build Android APK for admin (Debug + Release)
+        working-directory: south-admin/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug assembleRelease \
+            -PMYAPP_UPLOAD_STORE_FILE=../../../south-wallet.keystore \
+            -PMYAPP_UPLOAD_STORE_PASSWORD=southwallet123 \
+            -PMYAPP_UPLOAD_KEY_ALIAS=southwallet \
+            -PMYAPP_UPLOAD_KEY_PASSWORD=southwallet123 \
+            --stacktrace
+
+      - name: Rename Admin APKs
+        working-directory: south-admin
+        run: |
+          APP_NAME_SAFE=$(echo "${{ steps.payload.outputs.app_name }}" | tr ' ' '_' | sed 's/[^a-zA-Z0-9_]//g')
+          INSTANCE_ID="${{ steps.payload.outputs.instance_id }}"
+          mkdir -p download
+          cp android/app/build/outputs/apk/release/app-release.apk "download/${APP_NAME_SAFE}_admin_${INSTANCE_ID}.apk" 2>/dev/null || \
+          cp android/app/build/outputs/apk/release/*.apk "download/${APP_NAME_SAFE}_admin_${INSTANCE_ID}.apk" 2>/dev/null || true
+          cp android/app/build/outputs/apk/debug/app-debug.apk "download/${APP_NAME_SAFE}_admin_debug_${INSTANCE_ID}.apk" 2>/dev/null || true
+
+      - name: Upload Admin APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-app-apk-${{ steps.payload.outputs.instance_id }}
+          path: south-admin/download/*.apk
+          retention-days: 30

@@ -38,6 +38,26 @@ interface AdminState {
   toastType: 'success' | 'error' | 'info';
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   clearToast: () => void;
+
+  // Real-time data from Firebase
+  depositRequests: any[];
+  setDepositRequests: (requests: any[]) => void;
+
+  withdrawRequests: any[];
+  setWithdrawRequests: (requests: any[]) => void;
+
+  kycPendingUsers: any[];
+  setKycPendingUsers: (users: any[]) => void;
+
+  orders: any[];
+  setOrders: (orders: any[]) => void;
+
+  allUsers: any[];
+  setAllUsers: (users: any[]) => void;
+
+  // Data loaded flags
+  dataLoaded: boolean;
+  setDataLoaded: (loaded: boolean) => void;
 }
 
 export const useAdminStore = create<AdminState>()(
@@ -56,6 +76,12 @@ export const useAdminStore = create<AdminState>()(
           adminUser: null,
           isAuthenticated: false,
           activePanel: 'dashboard',
+          depositRequests: [],
+          withdrawRequests: [],
+          kycPendingUsers: [],
+          orders: [],
+          allUsers: [],
+          dataLoaded: false,
         }),
 
       // Theme
@@ -82,6 +108,26 @@ export const useAdminStore = create<AdminState>()(
       showToast: (message, type = 'info') =>
         set({ toastMessage: message, toastType: type }),
       clearToast: () => set({ toastMessage: '' }),
+
+      // Real-time data from Firebase
+      depositRequests: [],
+      setDepositRequests: (requests) => set({ depositRequests: requests }),
+
+      withdrawRequests: [],
+      setWithdrawRequests: (requests) => set({ withdrawRequests: requests }),
+
+      kycPendingUsers: [],
+      setKycPendingUsers: (users) => set({ kycPendingUsers: users }),
+
+      orders: [],
+      setOrders: (orders) => set({ orders: orders }),
+
+      allUsers: [],
+      setAllUsers: (users) => set({ allUsers: users }),
+
+      // Data loaded flags
+      dataLoaded: false,
+      setDataLoaded: (loaded) => set({ dataLoaded: loaded }),
     }),
     {
       name: 'south-admin-store',

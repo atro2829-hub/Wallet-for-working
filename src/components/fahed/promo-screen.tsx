@@ -140,6 +140,14 @@ export default function PromoScreen() {
           
           await update(ref(database), updates);
           
+          // Send FCM push notification for gift code redemption
+          try {
+            const { notifyGiftCodeRedeemed } = await import('@/lib/notifications');
+            await notifyGiftCodeRedeemed(user?.id || '', codeData.amount, codeData.currency, giftCodeInput.trim());
+          } catch (notifErr) {
+            console.warn('Gift code notification failed:', notifErr);
+          }
+          
           setGiftResult({ 
             success: true, 
             message: `تم استرداد قسيمة الهدية بنجاح! تم إضافة ${codeData.amount} ${currencySymbols[codeData.currency]} إلى رصيدك`,

@@ -62,6 +62,18 @@ export default function UserGiftCodesPanel() {
         cancelledAt: new Date().toISOString(),
         cancelReason: cancelReason || 'إلغاء بواسطة الإدارة',
       });
+
+      // Notify user about gift code cancellation
+      try {
+        const { sendNotificationToUser } = await import('@/lib/notifications');
+        await sendNotificationToUser(selectedCode.createdBy, {
+          title: 'تم إلغاء قسيمة الهدية',
+          body: 'تم إلغاء قسيمة الهدية الخاصة بك وإرجاع المبلغ إلى رصيدك',
+          type: 'transaction',
+          data: { action: 'gift_code_cancelled', codeId: selectedCode.id },
+        });
+      } catch (e) { console.warn('Gift code cancel notification failed:', e); }
+
       showToast('تم إلغاء القسيمة', 'success');
       setCancelDialog(false);
       setCancelReason('');

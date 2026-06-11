@@ -1,4 +1,4 @@
-name: Build & Release APK
+name: Build South Wallet APKs
 
 on:
   push:
@@ -18,12 +18,18 @@ on:
 env:
   NODE_VERSION: '22'
   JAVA_VERSION: '21'
+  ANDROID_COMPILE_SDK: '36'
+  ANDROID_BUILD_TOOLS: '36.0.0'
 
 jobs:
-  build-user-app:
-    name: 🔨 Build User App APK
+  # ──────────────────────────────────────────────────────────────
+  #  USER APP BUILD (com.qtbm.south)
+  # ──────────────────────────────────────────────────────────────
+  build-user-apk:
+    name: "📱 Build User App (com.qtbm.south)"
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.build_type == 'both' || github.event.inputs.build_type == 'user' || github.event_name != 'workflow_dispatch' }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,60 +39,116 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
-      - name: Setup Java 21
+      - name: Setup JDK 21
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Accept Android SDK Licenses
+        run: yes | sdkmanager --licenses 2>/dev/null || true
 
-      - name: Build Next.js (static export)
+      - name: Install Android SDK components
+        run: |
+          sdkmanager --install "platforms;android-${{ env.ANDROID_COMPILE_SDK }}" "build-tools;${{ env.ANDROID_BUILD_TOOLS }}" || true
+          sdkmanager --install "platform-tools" || true
+
+      - name: Verify keystore exists
+        run: |
+          ls -la south-wallet.keystore
+          keytool -list -keystore south-wallet.keystore -storepass southwallet123 -alias southwallet -rfc 2>/dev/null | head -5 || echo "Keystore verification issue"
+
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build Next.js static export
         run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          NEXT_TELEMETRY_DISABLED: 1
 
-      - name: Sync Capacitor
+      - name: Verify static export
+        run: |
+          echo "Checking out/ directory..."
+          ls -la out/ | head -20
+          echo "Total files in out/:"
+          find out/ -type f | wc -l
+
+      - name: Sync Capacitor Android
         run: npx cap sync android
 
-      - name: Make gradlew executable
-        run: chmod +x android/gradlew
+      - name: Verify Capacitor sync
+        run: |
+          echo "Checking android/app/src/main/assets/public/..."
+          ls -la android/app/src/main/assets/public/ 2>/dev/null | head -10 || echo "Public assets not found"
+          echo "Checking google-services.json..."
+          ls -la android/app/google-services.json
 
       - name: Build Debug APK
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug \
+            -PMYAPP_UPLOAD_STORE_FILE=../../south-wallet.keystore \
+            -PMYAPP_UPLOAD_STORE_PASSWORD=southwallet123 \
+            -PMYAPP_UPLOAD_KEY_ALIAS=southwallet \
+            -PMYAPP_UPLOAD_KEY_PASSWORD=southwallet123 \
+            --stacktrace
 
       - name: Build Release APK
         working-directory: android
-        run: ./gradlew assembleRelease
+        run: |
+          ./gradlew assembleRelease \
+            -PMYAPP_UPLOAD_STORE_FILE=../../south-wallet.keystore \
+            -PMYAPP_UPLOAD_STORE_PASSWORD=southwallet123 \
+            -PMYAPP_UPLOAD_KEY_ALIAS=southwallet \
+            -PMYAPP_UPLOAD_KEY_PASSWORD=southwallet123 \
+            --stacktrace
 
-      - name: Upload Debug APK
+      - name: Extract User App SHA fingerprints
+        run: |
+          echo "╔══════════════════════════════════════════════╗"
+          echo "║  USER APP - SHA FINGERPRINTS                 ║"
+          echo "║  Package: com.qtbm.south                     ║"
+          echo "╚══════════════════════════════════════════════╝"
+          echo ""
+          echo "--- Release Keystore (south-wallet.keystore) ---"
+          keytool -list -v -keystore south-wallet.keystore -storepass southwallet123 -alias southwallet 2>&1 | grep -E "SHA1:|SHA256:" || true
+          echo ""
+          echo "--- Debug Keystore (auto-generated) ---"
+          keytool -genkeypair -v -keystore /tmp/debug-user.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null
+          keytool -list -v -keystore /tmp/debug-user.keystore -storepass android -alias androiddebugkey 2>&1 | grep -E "SHA1:|SHA256:" || true
+          echo ""
+          echo "--- APK Signing Info ---"
+          $ANDROID_HOME/build-tools/${{ env.ANDROID_BUILD_TOOLS }}/apksigner verify --print-certs android/app/build/outputs/apk/release/app-release.apk 2>&1 || true
+
+      - name: Upload User Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: south-wallet-debug
+          name: south-wallet-user-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
 
-      - name: Upload Release APK
+      - name: Upload User Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: south-wallet-release
+          name: south-wallet-user-release
           path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
 
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            android/app/build/outputs/apk/release/app-release.apk
-            android/app/build/outputs/apk/debug/app-debug.apk
-
-  build-admin-app:
-    name: 🔨 Build Admin App APK
+  # ──────────────────────────────────────────────────────────────
+  #  ADMIN APP BUILD (com.qtbm.south.admin)
+  # ──────────────────────────────────────────────────────────────
+  build-admin-apk:
+    name: "🛡️ Build Admin App (com.qtbm.south.admin)"
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.build_type == 'both' || github.event.inputs.build_type == 'admin' || github.event_name != 'workflow_dispatch' }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -98,54 +160,163 @@ jobs:
           cache: 'npm'
           cache-dependency-path: south-admin/package-lock.json
 
-      - name: Setup Java 21
+      - name: Setup JDK 21
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install dependencies
-        working-directory: south-admin
-        run: npm ci
+      - name: Accept Android SDK Licenses
+        run: yes | sdkmanager --licenses 2>/dev/null || true
 
-      - name: Build Next.js (static export)
+      - name: Install Android SDK components
+        run: |
+          sdkmanager --install "platforms;android-${{ env.ANDROID_COMPILE_SDK }}" "build-tools;${{ env.ANDROID_BUILD_TOOLS }}" || true
+          sdkmanager --install "platform-tools" || true
+
+      - name: Verify keystore exists
+        run: |
+          ls -la south-wallet.keystore
+          keytool -list -keystore south-wallet.keystore -storepass southwallet123 -alias southwallet -rfc 2>/dev/null | head -5 || echo "Keystore verification issue"
+
+      - name: Install npm dependencies
+        working-directory: south-admin
+        run: npm ci --legacy-peer-deps
+
+      - name: Build Next.js static export
         working-directory: south-admin
         run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          NEXT_TELEMETRY_DISABLED: 1
 
-      - name: Sync Capacitor
+      - name: Verify static export
+        run: |
+          echo "Checking south-admin/out/ directory..."
+          ls -la south-admin/out/ | head -20
+          echo "Total files in south-admin/out/:"
+          find south-admin/out/ -type f | wc -l
+
+      - name: Sync Capacitor Android
         working-directory: south-admin
         run: npx cap sync android
 
-      - name: Make gradlew executable
-        run: chmod +x south-admin/android/gradlew
+      - name: Verify Capacitor sync
+        run: |
+          echo "Checking south-admin/android/app/src/main/assets/public/..."
+          ls -la south-admin/android/app/src/main/assets/public/ 2>/dev/null | head -10 || echo "Public assets not found"
+          echo "Checking google-services.json..."
+          ls -la south-admin/android/app/google-services.json
 
       - name: Build Debug APK
         working-directory: south-admin/android
-        run: ./gradlew assembleDebug
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug \
+            -PMYAPP_UPLOAD_STORE_FILE=../../../south-wallet.keystore \
+            -PMYAPP_UPLOAD_STORE_PASSWORD=southwallet123 \
+            -PMYAPP_UPLOAD_KEY_ALIAS=southwallet \
+            -PMYAPP_UPLOAD_KEY_PASSWORD=southwallet123 \
+            --stacktrace
 
       - name: Build Release APK
         working-directory: south-admin/android
-        run: ./gradlew assembleRelease
+        run: |
+          ./gradlew assembleRelease \
+            -PMYAPP_UPLOAD_STORE_FILE=../../../south-wallet.keystore \
+            -PMYAPP_UPLOAD_STORE_PASSWORD=southwallet123 \
+            -PMYAPP_UPLOAD_KEY_ALIAS=southwallet \
+            -PMYAPP_UPLOAD_KEY_PASSWORD=southwallet123 \
+            --stacktrace
 
-      - name: Upload Debug APK
+      - name: Extract Admin App SHA fingerprints
+        run: |
+          echo "╔══════════════════════════════════════════════╗"
+          echo "║  ADMIN APP - SHA FINGERPRINTS                ║"
+          echo "║  Package: com.qtbm.south.admin               ║"
+          echo "╚══════════════════════════════════════════════╝"
+          echo ""
+          echo "--- Release Keystore (south-wallet.keystore) ---"
+          keytool -list -v -keystore south-wallet.keystore -storepass southwallet123 -alias southwallet 2>&1 | grep -E "SHA1:|SHA256:" || true
+          echo ""
+          echo "--- Debug Keystore (auto-generated) ---"
+          keytool -genkeypair -v -keystore /tmp/debug-admin.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null
+          keytool -list -v -keystore /tmp/debug-admin.keystore -storepass android -alias androiddebugkey 2>&1 | grep -E "SHA1:|SHA256:" || true
+          echo ""
+          echo "--- APK Signing Info ---"
+          $ANDROID_HOME/build-tools/${{ env.ANDROID_BUILD_TOOLS }}/apksigner verify --print-certs south-admin/android/app/build/outputs/apk/release/app-release.apk 2>&1 || true
+
+      - name: Upload Admin Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: south-admin-debug
+          name: south-wallet-admin-debug
           path: south-admin/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
 
-      - name: Upload Release APK
+      - name: Upload Admin Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: south-admin-release
+          name: south-wallet-admin-release
           path: south-admin/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
 
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+  # ──────────────────────────────────────────────────────────────
+  #  SHA FINGERPRINTS SUMMARY
+  # ──────────────────────────────────────────────────────────────
+  sha-fingerprints:
+    name: "🔑 SHA Fingerprints Summary"
+    runs-on: ubuntu-latest
+    needs: [build-user-apk, build-admin-apk]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
-          files: |
-            south-admin/android/app/build/outputs/apk/release/app-release.apk
-            south-admin/android/app/build/outputs/apk/debug/app-debug.apk
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Extract and display all SHA keys
+        run: |
+          echo "╔══════════════════════════════════════════════════════════╗"
+          echo "║       SOUTH WALLET - ALL SHA FINGERPRINTS               ║"
+          echo "╚══════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  RELEASE KEYSTORE (south-wallet.keystore)"
+          echo "  Used by BOTH apps (User + Admin)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          keytool -list -v -keystore south-wallet.keystore -storepass southwallet123 -alias southwallet 2>&1 | grep -E "SHA1:|SHA256:" || true
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  DEBUG KEYSTORE (auto-generated by Android SDK)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          keytool -genkeypair -v -keystore /tmp/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null
+          keytool -list -v -keystore /tmp/debug.keystore -storepass android -alias androiddebugkey 2>&1 | grep -E "SHA1:|SHA256:" || true
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  ADD THESE TO FIREBASE CONSOLE:"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "  Firebase Project: southern-portfolio"
+          echo "  App 1: com.qtbm.south         (User App - محفظة الجنوب)"
+          echo "  App 2: com.qtbm.south.admin    (Admin App - محفظة الجنوب الإدارة)"
+          echo ""
+          echo "  Both apps use the SAME keystore → same SHA fingerprints"
+          echo "  Add the Release SHA1 and SHA256 to BOTH apps in Firebase"
+          echo ""
+          echo "  Steps:"
+          echo "  1. Go to Firebase Console → Project Settings"
+          echo "  2. Select each app (com.qtbm.south & com.qtbm.south.admin)"
+          echo "  3. Click 'Add fingerprint'"
+          echo "  4. Paste the SHA-1 and SHA-256 from the Release Keystore above"
+          echo "  5. Re-download google-services.json for both apps"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

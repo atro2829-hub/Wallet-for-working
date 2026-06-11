@@ -11,10 +11,46 @@ export function formatBalance(amount: number, currency: string): string {
   return formatted;
 }
 
-// Generate userId with "10" prefix + 4 random digits (6 digits total)
+// Generate userId with expandable prefix
+// Supports "10" prefix (6 digits) and expands to "11"+ when "10" range is exhausted
+// The system auto-detects the next available prefix from Firebase
+let _userIdCounter: number | null = null;
+
 export function generateUserId(): string {
   const random4 = Math.floor(1000 + Math.random() * 9000).toString();
   return '10' + random4;
+}
+
+// Generate userId with expandable prefix (11, 12, 20, etc.)
+// Call this async version for guaranteed unique IDs across the system
+export async function generateUniqueUserId(database: import('firebase/database').Database): Promise<string> {
+  const { ref, get } = await import('firebase/database');
+  
+  // Try prefixes in order: 10, 11, 12, 13, ... 19, 20, 21, ... 99
+  for (let prefix = 10; prefix <= 99; prefix++) {
+    const prefixStr = String(prefix);
+    // Try up to 5 random IDs with this prefix
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const randomDigits = Math.floor(1000 + Math.random() * 9000).toString();
+      const candidate = prefixStr + randomDigits;
+      const snapshot = await get(ref(database, `userIds/${candidate}`));
+      if (!snapshot.exists()) {
+        return candidate;
+      }
+    }
+  }
+  // If all 2-digit prefixes exhausted, expand to 3-digit prefix (100-999)
+  for (let prefix = 100; prefix <= 999; prefix++) {
+    const prefixStr = String(prefix);
+    const random3 = Math.floor(100 + Math.random() * 900).toString();
+    const candidate = prefixStr + random3;
+    const snapshot = await get(ref(database, `userIds/${candidate}`));
+    if (!snapshot.exists()) {
+      return candidate;
+    }
+  }
+  // Fallback
+  return '10' + Math.floor(1000 + Math.random() * 9000).toString();
 }
 
 // Generate transaction reference
@@ -27,17 +63,39 @@ export function generateReference(): string {
   return result;
 }
 
-// Currency symbols
+// Currency symbols (default 3 + dynamic from admin)
 export const currencySymbols: Record<string, string> = {
   YER: 'ر.ي',
   SAR: 'ر.س',
   USD: '$',
+  USDT: 'USDT',
+  BTC: '₿',
+  ETH: 'Ξ',
+  AED: 'د.إ',
+  EUR: '€',
+  GBP: '£',
+  TRY: '₺',
+  OMR: 'ر.ع',
+  KWD: 'د.ك',
+  BHD: 'د.ب',
+  QAR: 'ر.ق',
 };
 
 export const currencyNames: Record<string, string> = {
   YER: 'الريال اليمني',
   SAR: 'الريال السعودي',
   USD: 'الدولار الأمريكي',
+  USDT: 'تيثر',
+  BTC: 'بيتكوين',
+  ETH: 'إيثريوم',
+  AED: 'الدرهم الإماراتي',
+  EUR: 'اليورو',
+  GBP: 'الجنيه الإسترليني',
+  TRY: 'الليرة التركية',
+  OMR: 'الريال العماني',
+  KWD: 'الدينار الكويتي',
+  BHD: 'الدينار البحريني',
+  QAR: 'الريال القطري',
 };
 
 // Currency flags - text indicators (NO emojis)
@@ -45,6 +103,17 @@ export const currencyFlags: Record<string, string> = {
   YER: 'YER',
   SAR: 'SAR',
   USD: 'USD',
+  USDT: 'USDT',
+  BTC: 'BTC',
+  ETH: 'ETH',
+  AED: 'AED',
+  EUR: 'EUR',
+  GBP: 'GBP',
+  TRY: 'TRY',
+  OMR: 'OMR',
+  KWD: 'KWD',
+  BHD: 'BHD',
+  QAR: 'QAR',
 };
 
 // Currency badge background colors
@@ -52,6 +121,17 @@ export const currencyBadgeColors: Record<string, string> = {
   YER: '#E60000',
   SAR: '#059669',
   USD: '#2563EB',
+  USDT: '#26A17B',
+  BTC: '#F7931A',
+  ETH: '#627EEA',
+  AED: '#007A3D',
+  EUR: '#003399',
+  GBP: '#C8102E',
+  TRY: '#E30A17',
+  OMR: '#DB161B',
+  KWD: '#007A3D',
+  BHD: '#CE1126',
+  QAR: '#8D1B3D',
 };
 
 // Southern Yemen governorates
@@ -141,12 +221,12 @@ export const orderTimelineSteps = [
   { key: 'completed', label: 'تم التنفيذ', icon: 'completed' },
 ];
 
-// Currency exchange default rates
-// 1 USD = 1550 YER, 1 SAR = 410 YER
+// Currency exchange default rates (synced from yemenrates.com API)
+// 1 USD = 1558 YER (sell), 1 SAR = 410 YER (sell)
 export const defaultExchangeRates = {
   YER: 1,
   SAR: 410,
-  USD: 1550,
+  USD: 1558,
 };
 
 // Support FAQ

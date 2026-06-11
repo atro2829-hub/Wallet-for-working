@@ -16,8 +16,8 @@ export const viewport: Viewport = {
   userScalable: false,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F5F5F5" },
-    { media: "(prefers-color-scheme: dark)", color: "#0F0F0F" },
+    { media: "(prefers-color-scheme: light)", color: "#F2F2F7" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
 };
 
@@ -42,18 +42,20 @@ export default function RootLayout({
               const theme = localStorage.getItem('south-admin-theme');
               if (theme === '"dark"' || theme === 'dark') {
                 document.documentElement.classList.add('dark');
-                document.documentElement.style.backgroundColor = '#0F0F0F';
+                document.documentElement.style.backgroundColor = '#000000';
               }
             } catch(e) {}
           `,
         }} />
       </head>
       <body
-        className="antialiased font-sans bg-[#F5F5F5] dark:bg-[#0F0F0F]"
+        className="antialiased font-sans ios-bg"
         style={{
-          fontFamily: "'Segoe UI', Tahoma, 'Noto Sans Arabic', 'Arial', sans-serif",
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Arabic', 'Segoe UI', 'Noto Sans Arabic', Roboto, Helvetica, Arial, sans-serif",
           overscrollBehavior: 'none',
           WebkitTapHighlightColor: 'transparent',
+          WebkitFontSmoothing: 'antialiased',
+          MozOsxFontSmoothing: 'grayscale',
         }}
       >
         <ThemeProvider>

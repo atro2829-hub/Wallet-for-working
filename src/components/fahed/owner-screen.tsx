@@ -323,7 +323,7 @@ export default function OwnerScreen() {
 
   // Entertainment management (enhanced)
   const [showAddOwnerProvider, setShowAddOwnerProvider] = useState(false);
-  const [newOwnerProvider, setNewOwnerProvider] = useState({ name: '', color: '#E60000', categoryId: 'entertainment', inputLabel: '', inputType: 'text' as 'phone' | 'text', inputPrefix: '', icon: '' });
+  const [newOwnerProvider, setNewOwnerProvider] = useState({ name: '', color: '#E60000', categoryId: 'wallet-services', inputLabel: '', inputType: 'text' as 'phone' | 'text', inputPrefix: '', icon: '' });
   const [showAddOwnerPackage, setShowAddOwnerPackage] = useState(false);
   const [newOwnerPackage, setNewOwnerPackage] = useState({ name: '', price: 0, currency: 'YER' as 'YER' | 'SAR' | 'USD', providerId: '', executionType: 'manual' as 'manual' | 'auto' });
   const [editingOwnerProduct, setEditingOwnerProduct] = useState<string | null>(null);
@@ -1480,7 +1480,7 @@ export default function OwnerScreen() {
                 {/* Providers Tab */}
                 {ownerEntertainmentTab === 'providers' && (
                   <>
-                    {ownerProviders.filter(p => p.categoryId === 'entertainment' || p.categoryId === 'cards').map((provider) => {
+                    {ownerProviders.filter(p => p.categoryId === 'wallet-services' || p.categoryId === 'entertainment' || p.categoryId === 'cards').map((provider) => {
                       const providerProducts = ownerPackages.filter(p => p.providerId === provider.id);
                       return (
                         <div key={provider.id} className="rounded-2xl overflow-hidden" style={cardStyle}>
@@ -1506,7 +1506,7 @@ export default function OwnerScreen() {
                         </div>
                       );
                     })}
-                    {ownerProviders.filter(p => p.categoryId === 'entertainment' || p.categoryId === 'cards').length === 0 && (
+                    {ownerProviders.filter(p => p.categoryId === 'wallet-services' || p.categoryId === 'entertainment' || p.categoryId === 'cards').length === 0 && (
                       <div className="flex flex-col items-center py-8"><Gamepad2 size={40} strokeWidth={1.5} color={isDark ? '#333' : '#DDD'} /><p className="text-sm mt-2" style={{ color: isDark ? '#666' : '#AAA' }}>لا توجد خدمات ترفيهية</p></div>
                     )}
                   </>
@@ -1515,7 +1515,7 @@ export default function OwnerScreen() {
                 {/* Products Tab */}
                 {ownerEntertainmentTab === 'products' && (
                   <>
-                    {ownerProviders.filter(p => p.categoryId === 'entertainment' || p.categoryId === 'cards').map((provider) => {
+                    {ownerProviders.filter(p => p.categoryId === 'wallet-services' || p.categoryId === 'entertainment' || p.categoryId === 'cards').map((provider) => {
                       const providerProducts = ownerPackages.filter(p => p.providerId === provider.id && (!ownerProductSearch || p.name.toLowerCase().includes(ownerProductSearch.toLowerCase())));
                       if (providerProducts.length === 0 && !ownerProductSearch) return null;
                       return (
@@ -1620,7 +1620,7 @@ export default function OwnerScreen() {
                             ...newOwnerProvider,
                             isActive: true,
                           });
-                          setNewOwnerProvider({ name: '', color: '#E60000', categoryId: 'entertainment', inputLabel: '', inputType: 'text', inputPrefix: '', icon: '' });
+                          setNewOwnerProvider({ name: '', color: '#E60000', categoryId: 'wallet-services', inputLabel: '', inputType: 'text', inputPrefix: '', icon: '' });
                           const logId = generateReference();
                           set(ref(database, `ownerSettings/activityLog/${logId}`), {
                             id: logId, type: 'admin', action: `تم إضافة مزود جديد: ${newOwnerProvider.name}`,
@@ -1638,7 +1638,7 @@ export default function OwnerScreen() {
                       </div>
                       <select value={newOwnerPackage.providerId} onChange={(e) => setNewOwnerPackage({ ...newOwnerPackage, providerId: e.target.value })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
                         <option value="">اختر المزود</option>
-                        {ownerProviders.filter(p => p.categoryId === 'entertainment' || p.categoryId === 'cards').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        {ownerProviders.filter(p => p.categoryId === 'wallet-services' || p.categoryId === 'entertainment' || p.categoryId === 'cards').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
                       <input type="text" placeholder="اسم المنتج" value={newOwnerPackage.name} onChange={(e) => setNewOwnerPackage({ ...newOwnerPackage, name: e.target.value })} className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} />
                       <div className="flex gap-2">

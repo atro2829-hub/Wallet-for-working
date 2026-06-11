@@ -61,7 +61,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 admin-gradient">
+    <div className="min-h-screen flex items-center justify-center p-4 ios-bg">
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -74,7 +74,7 @@ export default function LoginScreen() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-purple-600/20 backdrop-blur-xl border border-purple-500/30 flex items-center justify-center overflow-hidden"
+            className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center overflow-hidden shadow-xl shadow-purple-500/20"
           >
             <img
               src={APP_ICON_BASE64}
@@ -86,41 +86,41 @@ export default function LoginScreen() {
               }}
             />
           </motion.div>
-          <h1 className="text-2xl font-bold text-white mb-2">محفظة الجنوب - الإدارة</h1>
-          <p className="text-purple-300/70 text-sm">لوحة تحكم المديرين</p>
+          <h1 className="text-2xl font-bold text-foreground mb-1">محفظة الجنوب</h1>
+          <p className="text-muted-foreground text-sm">لوحة تحكم المديرين</p>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 shadow-2xl">
+        {/* Login Card - iOS Style */}
+        <div className="ios-card-elevated p-6">
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-purple-200 mb-2">البريد الإلكتروني</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5 px-1">البريد الإلكتروني</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@example.com"
-                className="w-full h-12 px-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                className="w-full h-12 px-4 rounded-2xl bg-muted/30 border border-border/50 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/30 transition-all"
                 required
                 dir="ltr"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-purple-200 mb-2">كلمة المرور</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5 px-1">كلمة المرور</label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="********"
-                  className="w-full h-12 px-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  className="w-full h-12 px-4 rounded-2xl bg-muted/30 border border-border/50 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/30 transition-all"
                   required
                   dir="ltr"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors p-1"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -128,16 +128,16 @@ export default function LoginScreen() {
             </div>
 
             {error && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 p-3 bg-red-500/20 border border-red-500/30 rounded-xl">
-                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-                <p className="text-red-300 text-sm">{error}</p>
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 p-3 rounded-2xl bg-red-500/5 border border-red-500/15">
+                <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+                <p className="text-red-500 text-sm">{error}</p>
               </motion.div>
             )}
 
             <button
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full h-12 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800/50 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+              className="w-full h-12 bg-purple-500 hover:bg-purple-600 disabled:bg-purple-500/30 disabled:cursor-not-allowed text-white font-semibold rounded-2xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 active:scale-[0.98]"
             >
               {loading ? (
                 <><Loader2 className="w-5 h-5 animate-spin" /><span>جاري تسجيل الدخول...</span></>
@@ -148,7 +148,10 @@ export default function LoginScreen() {
           </form>
         </div>
 
-        <p className="text-center text-purple-400/50 text-xs mt-6">محفظة الجنوب - نظام الإدارة v2.0</p>
+        <div className="text-center mt-6">
+          <p className="text-muted-foreground/40 text-[10px]">محفظة الجنوب - نظام الإدارة v2.1</p>
+          <p className="text-muted-foreground/30 text-[9px] mt-1">تم التطوير بواسطة: مؤسسة QTBM DEV</p>
+        </div>
       </motion.div>
     </div>
   );

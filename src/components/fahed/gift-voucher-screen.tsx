@@ -132,6 +132,19 @@ export default function GiftVoucherScreen() {
 
       await update(ref(database), updates);
 
+      // Send FCM push notification for gift code creation
+      try {
+        const { sendNotificationToUser } = await import('@/lib/notifications');
+        await sendNotificationToUser(user.id, {
+          title: 'تم إنشاء قسيمة الهدية',
+          body: `تم إنشاء قسيمة بمبلغ ${amountNum} ${currencySymbols[currency]} وكود ${code}`,
+          type: 'transaction',
+          data: { action: 'gift_code_created', amount: String(amountNum), currency, code },
+        });
+      } catch (notifErr) {
+        console.warn('Gift code creation notification failed:', notifErr);
+      }
+
       setUser({ ...user, [balanceField]: currentBalance - amountNum });
       setCreatedCode(newCode);
       setAmount('');
@@ -408,6 +421,27 @@ export default function GiftVoucherScreen() {
                     };
                     await update(ref(database), updates);
                     setUser({ ...user, [balanceField]: currentBalance + foundCode.amount });
+
+                    // Send FCM push notification to redeemer
+                    try {
+                      const { sendNotificationToUser } = await import('@/lib/notifications');
+                      await sendNotificationToUser(user.id, {
+                        title: 'تم استرداد القسيمة!',
+                        body: `تم إضافة ${foundCode.amount} ${currencySymbols[codeCurrency]} إلى رصيدك`,
+                        type: 'transaction',
+                        data: { action: 'gift_code_redeemed', amount: String(foundCode.amount), currency: codeCurrency },
+                      });
+                      // Notify the creator that their gift code was redeemed
+                      await sendNotificationToUser(foundCode.creatorUid, {
+                        title: 'تم استرداد قسيمة الهدية',
+                        body: `تم استرداد قسيمتك بمبلغ ${foundCode.amount} ${currencySymbols[codeCurrency]} بواسطة ${user.name || 'مستخدم'}`,
+                        type: 'transaction',
+                        data: { action: 'gift_code_used', amount: String(foundCode.amount), currency: codeCurrency },
+                      });
+                    } catch (notifErr) {
+                      console.warn('Gift code redeem notification failed:', notifErr);
+                    }
+
                     addNotification({
                       id: `gift-redeem-${Date.now()}`, title: 'تم استرداد القسيمة!',
                       body: `تم إضافة ${foundCode.amount} ${currencySymbols[codeCurrency]} إلى رصيدك`,

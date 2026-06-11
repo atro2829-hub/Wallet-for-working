@@ -141,8 +141,8 @@ export function useAdminSettings() {
     [],
   );
 
-  // ─── Set up all listeners ──────────────────────────────────────────────
-  const setupListeners = useCallback(() => {
+  // ─── Set up listeners that require authentication ──────────────────────
+  const setupAuthenticatedListeners = useCallback(() => {
     const store = useAppStore.getState();
 
     // 1. Card colors
@@ -153,19 +153,7 @@ export function useAdminSettings() {
       }
     });
 
-    // 2. Maintenance mode
-    attachListener('maintenance', PATHS.maintenance, (snapshot) => {
-      const data = snapshot.val();
-      store.setMaintenance(data as MaintenanceMode | null);
-    });
-
-    // 3. Force update
-    attachListener('forceUpdate', PATHS.forceUpdate, (snapshot) => {
-      const data = snapshot.val();
-      store.setForceUpdate(data as ForceUpdate | null);
-    });
-
-    // 4. Visibility settings
+    // 2. Visibility settings
     attachListener('visibility', PATHS.visibility, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -179,12 +167,10 @@ export function useAdminSettings() {
       }
     });
 
-    // 5. Investment plans
+    // 3. Investment plans
     attachListener('investmentPlans', PATHS.investmentPlans, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        // Firebase stores arrays as objects with numeric keys sometimes;
-        // normalise to a flat array of InvestmentPlan
         const plans: InvestmentPlan[] = Array.isArray(data)
           ? data.filter(Boolean)
           : Object.values(data).filter(Boolean);
@@ -194,7 +180,7 @@ export function useAdminSettings() {
       }
     });
 
-    // 6. Exchange rates
+    // 4. Exchange rates
     attachListener('exchangeRates', PATHS.exchangeRates, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -206,7 +192,7 @@ export function useAdminSettings() {
       }
     });
 
-    // 7. Social links
+    // 5. Social links
     attachListener('socialLinks', PATHS.socialLinks, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -220,30 +206,27 @@ export function useAdminSettings() {
       }
     });
 
-    // 8. Banners
+    // 6. Banners
     attachListener('banners', PATHS.banners, (snapshot) => {
       const data = snapshot.val();
       setBanners(parseBanners(data));
     });
 
-    // 9. Sections / categories (owner settings)
+    // 7. Sections / categories (owner settings)
     attachListener('sections', PATHS.sections, (snapshot) => {
       const data = snapshot.val();
       setSections(parseSections(data));
     });
 
-    // 10. Providers (from Firebase)
-    // IMPORTANT: Use Firebase key as the provider ID (not the stored `id` field)
-    // because the stored `id` may contain Firebase push IDs from south-admin,
-    // while the Firebase key IS the correct human-readable ID (e.g., 'pubg', 'freefire')
+    // 8. Providers (from Firebase)
     attachListener('providers', PATHS.providers, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         const entries = Object.entries(data) as [string, any][];
         const providers: ServiceProvider[] = entries
-          .filter(([key, p]) => p && p.name) // skip ghost/corrupted entries
+          .filter(([key, p]) => p && p.name)
           .map(([key, p]) => ({
-            id: key, // Use Firebase key as the canonical ID
+            id: key,
             categoryId: p.categoryId || 'telecom',
             name: p.name || '',
             color: p.color || '#6C3CE1',
@@ -257,7 +240,7 @@ export function useAdminSettings() {
       }
     });
 
-    // 11. Packages (from Firebase)
+    // 9. Packages (from Firebase)
     attachListener('packages', PATHS.packages, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -278,33 +261,75 @@ export function useAdminSettings() {
     });
   }, [attachListener, parseBanners, parseSections]);
 
+  // ─── Set up global listeners (always active, even without auth) ────────
+  const setupGlobalListeners = useCallback(() => {
+    const store = useAppStore.getState();
+
+    // Maintenance mode - ALWAYS listen, even when not authenticated
+    attachListener('maintenance', PATHS.maintenance, (snapshot) => {
+      const data = snapshot.val();
+      store.setMaintenance(data as MaintenanceMode | null);
+    });
+
+    // Force update - ALWAYS listen, even when not authenticated
+    attachListener('forceUpdate', PATHS.forceUpdate, (snapshot) => {
+      const data = snapshot.val();
+      store.setForceUpdate(data as ForceUpdate | null);
+    });
+  }, [attachListener]);
+
   // ─── Tear down all listeners ───────────────────────────────────────────
   const teardownListeners = useCallback(() => {
     unsubscribersRef.current.forEach((unsubscribe) => unsubscribe());
     unsubscribersRef.current.clear();
   }, []);
 
-  // ─── Lifecycle: attach / detach based on auth state ────────────────────
+  // ─── Tear down only authenticated listeners ────────────────────────────
+  const teardownAuthenticatedListeners = useCallback(() => {
+    const authKeys = ['cardColors', 'visibility', 'investmentPlans', 'exchangeRates', 'socialLinks', 'banners', 'sections', 'providers', 'packages'];
+    authKeys.forEach((key) => {
+      const unsub = unsubscribersRef.current.get(key);
+      if (unsub) {
+        unsub();
+        unsubscribersRef.current.delete(key);
+      }
+    });
+  }, []);
+
+  // ─── Lifecycle: global listeners (always on) ───────────────────────────
+  useEffect(() => {
+    setupGlobalListeners();
+
+    return () => {
+      // Only tear down global listeners on unmount
+      const globalKeys = ['maintenance', 'forceUpdate'];
+      globalKeys.forEach((key) => {
+        const unsub = unsubscribersRef.current.get(key);
+        if (unsub) {
+          unsub();
+          unsubscribersRef.current.delete(key);
+        }
+      });
+    };
+  }, [setupGlobalListeners]);
+
+  // ─── Lifecycle: authenticated listeners (attach/detach on auth) ────────
   useEffect(() => {
     if (isAuthenticated) {
-      setIsLoading(true);
-      setupListeners();
+      setupAuthenticatedListeners();
       // Allow a short grace period for first callbacks to arrive
       const timer = setTimeout(() => setIsLoading(false), 1500);
       return () => {
         clearTimeout(timer);
-        teardownListeners();
+        teardownAuthenticatedListeners();
       };
     } else {
-      teardownListeners();
-      setIsLoading(false);
+      teardownAuthenticatedListeners();
     }
-  }, [isAuthenticated, setupListeners, teardownListeners]);
+  }, [isAuthenticated, setupAuthenticatedListeners, teardownAuthenticatedListeners]);
 
   // ─── Manual refresh (pull-to-refresh) ──────────────────────────────────
   const refreshAll = useCallback(async () => {
-    if (!isAuthenticated) return;
-
     setIsLoading(true);
     const store = useAppStore.getState();
 
@@ -433,7 +458,7 @@ export function useAdminSettings() {
 
     await Promise.allSettled(fetchPromises);
     setIsLoading(false);
-  }, [isAuthenticated, parseBanners, parseSections]);
+  }, [parseBanners, parseSections]);
 
   // ─── Return value ──────────────────────────────────────────────────────
 

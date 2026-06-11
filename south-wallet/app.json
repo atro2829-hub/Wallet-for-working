@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "محفظة الجنوب",
+    "slug": "south-wallet",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.qtbm.south"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/icon.png"
+      },
+      "package": "com.qtbm.south",
+      "googleServicesFile": "./android/app/google-services.json",
+      "versionCode": 1
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-notifications",
+      "expo-haptics",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "يحتاج التطبيق للوصول إلى الصور للتحقق من الهوية"
+        }
+      ],
+      [
+        "expo-barcode-scanner",
+        {
+          "cameraPermission": "يحتاج التطبيق للوصول إلى الكاميرا لمسح الرموز"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "southern-portfolio"
+      }
+    }
+  }
+}

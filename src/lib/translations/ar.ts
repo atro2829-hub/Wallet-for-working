@@ -120,6 +120,8 @@ const ar = {
     telecom: 'الاتصالات',
     entertainment: 'خدمات ترفيهية',
     digitalCards: 'بطاقات رقمية',
+    serviceProviders: 'مزودين الخدمات',
+    walletServices: 'خدمات المحفظة الخاصة بنا',
     moneyTransfer: 'تحويل الأموال',
     rechargeBalance: 'شحن رصيد',
     payBills: 'سداد الفواتير',

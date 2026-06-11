@@ -13,6 +13,7 @@ import { currencySymbols, currencyNames, currencyBadgeColors, formatNumber, form
 import { LOGO_BASE64 } from '@/lib/logo';
 import { ref, get, update } from 'firebase/database';
 import { database } from '@/lib/firebase';
+import { syncExchangeRatesFromApi, getExchangeRatesFromFirebase } from '@/lib/exchange-rate-sync';
 
 interface ConversionRecord {
   fromAmount: number;
@@ -112,19 +113,10 @@ export default function ExchangeScreen() {
   useEffect(() => {
     const fetchRates = async () => {
       try {
-        const snapshot = await get(ref(database, 'adminSettings/exchangeRates'));
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          const rates = {
-            YER: 1,
-            SAR: data.YER_SAR ?? defaultExchangeRates.SAR,
-            USD: data.YER_USD ?? defaultExchangeRates.USD,
-          };
-          setExchangeRates(rates);
-          if (typeof data.commission === 'number') {
-            setCommission(data.commission);
-          }
-        }
+        const ratesData = await getExchangeRatesFromFirebase();
+        setExchangeRates({ YER: ratesData.YER, SAR: ratesData.SAR, USD: ratesData.USD });
+        setCommission(ratesData.commission);
+        setLastUpdate(ratesData.lastSynced);
       } catch {
         // Fall back to default rates from store (already initialized)
       }
@@ -171,28 +163,30 @@ export default function ExchangeScreen() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      const snapshot = await get(ref(database, 'adminSettings/exchangeRates'));
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const newRates = {
-          YER: 1,
-          SAR: data.YER_SAR ?? exchangeRates.SAR,
-          USD: data.YER_USD ?? exchangeRates.USD,
-        };
-        setTrends({
-          'YER-SAR': newRates.SAR > exchangeRates.SAR ? 'up' : newRates.SAR < exchangeRates.SAR ? 'down' : 'stable',
-          'YER-USD': newRates.USD > exchangeRates.USD ? 'up' : newRates.USD < exchangeRates.USD ? 'down' : 'stable',
-          'SAR-USD': (newRates.USD / newRates.SAR) > (exchangeRates.USD / exchangeRates.SAR) ? 'up' : 'down',
-        });
-        setExchangeRates(newRates);
-        if (typeof data.commission === 'number') {
-          setCommission(data.commission);
-        }
+      // Try to sync from API first (updates Firebase + returns new rates)
+      let newRatesData;
+      try {
+        newRatesData = await syncExchangeRatesFromApi();
+      } catch {
+        // If API fails, fall back to reading from Firebase
+        newRatesData = await getExchangeRatesFromFirebase();
       }
+      const newRates = {
+        YER: newRatesData.YER,
+        SAR: newRatesData.SAR,
+        USD: newRatesData.USD,
+      };
+      setTrends({
+        'YER-SAR': newRates.SAR > exchangeRates.SAR ? 'up' : newRates.SAR < exchangeRates.SAR ? 'down' : 'stable',
+        'YER-USD': newRates.USD > exchangeRates.USD ? 'up' : newRates.USD < exchangeRates.USD ? 'down' : 'stable',
+        'SAR-USD': (newRates.USD / newRates.SAR) > (exchangeRates.USD / exchangeRates.SAR) ? 'up' : 'down',
+      });
+      setExchangeRates(newRates);
+      setCommission(newRatesData.commission);
+      setLastUpdate(newRatesData.lastSynced);
     } catch {
       // Keep existing rates on error
     }
-    setLastUpdate(new Date().toISOString());
     setTimeout(() => setIsRefreshing(false), 800);
   };
 
@@ -257,6 +251,26 @@ export default function ExchangeScreen() {
       };
 
       await update(ref(database), updates);
+
+      // Send FCM push notification for exchange
+      try {
+        const { sendNotificationToUser, sendNotificationToAdmin } = await import('@/lib/notifications');
+        await sendNotificationToUser(user.id, {
+          title: 'تم التبديل بنجاح',
+          body: `تم تبديل ${formatNumber(amount)} ${currencySymbols[fromCurrency]} إلى ${result < 1 ? result.toFixed(4) : formatNumber(parseFloat(result.toFixed(2)))} ${currencySymbols[toCurrency]}`,
+          type: 'transaction',
+          data: { action: 'exchange', amount: String(amount), currency: fromCurrency },
+        });
+        await sendNotificationToAdmin({
+          title: 'عملية تبديل عملات',
+          body: `${user.name} بدّل ${formatNumber(amount)} ${fromCurrency} إلى ${toCurrency}`,
+          type: 'transaction',
+          category: 'transactions',
+          data: { action: 'exchange', userId: user.id },
+        });
+      } catch (notifErr) {
+        console.warn('Exchange notification failed:', notifErr);
+      }
 
       // Generate voucher
       const refNum = generateReferenceNumber();
